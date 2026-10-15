@@ -37,9 +37,11 @@ body{margin:0;background:var(--bg);color:var(--ink);
 .card h2{font-size:15px;margin:0 0 10px;font-weight:650}
 p.note{color:var(--muted);font-size:13px;margin:6px 0 0}
 label{display:block;font-size:13px;color:var(--muted);margin:10px 0 5px}
-input[type=text],input[type=number],input[type=date],input[type=password],textarea,select{
+input[type=text],input[type=number],input[type=date],input[type=time],input[type=password],textarea,select{
  width:100%;padding:11px 12px;font:inherit;color:var(--ink);background:var(--bg);
  border:1px solid var(--line);border-radius:9px}
+/* 모바일 기본 날짜·시간 선택기가 카드 너비를 밀어내지 않도록 제한합니다. */
+input[type=date],input[type=time]{display:block;width:100%;max-width:100%;min-width:0;font-size:16px}
 textarea{min-height:110px;font-size:13px;line-height:1.45;resize:vertical}
 input:focus-visible,textarea:focus-visible,button:focus-visible,select:focus-visible{
  outline:3px solid var(--turf-mid);outline-offset:2px}
@@ -154,6 +156,15 @@ tr.gold td:first-child{color:var(--turf)}
 /* 첫 화면의 라운드 요약은 종목 수가 많아도 최대 두 줄만 표시합니다. */
 .round-summary{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;
  line-clamp:2;max-height:3.1em;line-height:1.55;overflow:hidden;overflow-wrap:anywhere}
+/* 첫 화면에서 날짜·시각·장소를 한 줄에 몰아넣어 시각이 잘리는 문제를 방지합니다. */
+.round-meta{display:flex;align-items:center;flex-wrap:wrap;gap:2px 8px;min-width:0;
+ color:var(--muted);font-size:12px;line-height:1.5;margin-top:2px}
+.round-meta .round-tee{flex:none;font-weight:650;white-space:nowrap;color:var(--ink)}
+.round-meta .round-place{flex:1 1 100px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 라운드 상세 머리행에서도 시간은 아래 줄에 표시하여 가려지지 않게 합니다. */
+.bar h1.round-head{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.25}
+.bar h1.round-head .sub{margin-top:2px;white-space:normal;overflow-wrap:anywhere;line-height:1.4}
+.round-head .round-tee{white-space:nowrap;font-weight:600}
 .rules-intro{font-size:14px;line-height:1.6;margin:0}
 .rule-desc{font-size:14px;line-height:1.65;margin:0}
 .rule-desc+.rule-desc{margin-top:7px}
@@ -163,7 +174,7 @@ tr.gold td:first-child{color:var(--turf)}
 <div id="app"></div>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.1.3";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.1.4";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_CLUB_ID=/^[a-z][a-z0-9-]{2,59}$/.test(SUPPLY_PARAMS.get("club")||"")?SUPPLY_PARAMS.get("club"):"palseong-masters";
@@ -639,7 +650,10 @@ function scrHome(){
   return '<li class="item" style="cursor:pointer" onclick="go(\'result\',{rid:\''+r.id+'\'})">'+
    '<span class="ribbon'+(pl?'':' done')+'">'+(pl?'예정':'결과')+'</span>'+
    '<div style="flex:1;min-width:0">'+
-   '<div class="nm">'+roundNo(r)+'차 · '+esc(r.date)+esc(teeTimeLabel(r))+(r.place?' · '+esc(r.place):'')+'</div>'+
+   '<div class="nm">'+roundNo(r)+'차 · '+esc(r.date)+'</div>'+ 
+   ((r.teeTime||r.place)?'<div class="round-meta">'+
+     (r.teeTime?'<span class="round-tee">티오프 '+esc(r.teeTime)+'</span>':'')+
+     (r.place?'<span class="round-place">'+esc(r.place)+'</span>':'')+'</div>':'')+
    '<div class="mt round-summary" title="'+esc(sum)+'">'+esc(sum)+'</div></div>'+
    '<span class="mt">\u203a</span></li>'}).join("")
   :'<div class="empty">아직 라운드가 없습니다.</div>';
@@ -1236,7 +1250,7 @@ function scrResult(){
  return '<div class="screen">'+
  '<div class="bar"><button class="chip" onclick="go(\'home\')">홈</button>'+
  '<span class="ribbon'+(isPlanned(r)?'':' done')+'">'+(isPlanned(r)?'예정':'결과')+'</span>'+
- '<h1>'+no+'차 '+esc(r.date)+esc(teeTimeLabel(r))+'<div class="sub">'+esc(r.place||"")+'</div></h1>'+
+ '<h1 class="round-head">'+no+'차 '+esc(r.date)+'<div class="sub">'+(r.teeTime?'<span class="round-tee">티오프 '+esc(r.teeTime)+'</span>':'')+(r.teeTime&&r.place?' · ':'')+esc(r.place||"")+'</div></h1>'+
  '</div>'+
  '<div style="padding:12px 14px 0"><div class="row2">'+
  '<button class="btn sm quiet" onclick="go(\'play\',{rid:\''+r.id+'\',hole:1})">필드 스코어 입력</button>'+
