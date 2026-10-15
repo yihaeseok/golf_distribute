@@ -135,6 +135,34 @@ td.win{font-weight:700;color:var(--turf)}
 .sig .lamp.red{background:#ff7a5c;box-shadow:0 0 0 3px rgba(255,122,92,.3)}
 .sig .lamps{display:flex;gap:7px}
 .sig .txt{font-size:11px;font-weight:650;line-height:1.2;text-align:center}
+.round-line{white-space:normal;word-break:keep-all;line-height:1.45;margin-top:2px}
+/* v1.4.0 라운드 결과를 열 때 첫 종목 우승자에게 터지는 폭죽 */
+.fw{position:fixed;inset:0;pointer-events:none;z-index:70;overflow:hidden}
+.fw i{position:absolute;top:-24px;width:9px;height:14px;border-radius:2px;opacity:0;
+ animation:fwFall 2.4s cubic-bezier(.25,.6,.4,1) forwards}
+@keyframes fwFall{
+ 0%{opacity:0;transform:translateY(-10px) rotate(0deg) scale(.6)}
+ 8%{opacity:1}
+ 100%{opacity:0;transform:translateY(105vh) rotate(900deg) scale(1)}}
+.fw .burst{position:absolute;left:50%;top:26%;transform:translate(-50%,-50%);
+ font-size:52px;opacity:0;animation:fwPop 1.5s ease-out forwards}
+@keyframes fwPop{
+ 0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}
+ 25%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}
+ 60%{opacity:1;transform:translate(-50%,-50%) scale(1)}
+ 100%{opacity:0;transform:translate(-50%,-62%) scale(1.05)}}
+.fw .who{position:absolute;left:50%;top:38%;transform:translateX(-50%);
+ background:var(--turf);color:var(--card);padding:9px 18px;border-radius:999px;
+ font-size:15px;font-weight:700;white-space:nowrap;opacity:0;
+ animation:fwWho 2s ease-out forwards;box-shadow:0 6px 20px var(--shade)}
+@keyframes fwWho{
+ 0%{opacity:0;transform:translateX(-50%) translateY(10px)}
+ 20%{opacity:1;transform:translateX(-50%) translateY(0)}
+ 75%{opacity:1}
+ 100%{opacity:0;transform:translateX(-50%) translateY(-8px)}}
+@media (prefers-reduced-motion:reduce){
+ .fw i{display:none}
+ .fw .burst,.fw .who{animation-duration:.01s}}
 .ribbon{background:var(--clay);color:#fff;padding:3px 9px;border-radius:999px;
  font-size:11.5px;font-weight:700;flex:none}
 .ribbon.done{background:var(--turf-mid)}
@@ -185,7 +213,7 @@ tr.gold td:first-child{color:var(--turf)}
 <div id="app"></div>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.3.1";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.4.0";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -651,6 +679,44 @@ function verMismatch(){
  var a=String(APP_VER).split("."),b=String(L.serverVer).split(".");
  return a[0]!==b[0]||a[1]!==b[1];
 }
+/* 라운드 결과를 열 때, 첫 종목의 1등에게 폭죽을 터뜨립니다.
+   같은 라운드를 다시 그릴 때는 터지지 않고, 화면을 새로 열 때만 터집니다. */
+var fwShown="";
+function firstWinnerLabel(r){
+ var gl=roundGames(r).slice().sort(function(x,y){
+  return (x.type==="team"?0:1)-(y.type==="team"?0:1)});
+ var g=gl[0];if(!g)return "";
+ if(g.type==="team"){
+  var tr=teamResult(r,g);if(!tr)return "";
+  var w=tr.sides.filter(function(s){return s.rank===1});
+  if(!w.length)return "";
+  return "팀전 "+w.map(function(s){return s.key+"팀"}).join(", ")+" 우승";
+ }
+ var rows=gameRows(r,g.type,g.rev);if(!rows.length)return "";
+ var w2=rows.filter(function(x){return x.rank===1});
+ if(!w2.length)return "";
+ var G=GAMES[g.type];
+ return (G?G.name:"")+" "+w2.map(function(x){return x.name}).join(", ")+" 우승";
+}
+function fireworks(label){
+ try{
+  var old=document.getElementById("fwBox");if(old)old.remove();
+  var box=document.createElement("div");
+  box.className="fw";box.id="fwBox";
+  var cols=["#f2c14e","#5fe08a","#ff7a5c","#7ab8ff","#e5a0ff","#ffffff"];
+  var html='<div class="burst">\ud83c\udf89</div>';
+  if(label)html+='<div class="who">\ud83c\udf1f '+esc(label)+'</div>';
+  for(var i=0;i<46;i++){
+   var left=Math.round(Math.random()*100);
+   var delay=(Math.random()*0.7).toFixed(2);
+   var dur=(1.8+Math.random()*1.2).toFixed(2);
+   var c=cols[i%cols.length];
+   html+='<i style="left:'+left+'%;background:'+c+';animation-delay:'+delay+'s;animation-duration:'+dur+'s"></i>';
+  }
+  box.innerHTML=html;
+  document.body.appendChild(box);
+  setTimeout(function(){if(box&&box.parentNode)box.remove()},3200);
+ }catch(e){}}
 function signalTap(){
  if(L.cloudNew){L.cloudNew=false;save(false);pullCloud();return}
  pullCloud();
@@ -738,6 +804,7 @@ function render(){
  var app=document.getElementById("app");
  if(SUPPLY_CLUB_PICK){app.innerHTML=scrPick();return}
  if(S&&S.room&&S.room.name)setDocTitle(S.room.name);
+ if(view.name!=="result")fwShown="";
  if(!S.room&&view.name!=="data")app.innerHTML=scrStart();
  else if(view.name==="members")app.innerHTML=scrMembers();
  else if(view.name==="newround")app.innerHTML=scrNewRound();
@@ -751,6 +818,10 @@ function render(){
  else if(view.name==="past")app.innerHTML=scrPast();
  else if(view.name==="scan")app.innerHTML=scrScan();
  else app.innerHTML=scrHome();
+ if(view.name==="result"&&fwShown!==view.rid){
+  var fr=round(view.rid);
+  if(fr){var lab=firstWinnerLabel(fr);
+   if(lab){fwShown=view.rid;setTimeout(function(){fireworks(lab)},160)}}}
  if(sheet)app.insertAdjacentHTML("beforeend",sheet);
  if(view.name==="play")markEnter();
  if(view.name==="newround"||view.name==="edit")teamPreview()}
@@ -761,18 +832,28 @@ function scrHome(){
  var rs=sortedRounds().slice().reverse();
  var list=rs.length?rs.map(function(r){
   var pl=isPlanned(r);
-  var sum=pl?(r.players.length+"명 · "+roundGames(r).map(function(g){
-    return GAMES[g.type]?GAMES[g.type].name:""}).join(", ")):roundSummary(r);
-  if(!sum)sum=r.players.length+"명 · 아직 결과가 없습니다";
-  return '<li class="item" style="cursor:pointer" onclick="go(\'result\',{rid:\''+r.id+'\'})">'+
-   '<span class="ribbon'+(pl?'':' done')+'">'+(pl?'예정':'결과')+'</span>'+
+  /* v1.3.2 라운드 한 줄에 두 줄을 더 보입니다.
+     둘째 줄 : 참가 인원 · 스크린/필드 · 골프장 · 코스 · 참가자 이름
+     셋째 줄 : 부문별 우승자 (예정 라운드는 걸린 종목) */
+  var who=r.players.map(function(mid){return mname(mid)}).join(", ");
+  var bits=[];
+  bits.push("참가 "+r.players.length+"명");
+  var vl=venueLabel(r);if(vl)bits.push(vl);
+  if(r.place)bits.push(r.place);
+  if(r.course)bits.push(r.course);
+  var meta=bits.join(" · ");
+  var sum=pl?roundGames(r).map(function(g){
+    return GAMES[g.type]?GAMES[g.type].name:""}).filter(function(x){return x}).join(", "):roundSummary(r);
+  if(!sum)sum="아직 결과가 없습니다";
+  return '<li class="item" style="cursor:pointer;align-items:flex-start" onclick="go(\'result\',{rid:\''+r.id+'\'})">'+
+   '<span class="ribbon'+(pl?'':' done')+'" style="margin-top:2px">'+(pl?'예정':'결과')+'</span>'+
    '<div style="flex:1;min-width:0">'+
-   '<div class="nm">'+roundNo(r)+'차 · '+esc(r.date)+'</div>'+ 
-   ((r.teeTime||r.place)?'<div class="round-meta">'+
-     (r.teeTime?'<span class="round-tee">티오프 '+esc(r.teeTime)+'</span>':'')+
-     (placeLabel(r)?'<span class="round-place">'+esc(placeLabel(r))+'</span>':'')+'</div>':'')+
-   '<div class="mt round-summary" title="'+esc(sum)+'">'+esc(sum)+'</div></div>'+
-   '<span class="mt">\u203a</span></li>'}).join("")
+   '<div class="nm">'+roundNo(r)+'차 · '+esc(r.date)+
+   (r.teeTime?' <span class="mt">'+esc(r.teeTime)+'</span>':'')+'</div>'+
+   '<div class="mt round-line">'+esc(meta)+'</div>'+
+   (who?'<div class="mt round-line">'+esc(who)+'</div>':'')+
+   '<div class="mt round-line" style="color:var(--turf-mid)">'+esc(sum)+'</div></div>'+
+   '<span class="mt" style="margin-top:2px">\u203a</span></li>'}).join("")
   :'<div class="empty">아직 라운드가 없습니다.</div>';
  var host=hostSessionActive();
  var sigNew=!!L.cloudNew, sigDirty=!!L.dirty;
