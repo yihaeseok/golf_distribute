@@ -174,19 +174,51 @@ tr.gold td:first-child{color:var(--turf)}
 <div id="app"></div>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.1.4";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.2.0";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
-var SUPPLY_CLUB_ID=/^[a-z][a-z0-9-]{2,59}$/.test(SUPPLY_PARAMS.get("club")||"")?SUPPLY_PARAMS.get("club"):"palseong-masters";
-var SUPPLY_CLUB_NAME=(SUPPLY_PARAMS.get("name")||"").slice(0,60)||
- (SUPPLY_CLUB_ID==="palseong-masters"?"팔성마스터즈":SUPPLY_CLUB_ID);
+var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
+/* v1.2.0: 모임 식별번호가 없을 때 특정 모임으로 자동 연결하지 않습니다.
+   다만 이 기기에 이미 저장된 모임이 하나뿐이면 기존 즐겨찾기 호환을 위해 그 모임으로 들어갑니다. */
+function supplyStoredClubs(){
+ var out=[];
+ try{
+  for(var i=0;i<localStorage.length;i++){
+   var k=localStorage.key(i),m=k&&k.match(/^woorigolf\.supply\.([a-z][a-z0-9-]{2,59})\.data$/);
+   if(!m)continue;
+   var name=m[1];
+   try{var d=JSON.parse(localStorage.getItem(k));
+    if(d&&d.room&&d.room.clubId===m[1]&&typeof d.room.name==="string"&&d.room.name)name=d.room.name}catch(e){}
+   out.push({id:m[1],name:name});
+  }
+ }catch(e){}
+ out.sort(function(a,b){return a.id<b.id?-1:1});
+ return out;
+}
+var SUPPLY_STORED=supplyStoredClubs();
+var SUPPLY_CLUB_ID=SUPPLY_SLUG_RE.test(SUPPLY_PARAMS.get("club")||"")?SUPPLY_PARAMS.get("club")
+ :(SUPPLY_STORED.length===1?SUPPLY_STORED[0].id:"");
+var SUPPLY_CLUB_PICK=!SUPPLY_CLUB_ID;
+var SUPPLY_CLUB_NAME=SUPPLY_CLUB_ID?((SUPPLY_PARAMS.get("name")||"").slice(0,60)||
+ (function(){for(var i=0;i<SUPPLY_STORED.length;i++)if(SUPPLY_STORED[i].id===SUPPLY_CLUB_ID)return SUPPLY_STORED[i].name;return SUPPLY_CLUB_ID})())
+ :APP_NAME;
+function supplyGoClub(id){
+ if(!SUPPLY_SLUG_RE.test(id))return;
+ location.href=location.pathname+"?club="+encodeURIComponent(id);
+}
+function supplyAskClub(){
+ var v=(prompt("접속하실 모임 식별번호를 넣어 주십시오. 초대주소를 받으셨다면 그 주소로 들어오시는 편이 확실합니다.","")||"").trim();
+ if(!v)return;
+ if(!SUPPLY_SLUG_RE.test(v)){alert("모임 식별번호 형식이 올바르지 않습니다.");return}
+ supplyGoClub(v);
+}
 var DEFAULT_CLOUD=""; // 경기위원장이 최초 1회 설정, 회원은 초대 링크로 자동 설정
 /* 기존 경오마스터즈의 localStorage와 다른 이름을 사용합니다. */
-var DKEY="woorigolf.supply."+SUPPLY_CLUB_ID+".data";
-var LKEY="woorigolf.supply."+SUPPLY_CLUB_ID+".local";
+var DKEY="woorigolf.supply."+(SUPPLY_CLUB_ID||"__none__")+".data";
+var LKEY="woorigolf.supply."+(SUPPLY_CLUB_ID||"__none__")+".local";
 var S=null,L=null,view={name:"home"},sheet=null,tTimer=null,scan=null,busy=false;
 // 경기위원장 인증 토큰은 장기 저장하지 않고 브라우저 탭 세션에만 저장합니다.
-var HOST_SESSION_STORAGE_KEY="woorigolf.supply."+SUPPLY_CLUB_ID+".hostSession";
+var HOST_SESSION_STORAGE_KEY="woorigolf.supply."+(SUPPLY_CLUB_ID||"__none__")+".hostSession";
 var hostSession="";
 function forgetHostSession(){hostSession="";try{sessionStorage.removeItem(HOST_SESSION_STORAGE_KEY)}catch(e){}}
 function rememberHostSession(token){hostSession=token;try{sessionStorage.setItem(HOST_SESSION_STORAGE_KEY,token)}catch(e){}}
@@ -307,8 +339,16 @@ function partialOf(r,mid){
  if(n)return{sum:t,n:n};
  if(r.grossOnly&&typeof r.grossOnly[mid]==="number")return{sum:r.grossOnly[mid],n:r.holeCount};
  return{sum:0,n:0}}
+/* v1.2.0 차수 정렬 기준: 날짜 → 티오프 시간 → 등록시각 → 식별번호.
+   티오프가 없는 과거 기록은 빈 값으로 비교되므로 같은 날에 시간이 적힌 기록보다 앞에 섭니다.
+   날짜가 모두 다른 기존 자료에서는 순서가 바뀌지 않습니다. */
+function roundKey(r){
+ return [(r.date||""),(r.teeTime||""),(r.createdAt||""),(r.id||"")].join("\u0001")}
 function sortedRounds(){return S.rounds.slice().sort(function(a,b){
- return (a.date||"")<(b.date||"")?-1:((a.date||"")>(b.date||"")?1:0)})}
+ var x=roundKey(a),y=roundKey(b);return x<y?-1:(x>y?1:0)})}
+/* v1.2.0: 핸디·개선상·자동 팀 배정의 선행 경기는 '날짜'만으로 가립니다.
+   같은 날 오전·오후 라운드는 서로를 선행으로 보지 않으므로 그날 모든 경기가 같은 핸디를 씁니다.
+   다음 날부터는 전날의 모든 경기가 반영됩니다. 차수 정렬과는 별개의 기준입니다. */
 function priorOf(mid,date,id){
  return sortedRounds().filter(function(r){
   if(r.id===id)return false;
@@ -612,15 +652,41 @@ function doPush(){
   else toast("저장 실패: "+(res&&res.error||"알 수 없는 오류"))
  },function(e){busy=false;toast("서버 응답 오류: "+e.message)})
 }
+/* v1.2.0: 초대주소는 브라우저 주소를 복사하지 않고 서버가 확인해 준 모임 식별번호로 만듭니다.
+   주소표시줄에 club이 없더라도 받는 분이 엉뚱한 모임으로 들어가지 않습니다. */
 function supplyMemberInvite(){
  if(!L.cloudReadKey||!cloudOn()){toast("서버 주소와 회원용 접근 키를 등록해 주십시오.");return}
- var url=location.origin+location.pathname+location.search+"#server="+encodeURIComponent(L.cloudUrl)+"&memberKey="+encodeURIComponent(L.cloudReadKey);
- if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(url).then(function(){toast("회원용 접속주소를 복사했습니다. 비공개로 공유하십시오.")},function(){prompt("회원용 초대주소",url)})}
- else prompt("회원용 초대주소",url)
+ if(busy)return;busy=true;toast("서버에서 모임 식별번호를 확인하고 있습니다…");
+ cloudRpc("status",L.cloudReadKey).then(function(res){busy=false;
+  if(!res||!res.ok||!res.clubId){toast("모임 확인 실패: "+((res&&res.error)||"인증정보를 확인하십시오."));return}
+  if(res.clubId!==SUPPLY_CLUB_ID){toast("서버가 알려준 모임과 이 화면의 모임이 다릅니다. 최신 기록을 다시 받아 주십시오.");return}
+  var url=location.origin+location.pathname+"?club="+encodeURIComponent(res.clubId)+
+   "#server="+encodeURIComponent(L.cloudUrl)+"&memberKey="+encodeURIComponent(L.cloudReadKey);
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+   navigator.clipboard.writeText(url).then(function(){toast("회원용 초대주소를 복사했습니다. 비공개로 공유하십시오.")},
+    function(){prompt("회원용 초대주소",url)})}
+  else prompt("회원용 초대주소",url);
+ },function(e){busy=false;toast("서버 확인 실패: "+e.message)})
 }
 /* ===== 렌더 ===== */
+function scrPick(){
+ var list=SUPPLY_STORED.length?SUPPLY_STORED.map(function(c){
+  return '<li class="item" style="cursor:pointer" onclick="supplyGoClub(\''+c.id+'\')">'+
+   '<div style="flex:1;min-width:0"><div class="nm">'+esc(c.name)+'</div>'+
+   '<div class="mt">'+esc(c.id)+'</div></div><span class="mt">\u203a</span></li>'}).join("")
+  :'<div class="empty">이 기기에 저장된 모임이 없습니다.</div>';
+ return '<div class="screen"><div class="bar"><h1>'+esc(APP_NAME)+'</h1></div><div class="body">'+
+ '<div class="card"><h2>어느 모임이신지요</h2>'+
+ '<p class="note">이 주소에는 모임 식별번호가 없습니다. 받으신 초대주소로 들어오시면 모임이 자동으로 정해집니다.</p>'+
+ '<ul class="list">'+list+'</ul></div>'+
+ '<div class="card"><h2>초대주소가 없으신 경우</h2>'+
+ '<p class="note">경기위원장께 초대주소를 받으십시오. 식별번호를 알고 계시면 아래에서 바로 넣으셔도 됩니다.</p>'+
+ '<div style="height:10px"></div>'+
+ '<button class="btn sm quiet" onclick="supplyAskClub()">모임 식별번호 넣기</button></div>'+
+ '</div></div>'}
 function render(){
  var app=document.getElementById("app");
+ if(SUPPLY_CLUB_PICK){app.innerHTML=scrPick();return}
  if(!S.room&&view.name!=="data")app.innerHTML=scrStart();
  else if(view.name==="members")app.innerHTML=scrMembers();
  else if(view.name==="newround")app.innerHTML=scrNewRound();
@@ -641,7 +707,7 @@ function render(){
 function scrStart(){return '<div class="screen"><div class="bar"><h1>'+esc(SUPPLY_CLUB_NAME)+'</h1></div><div class="body"><div class="card"><h2>모임 기록 연결</h2><p class="note">'+esc(SUPPLY_CLUB_NAME)+' 전용 공급본입니다. 회원용 접근 키를 등록하고 기록을 받은 뒤, 경기위원장은 암호로 인증하십시오.</p><div style="height:12px"></div><button class="btn" onclick="go(\'data\')">연결 설정 열기</button></div></div></div>'}
 function createRoom(){toast("공급본에서는 모임을 따로 만들지 않습니다.")}
 function scrHome(){
- var rs=S.rounds.slice().sort(function(a,b){return (b.date||"").localeCompare(a.date||"")});
+ var rs=sortedRounds().slice().reverse();
  var list=rs.length?rs.map(function(r){
   var pl=isPlanned(r);
   var sum=pl?(r.players.length+"명 · "+roundGames(r).map(function(g){
@@ -1614,7 +1680,7 @@ function restoreBackup(){
 /* ---- 공급본 시작: 초기 화면은 서버에 등록된 빈 모임 기준 ---- */
 load();
 render();
-if(cloudOn()&&L.cloudReadKey)setTimeout(function(){pullCloud(true)},600);
+if(!SUPPLY_CLUB_PICK&&cloudOn()&&L.cloudReadKey)setTimeout(function(){pullCloud(true)},600);
 window.addEventListener("pagehide",function(){if(view.name==="play")recordTime()});
 document.addEventListener("visibilitychange",function(){
  if(document.visibilityState==="hidden"&&view.name==="play")recordTime();
