@@ -185,7 +185,7 @@ tr.gold td:first-child{color:var(--turf)}
 <div id="app"></div>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.2.1";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.3.0";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -332,6 +332,14 @@ var GAME_ORDER=["net","gross","improve","perio","dapa","birdie","onion","team"];
 function round(id){for(var i=0;i<S.rounds.length;i++)if(S.rounds[i].id===id)return S.rounds[i];return null}
 function member(id){for(var i=0;i<S.members.length;i++)if(S.members[i].id===id)return S.members[i];return null}
 function mname(id){var m=member(id);return m?m.name:"(알 수 없음)"}
+/* v1.3.0 닉네임 */
+function mnick(id){var m=member(id);return (m&&m.nick)||""}
+/* 넓은 자리: 이름과 닉네임을 함께 */
+function mfull(id){var m=member(id);if(!m)return "(알 수 없음)";
+ return (L.showNick!==false&&m.nick)?(m.name+" ("+m.nick+")"):m.name}
+/* 좁은 자리: 닉네임이 있으면 닉네임만 */
+function mshort(id){var m=member(id);if(!m)return "?";
+ return (L.showNick!==false&&m.nick)?m.nick:m.name}
 function cell(r,mid,h){return (r.scores[mid]&&r.scores[mid][h])||null}
 function setCell(r,mid,h,v){if(!r.scores[mid])r.scores[mid]={};if(v===null)delete r.scores[mid][h];else r.scores[mid][h]=v}
 function parOf(r,h){var v=r.pars[h-1];return (typeof v==="number"&&v>=3)?v:0}
@@ -353,6 +361,11 @@ function partialOf(r,mid){
 /* v1.2.0 차수 정렬 기준: 날짜 → 티오프 시간 → 등록시각 → 식별번호.
    티오프가 없는 과거 기록은 빈 값으로 비교되므로 같은 날에 시간이 적힌 기록보다 앞에 섭니다.
    날짜가 모두 다른 기존 자료에서는 순서가 바뀌지 않습니다. */
+function venueLabel(r){return r&&r.venue==="screen"?"스크린":(r&&r.venue==="field"?"필드":"")}
+function placeLabel(r){
+ var a=[];if(r.place)a.push(r.place);if(r.course)a.push(r.course);
+ var v=venueLabel(r);if(v)a.push(v);
+ return a.join(" · ")}
 function roundKey(r){
  return [(r.date||""),(r.teeTime||""),(r.createdAt||""),(r.id||"")].join("\u0001")}
 function sortedRounds(){return S.rounds.slice().sort(function(a,b){
@@ -416,7 +429,7 @@ function gameRows(r,type,rev){
    if(gp!=null&&ph!=null){ex.hcp=ph;ex.gross=gp;v=Math.round((gp-ph)*10)/10}}
   else {if(!hasHoles(r,mid))return;v=countType(r,mid,type)}
   if(v==null)return;
-  out.push(Object.assign({mid:mid,name:m.name,v:v},ex))});
+  out.push(Object.assign({mid:mid,name:mfull(mid),v:v},ex))});
  return rankBy(out,rev?!g.asc:g.asc)}
 var TEAM_KEYS=["A","B","C","D"];
 function basisVal(r,mid,type){
@@ -493,7 +506,7 @@ function teamResult(r,g){
  var grp=teamsOf(r);
  var sides=TEAM_KEYS.filter(function(k){return grp[k]&&grp[k].length}).map(function(k){
   return{key:k,rows:grp[k].map(function(mid){
-   return{mid:mid,name:mname(mid),hcp:curHcp(mid),rh:roundHcp(r,mid),
+   return{mid:mid,name:mfull(mid),hcp:curHcp(mid),rh:roundHcp(r,mid),
     gross:grossOf(r,mid),v:val(mid)}})
    .filter(function(x){return x.v!=null})}})
   .filter(function(s){return s.rows.length});
@@ -757,7 +770,7 @@ function scrHome(){
    '<div class="nm">'+roundNo(r)+'차 · '+esc(r.date)+'</div>'+ 
    ((r.teeTime||r.place)?'<div class="round-meta">'+
      (r.teeTime?'<span class="round-tee">티오프 '+esc(r.teeTime)+'</span>':'')+
-     (r.place?'<span class="round-place">'+esc(r.place)+'</span>':'')+'</div>':'')+
+     (placeLabel(r)?'<span class="round-place">'+esc(placeLabel(r))+'</span>':'')+'</div>':'')+
    '<div class="mt round-summary" title="'+esc(sum)+'">'+esc(sum)+'</div></div>'+
    '<span class="mt">\u203a</span></li>'}).join("")
   :'<div class="empty">아직 라운드가 없습니다.</div>';
@@ -782,7 +795,7 @@ function scrHome(){
  '<button class="chip" onclick="go(\'data\')">설정</button></div>'+
  '<div class="body">'+
  '<div class="card"><h2>회원현황</h2><p class="note">'+
- (S.members.length?esc(byHcp(S.members).map(function(m){return m.name+" "+curHcp(m.id)}).join(" · ")):"아직 없습니다.")+'</p>'+
+ (S.members.length?esc(byHcp(S.members).map(function(m){return mshort(m.id)+" "+curHcp(m.id)}).join(" · ")):"아직 없습니다.")+'</p>'+
  '<div style="height:10px"></div>'+
  '<button class="btn sm quiet" onclick="go(\'members\')">회원현황 열기</button></div>'+
  (host?'<div class="card"><h2>경기위원장</h2><div class="row2">'+
@@ -798,13 +811,13 @@ function scrMembers(){
  var locked=!hostSessionActive();
  var add=locked?'<div class="card"><p class="note">회원은 경기위원장 기기에서만 고칩니다.</p></div>':
   '<div class="card"><h2>회원 추가</h2><label for="mn">이름</label><input type="text" id="mn">'+
-  '<label for="mh">첫 라운드 전 핸디</label><input type="number" id="mh" inputmode="numeric" value="0">'+
+  '<label for="mk">닉네임 (선택)</label><input type="text" id="mk" placeholder="스코어카드에 쓰시는 이름"><label for="mh">첫 라운드 전 핸디</label><input type="number" id="mh" inputmode="numeric" value="0">'+
   '<p class="note">기록이 없는 동안만 쓰이는 숫자입니다. 한 번이라도 치고 나면 그 성적으로 자동 계산됩니다.</p>'+
   '<div style="height:12px"></div><button class="btn sm" onclick="addMember()">회원 추가</button></div>';
  var rows=S.members.length?byHcp(S.members).map(function(m){
   var pr=priorOf(m.id,"9999-12-31",null);
   var src=!pr.length?("첫 라운드 전 수동 "+m.hcpManual):(pr.length===1?"직전 1회 기준":("최근 "+Math.min(pr.length,S.hcpWindow)+"회 평균"));
-  return '<li class="item"><div style="flex:1;min-width:0"><div class="nm">'+esc(m.name)+'</div>'+
+  return '<li class="item"><div style="flex:1;min-width:0"><div class="nm">'+esc(mfull(m.id))+'</div>'+
    '<div class="mt">'+src+' · 참가 '+pr.length+'회</div></div>'+
    '<div style="font-weight:700">'+curHcp(m.id)+'</div>'+
    (locked?'':'<button class="chip" onclick="editMember(\''+m.id+'\')">수정</button>'+
@@ -825,13 +838,16 @@ function setWindow(){var v=parseInt(document.getElementById("hw").value,10);
  S.hcpWindow=v;save();render();toast("최근 "+v+"회 평균으로 바꿨습니다.")}
 function addMember(){
  var n=document.getElementById("mn").value.trim(),h=parseInt(document.getElementById("mh").value,10);
+ var nk=document.getElementById("mk");nk=nk?nk.value.trim():"";
  if(!n){toast("이름을 입력해 주세요.");return}
  if(isNaN(h))h=0;
- S.members.push({id:uid(),name:n,hcpManual:h});save();render()}
+ S.members.push({id:uid(),name:n,nick:nk,hcpManual:h});save();render()}
 function editMember(id){var m=member(id);if(!m)return;
  var n=prompt("이름",m.name);if(n===null)return;
+ var k=prompt("닉네임 (없으면 비워 두십시오)",m.nick||"");if(k===null)return;
  var h=prompt("첫 라운드 전 핸디 (기록이 없을 때만 쓰입니다)",m.hcpManual);if(h===null)return;
- m.name=n.trim()||m.name;var v=parseInt(h,10);m.hcpManual=isNaN(v)?0:v;save();render()}
+ m.name=n.trim()||m.name;m.nick=k.trim();
+ var v=parseInt(h,10);m.hcpManual=isNaN(v)?0:v;save();render()}
 function delMember(id){var m=member(id);if(!m)return;
  if(!confirm(m.name+" 회원을 삭제할까요? 지난 라운드 기록은 남습니다."))return;
  S.members=S.members.filter(function(x){return x.id!==id});save();render()}
@@ -845,7 +861,7 @@ function playerPicker(r){
   return '<div class="item">'+
    '<label style="display:flex;align-items:center;gap:9px;flex:1;min-width:0;cursor:pointer">'+
    '<input type="checkbox" class="pck" value="'+m.id+'" onchange="teamPreview()" style="width:22px;height:22px;flex:none"'+(on?" checked":"")+'>'+
-   '<span class="nm">'+esc(m.name)+'</span></label>'+
+   '<span class="nm">'+esc(mfull(m.id))+'</span></label>'+
    '<span class="mt">'+curHcp(m.id)+'</span>'+
    '<select class="tsel" data-mid="'+m.id+'" onchange="teamAssigned(this)" style="width:84px;padding:7px 6px">'+
    '<option value="">팀없음</option>'+TEAM_KEYS.map(function(k){
@@ -971,7 +987,10 @@ function scrNewRound(){
  '<div class="body">'+
  '<div class="card"><label for="rd">날짜</label><input type="date" id="rd" value="'+today()+'">'+
  '<label for="rt">티오프 시간 (선택)</label><input type="time" id="rt">'+
- '<label for="rp">장소</label><input type="text" id="rp" placeholder="예: 골프존 ○○점">'+
+ '<label for="rv">구분</label><select id="rv"><option value="">정하지 않음</option>'+
+ '<option value="screen">스크린</option><option value="field">필드</option></select>'+
+ '<label for="rp">골프장 · 매장</label><input type="text" id="rp" placeholder="예: 골프존 ○○점">'+
+ '<label for="rc">코스</label><input type="text" id="rc" placeholder="예: 동코스">'+
  '<label for="rh">홀 수</label><select id="rh"><option value="18">18홀</option><option value="9">9홀</option></select>'+
  '<label for="rg">조 수</label><select id="rg"><option value="1">나누지 않음</option><option value="2">2조</option>'+
  '<option value="3">3조</option><option value="4">4조</option></select>'+
@@ -1000,7 +1019,10 @@ function createRound(){
  var pars=[];for(var pi=0;pi<hc;pi++)pars.push(0);
  var groupOf={};ps.forEach(function(mid,i){groupOf[mid]=gc<=1?1:(Math.floor(i/Math.ceil(ps.length/gc))+1)});
  var r={id:uid(),date:document.getElementById("rd").value||today(),teeTime:tee,
-  place:document.getElementById("rp").value.trim(),holeCount:hc,pars:pars,players:ps,
+  venue:document.getElementById("rv").value,
+  place:document.getElementById("rp").value.trim(),
+  course:document.getElementById("rc").value.trim(),
+  holeCount:hc,pars:pars,players:ps,
   groupCount:gc,groupOf:groupOf,scores:{},grossOnly:{},times:{},games:games,teams:pk.teams,perio:null,
   confirmed:false,createdAt:new Date().toISOString()};
  var tg=games.filter(function(g){return g.type==="team"})[0];
@@ -1014,17 +1036,23 @@ function needPerio(games){
 /* ---- 지난 기록 등록 ---- */
 function scrPast(){
  var rows=S.members.map(function(m){
-  return '<div class="gm"><div class="nm">'+esc(m.name)+'</div>'+
+  return '<div class="gm"><div class="nm">'+esc(mfull(m.id))+'</div>'+
    '<input type="number" class="pg" data-mid="'+m.id+'" min="1" inputmode="numeric" placeholder="타수"></div>'}).join("");
  return '<div class="screen"><div class="bar"><button class="chip" onclick="go(\'home\')">뒤로</button><h1>지난 기록 등록</h1></div>'+
- '<div class="body"><div class="card">'+
- '<p class="note">최종 타수만으로 넣습니다. 나중에 라운드 수정 화면에서 홀별 타수를 채워 넣으실 수 있습니다.</p>'+
+ '<div class="body">'+
+ '<div class="card"><h2>스코어카드로 등록</h2>'+
+ '<p class="note">카드 사진을 인공지능에 넣어 받은 글 하나로 라운드가 통째로 만들어집니다. 날짜와 장소와 코스, 참가자, 홀별 파와 타수가 한꺼번에 들어옵니다.</p>'+
+ '<div style="height:10px"></div>'+
+ '<button class="btn sm" onclick="go(\'scan\',{scanNew:true})">스코어카드로 등록하기</button></div>'+
+ '<div class="card"><h2>최종 타수만 넣기</h2>'+
+ '<p class="note">카드가 없는 옛 기록용입니다. 홀별 자료가 없으므로 버디킹과 다파상과 어니언킹과 신페리오는 계산되지 않습니다.</p>'+
  '<label for="pd">날짜</label><input type="date" id="pd" value="'+today()+'">'+
  '<label for="pt">티오프 시간 (선택)</label><input type="time" id="pt">'+
  '<label for="pp">장소</label><input type="text" id="pp">'+
- '<div style="height:12px"></div><h2>최종 타수</h2>'+
- '<p class="note">불참하신 분은 비워 두십시오.</p>'+rows+'</div></div>'+
- '<div class="foot"><button class="btn" onclick="savePast()">등록</button></div></div>'}
+ '<div style="height:12px"></div>'+
+ '<p class="note">불참하신 분은 비워 두십시오.</p>'+rows+
+ '<div style="height:12px"></div><button class="btn sm quiet" onclick="savePast()">최종 타수로 등록</button></div>'+
+ '</div></div>'}
 function savePast(){
  var tee=document.getElementById("pt").value;
  if(!teeTimeValid(tee)){toast("티오프 시간을 확인하십시오.");return}
@@ -1057,10 +1085,10 @@ function scrEdit(){
   for(var h=1;h<=r.holeCount;h++){var c=cell(r,mid,h);
    cells+='<td><input type="number" class="escore" data-mid="'+mid+'" data-hole="'+h+'" min="1" inputmode="numeric" oninput="syncEditGrossControls(this.dataset.mid)" value="'+(c&&typeof c.s==="number"?c.s:"")+'"></td>'}
   var p=partialOf(r,mid);
-  return '<tr data-edit-score-row="'+mid+'"'+(r.players.indexOf(mid)<0?' hidden':'')+'><td style="min-width:72px">'+esc(m.name)+'</td>'+cells+
+  return '<tr data-edit-score-row="'+mid+'"'+(r.players.indexOf(mid)<0?' hidden':'')+'><td style="min-width:72px">'+esc(mshort(m.id))+'</td>'+cells+
    '<td>'+(p.n?p.sum:"-")+'</td></tr>'}).join("");
  var gro=allMembers.map(function(m){var mid=m.id;
-  return '<div class="gm" data-edit-gross-row="'+mid+'"'+(r.players.indexOf(mid)<0?' hidden':'')+'><div class="nm">'+esc(m.name)+'</div>'+
+  return '<div class="gm" data-edit-gross-row="'+mid+'"'+(r.players.indexOf(mid)<0?' hidden':'')+'><div class="nm">'+esc(mshort(m.id))+'</div>'+
    '<input type="number" class="eg" data-mid="'+mid+'" min="1" inputmode="numeric" value="'+
    (typeof r.grossOnly[mid]==="number"?r.grossOnly[mid]:"")+'" placeholder="타수"'+
    (hasHoles(r,mid)?' disabled':'')+'></div>'}).join("");
@@ -1077,7 +1105,11 @@ function scrEdit(){
  '<p class="note" style="margin:0 0 10px">변경사항은 아래 수정저장을 누를 때 한꺼번에 저장됩니다. 뒤로 가면 저장되지 않은 내용은 사라집니다.</p>'+
  '<div class="card"><label for="ed">날짜</label><input type="date" id="ed" value="'+esc(r.date)+'">'+
  '<label for="et">티오프 시간 (선택)</label><input type="time" id="et" value="'+esc(r.teeTime||'')+'">'+
- '<label for="ep">장소</label><input type="text" id="ep" value="'+esc(r.place||"")+'"></div>'+
+ '<label for="ev">구분</label><select id="ev"><option value=""'+(r.venue?"":" selected")+'>정하지 않음</option>'+
+ '<option value="screen"'+(r.venue==="screen"?" selected":"")+'>스크린</option>'+
+ '<option value="field"'+(r.venue==="field"?" selected":"")+'>필드</option></select>'+
+ '<label for="ep">골프장 · 매장</label><input type="text" id="ep" value="'+esc(r.place||"")+'">'+
+ '<label for="ec">코스</label><input type="text" id="ec" value="'+esc(r.course||"")+'"></div>'+
  '<div class="card"><h2>경기 종목과 팀 나누기</h2>'+
  '<p class="note">참가자에게 팀을 배정하면 팀전이 자동으로 선택됩니다. 팀 점수 기준은 핸디 적용으로 시작하며 필요할 때 바꿀 수 있습니다.</p>'+
  gameChecklist(sel)+'</div>'+
@@ -1132,6 +1164,8 @@ function saveRoundEdit(rid){
  draft.date=document.getElementById("ed").value||r.date;
  draft.teeTime=tee;
  draft.place=document.getElementById("ep").value.trim();
+ draft.venue=document.getElementById("ev").value;
+ draft.course=document.getElementById("ec").value.trim();
  /* 회원목록에서 이미 삭제한 사람의 옛 라운드 기록은 보존합니다. */
  var removedMembers=r.players.filter(function(mid){return !member(mid)});
  var oldTeamAssignments={};
@@ -1227,7 +1261,7 @@ function scrPlay(){
    '<button class="key more'+(oth?" on":"")+'" onclick="openSheet(\''+mid+'\')">'+
    lab+'</button></div>';
   var shown=(c&&typeof c.s==="number")?(' '+markHtml(c.s,par)):"";
-  return '<div class="plr"><div class="top"><span class="nm">'+esc(m.name)+'</span>'+
+  return '<div class="plr"><div class="top"><span class="nm">'+esc(mshort(mid))+'</span>'+
    (st?'<span class="st">'+st+'</span>':'')+
    '<span class="hc">핸디 '+hc+'</span>'+shown+'</div>'+keys+'</div>'}).join("");
  var gl=L.myGroup[r.id]?(L.myGroup[r.id]+"조"):"전체";
@@ -1347,7 +1381,7 @@ function scrResult(){
    else if(c.s==null)cells+='<td class="u">'+(STATUS[c.st]||"-")+'</td>';
    else cells+='<td>'+markHtml(c.s,parOf(r,h))+'</td>'}
   var pt=partialOf(r,mid);
-  return '<tr><td style="min-width:68px">'+esc(mname(mid))+'</td>'+cells+
+  return '<tr><td style="min-width:68px">'+esc(mshort(mid))+'</td>'+cells+
    '<td>'+(pt.n?pt.sum:"-")+'</td></tr>'}).join("");
  var gs={};r.players.forEach(function(mid){var k=(r.groupOf&&r.groupOf[mid])||1;(gs[k]=gs[k]||[]).push(mid)});
  var gHtml="";
@@ -1358,7 +1392,7 @@ function scrResult(){
  return '<div class="screen">'+
  '<div class="bar"><button class="chip" onclick="go(\'home\')">홈</button>'+
  '<span class="ribbon'+(isPlanned(r)?'':' done')+'">'+(isPlanned(r)?'예정':'결과')+'</span>'+
- '<h1 class="round-head">'+no+'차 '+esc(r.date)+'<div class="sub">'+(r.teeTime?'<span class="round-tee">티오프 '+esc(r.teeTime)+'</span>':'')+(r.teeTime&&r.place?' · ':'')+esc(r.place||"")+'</div></h1>'+
+ '<h1 class="round-head">'+no+'차 '+esc(r.date)+'<div class="sub">'+(r.teeTime?'<span class="round-tee">티오프 '+esc(r.teeTime)+'</span>':'')+(r.teeTime&&placeLabel(r)?' · ':'')+esc(placeLabel(r))+'</div></h1>'+
  '</div>'+
  '<div style="padding:12px 14px 0"><div class="row2">'+
  '<button class="btn sm quiet" onclick="go(\'play\',{rid:\''+r.id+'\',hole:1})">필드 스코어 입력</button>'+
@@ -1374,73 +1408,209 @@ function scrResult(){
  '</div></div>'}
 
 /* ---- 스코어카드 읽기 ---- */
-function promptText(r){
- var names=S.members.filter(function(m){return r.players.indexOf(m.id)>=0}).map(function(m){return m.name}).join(", ");
- return "이 스코어카드 이미지를 읽어서 아래 형식으로만 출력해 주세요. 설명이나 다른 문장은 붙이지 마세요.\n"+
-  "한 줄에 한 사람이며, 이름 뒤에 1번 홀부터 "+r.holeCount+"번 홀까지의 타수를 공백으로 구분해 적습니다.\n"+
-  "읽을 수 없는 칸은 물음표로 표시하세요.\n첫 줄에는 PAR 이라는 이름으로 홀별 파를 적어 주세요.\n"+
-  "이름은 다음 중에서 고르세요: "+names+"\n\n예시\nPAR 4 4 3 5 4 4 3 4 5 4 3 4 5 4 4 3 5 4\n"+
-  (S.members[0]?S.members[0].name:"홍길동")+" 5 4 4 6 5 4 3 5 6 5 4 5 6 4 5 4 6 5"}
+/* ===== v1.3.0 스코어카드 읽기 =====
+   지시문을 엄격한 형식으로 바꾸고, 라운드까지 통째로 만들 수 있게 했습니다.
+   mode "round" : 이미 있는 라운드에 홀별 타수를 채웁니다.
+   mode "new"   : 카드 하나로 지난 라운드를 새로 만듭니다. */
+var CARD_HEAD="#WGK1";
+function cardPrompt(holeCount,forNew){
+ var who=S.members.map(function(m){return m.nick?(m.name+"("+m.nick+")"):m.name}).join(", ");
+ var hc=holeCount||18;
+ var pars=[],line=[];
+ for(var i=0;i<hc;i++){pars.push(i%6===2?"03":(i%6===3?"05":"04"));line.push(i%6===2?"04":(i%6===3?"06":"05"))}
+ return "첨부한 골프 스코어카드 사진을 읽어 아래 형식 그대로만 출력하십시오.\n"+
+ "설명, 인사말, 제목, 표, 굵은 글씨, 코드블록을 절대 붙이지 마십시오.\n\n"+
+ "[형식 규칙]\n"+
+ "1) 첫 줄은 반드시 "+CARD_HEAD+" 입니다.\n"+
+ "2) 마지막 줄은 반드시 #END 입니다.\n"+
+ "3) 각 줄은 '항목: 값' 형식이며 항목은 영문 대문자입니다.\n"+
+ "4) 숫자는 모두 두 자리로 맞춥니다. 한 자리면 앞에 0을 붙입니다. (예: 4 → 04)\n"+
+ "5) 읽을 수 없는 숫자는 ?? 로 적습니다. 빈칸으로 두지 마십시오.\n"+
+ "6) 구분자는 세로줄 | 이며 앞뒤에 공백 한 칸씩 둡니다.\n"+
+ "7) 홀별 타수는 정확히 "+hc+"개여야 합니다. 모자라면 ?? 로 채웁니다.\n"+
+ "8) 사람은 한 줄에 한 명이며 P: 로 시작합니다.\n"+
+ "9) 카드에 없는 항목은 그 줄을 통째로 빼십시오. 빈 값을 적지 마십시오.\n\n"+
+ "[항목]\n"+
+ "DATE: 경기 날짜, YYYY-MM-DD\n"+
+ "TIME: 시작 시각, HH:MM (24시간)\n"+
+ "TYPE: 스크린 또는 필드\n"+
+ "PLACE: 골프장 또는 매장 이름\n"+
+ "COURSE: 코스 이름\n"+
+ "HOLES: 홀 수, 18 또는 09\n"+
+ "PAR: 홀별 파 "+hc+"개\n"+
+ "P: 이름 | 홀별 타수 "+hc+"개 | 합계(세 자리, 예 086)\n\n"+
+ "[이름 규칙]\n"+
+ "아래 명단에 있는 이름이나 괄호 안 닉네임과 같으면 그 글자를 그대로 적습니다.\n"+
+ "명단에 없는 사람도 카드에 있으면 카드에 적힌 그대로 적습니다. 빼지 마십시오.\n"+
+ "명단: "+(who||"(등록된 회원 없음)")+"\n\n"+
+ "[출력 예시]\n"+
+ CARD_HEAD+"\n"+
+ "DATE: 2026-10-12\nTIME: 07:30\nTYPE: 필드\nPLACE: 남서울CC\nCOURSE: 동코스\nHOLES: "+(hc<10?"0"+hc:hc)+"\n"+
+ "PAR: "+pars.join(" ")+"\n"+
+ "P: "+(S.members[0]?S.members[0].name:"홍길동")+" | "+line.join(" ")+" | 0"+
+ (line.reduce(function(x,y){return x+parseInt(y,10)},0))+"\n"+
+ "#END";
+}
+function normName(s){return String(s==null?"":s).replace(/[\s()·.·]/g,"").toLowerCase()}
+/* 이름과 닉네임을 모두 견주어 회원을 찾습니다. pool 은 회원 id 배열입니다. */
+function matchMember(raw,pool){
+ var n=normName(raw);if(!n)return null;
+ function keys(mid){var m=member(mid);if(!m)return [];
+  return [normName(m.name)].concat(m.nick?[normName(m.nick)]:[])}
+ var i,j,k,ks;
+ for(i=0;i<pool.length;i++){ks=keys(pool[i]);for(j=0;j<ks.length;j++)if(ks[j]===n)return pool[i]}
+ for(i=0;i<pool.length;i++){ks=keys(pool[i]);
+  for(j=0;j<ks.length;j++){var x=ks[j];if(x&&(x.indexOf(n)===0||n.indexOf(x)===0))return pool[i]}}
+ for(i=0;i<pool.length;i++){ks=keys(pool[i]);
+  for(j=0;j<ks.length;j++){var y=ks[j];
+   if(y.length&&n.length&&y[0]===n[0]&&Math.abs(y.length-n.length)<=1)return pool[i]}}
+ return null}
+
+/* 카드 글을 읽어 구조로 바꿉니다. 실패하면 why 에 이유를 담습니다. */
+function parseCard(txt){
+ var out={ok:false,why:"",meta:{},pars:null,rows:[],holeCount:0,warn:[]};
+ if(!txt||!txt.trim()){out.why="붙여 넣은 글이 없습니다.";return out}
+ var lines=txt.replace(/\r/g,"").split("\n").map(function(x){return x.trim()}).filter(function(x){return x});
+ var hi=-1;for(var i=0;i<lines.length;i++)if(lines[i].indexOf(CARD_HEAD)===0){hi=i;break}
+ if(hi<0){out.why="첫 줄의 "+CARD_HEAD+" 표시를 찾지 못했습니다. 지시문을 그대로 넣으셨는지 확인해 주십시오.";return out}
+ lines=lines.slice(hi+1);
+ var end=lines.indexOf("#END");if(end>=0)lines=lines.slice(0,end);
+ function nums(part,want){
+  var t=(part||"").match(/(\d{1,2}|\?\?|\?)/g)||[];
+  var v=t.map(function(x){if(x.indexOf("?")>=0)return null;var q=parseInt(x,10);return isNaN(q)?null:q});
+  if(want){while(v.length<want)v.push(null);v=v.slice(0,want)}
+  return v}
+ var hc=0;
+ lines.forEach(function(ln){
+  var m=ln.match(/^HOLES\s*:\s*(\d{1,2})/i);if(m)hc=parseInt(m[1],10)});
+ lines.forEach(function(ln){
+  var m=ln.match(/^PAR\s*:\s*(.+)$/i);
+  if(m&&!hc){var t=nums(m[1]);hc=t.length>=9?(t.length>=18?18:9):0}});
+ if(!hc)hc=18;
+ out.holeCount=hc;
+ lines.forEach(function(ln){
+  var m;
+  if((m=ln.match(/^DATE\s*:\s*(\d{4})[-./](\d{1,2})[-./](\d{1,2})/i)))
+   out.meta.date=m[1]+"-"+("0"+m[2]).slice(-2)+"-"+("0"+m[3]).slice(-2);
+  else if((m=ln.match(/^TIME\s*:\s*(\d{1,2})\s*[:시]\s*(\d{1,2})/i)))
+   out.meta.teeTime=("0"+m[1]).slice(-2)+":"+("0"+m[2]).slice(-2);
+  else if((m=ln.match(/^TYPE\s*:\s*(.+)$/i)))
+   out.meta.venue=/스크린|screen/i.test(m[1])?"screen":(/필드|field/i.test(m[1])?"field":"");
+  else if((m=ln.match(/^PLACE\s*:\s*(.+)$/i))) out.meta.place=m[1].trim().slice(0,60);
+  else if((m=ln.match(/^COURSE\s*:\s*(.+)$/i))) out.meta.course=m[1].trim().slice(0,60);
+  else if((m=ln.match(/^PAR\s*:\s*(.+)$/i))) out.pars=nums(m[1],hc);
+  else if((m=ln.match(/^P\s*:\s*(.+)$/i))){
+   var body=m[1],parts=body.split("|").map(function(x){return x.trim()});
+   var who,vals,total=null;
+   if(parts.length>=2){
+    who=parts[0];vals=nums(parts[1],hc);
+    if(parts.length>=3){var t=nums(parts[2]);total=t.length?t[t.length-1]:null;
+     if(parts[2].replace(/\D/g,"").length>=3)total=parseInt(parts[2].replace(/\D/g,""),10)}
+   }else{
+    var head=body.split(/\s+/)[0];who=head;vals=nums(body.slice(head.length),hc)}
+   if(!who)return;
+   out.rows.push({raw:who,mid:null,vals:vals,total:total,newName:""})}
+ });
+ if(!out.rows.length){out.why="P: 로 시작하는 사람 줄을 찾지 못했습니다.";return out}
+ var pool=S.members.map(function(x){return x.id});
+ out.rows.forEach(function(row){
+  var mid=matchMember(row.raw,pool);
+  if(mid){row.mid=mid;pool=pool.filter(function(x){return x!==mid})}});
+ out.ok=true;return out}
+
+/* 합계 검산: 읽은 홀별 합과 카드 합계가 다르면 알려 줍니다. */
+function rowSum(vals){var t=0,n=0;vals.forEach(function(v){if(typeof v==="number"){t+=v;n++}});
+ return{sum:t,filled:n}}
+
 function scrScan(){
- var r=round(view.rid);if(!r)return scrHome();
- if(scan&&scan.rid===r.id)return scanConfirm(r);
- return '<div class="screen"><div class="bar"><button class="chip" onclick="go(\'result\',{rid:\''+r.id+'\'})">뒤로</button>'+
- '<h1>스코어카드 읽기</h1></div><div class="body">'+
+ var isNew=(view.scanNew===true);
+ var r=isNew?null:round(view.rid);
+ if(!isNew&&!r)return scrHome();
+ if(scan&&((isNew&&scan.mode==="new")||(!isNew&&scan.rid===r.id)))return scanConfirm(r);
+ var hc=isNew?18:r.holeCount;
+ var back=isNew?'go(\'past\')':('go(\'result\',{rid:\''+r.id+'\'})');
+ return '<div class="screen"><div class="bar"><button class="chip" onclick="'+back+'">뒤로</button>'+
+ '<h1>'+(isNew?"스코어카드로 라운드 등록":"스코어카드 읽기")+'</h1></div><div class="body">'+
  '<div class="card"><h2>1. 지시문 복사</h2>'+
- '<p class="note">복사해서 스코어카드 사진과 함께 인공지능에 넣으시면 우리 형식에 맞는 글이 나옵니다.</p>'+
- '<div style="height:10px"></div><textarea readonly id="pt">'+esc(promptText(r))+'</textarea>'+
+ '<p class="note">아래를 복사해 스코어카드 사진과 함께 인공지능에 넣으십시오. 형식을 엄격히 정해 두었으므로 그대로 쓰셔야 오독이 줄어듭니다.</p>'+
+ '<div style="height:10px"></div><textarea readonly id="pt" style="min-height:150px">'+esc(cardPrompt(hc,isNew))+'</textarea>'+
  '<div style="height:10px"></div><button class="btn sm" onclick="copyText(document.getElementById(\'pt\').value)">지시문 복사</button></div>'+
  '<div class="card"><h2>2. 받은 글 붙여넣기</h2>'+
- '<textarea id="sc" placeholder="인공지능이 만들어 준 글을 붙여 넣으세요"></textarea>'+
- '<div style="height:10px"></div><button class="btn sm quiet" onclick="parseScan()">읽어들이기</button></div></div></div>'}
-function copyText(t){
- if(navigator.clipboard&&navigator.clipboard.writeText)
-  navigator.clipboard.writeText(t).then(function(){toast("복사했습니다.")},function(){toast("길게 눌러 복사해 주세요.")});
- else toast("길게 눌러 복사해 주세요.")}
-function normName(s){return String(s).replace(/\s/g,"").toLowerCase()}
-function matchMember(raw,pool){var n=normName(raw);
- for(var i=0;i<pool.length;i++)if(normName(mname(pool[i]))===n)return pool[i];
- for(var j=0;j<pool.length;j++){var x=normName(mname(pool[j]));if(x.indexOf(n)===0||n.indexOf(x)===0)return pool[j]}
- for(var k=0;k<pool.length;k++){var y=normName(mname(pool[k]));
-  if(y.length&&n.length&&y[0]===n[0]&&Math.abs(y.length-n.length)<=1)return pool[k]}
- return null}
-function parseScan(){
- var r=round(view.rid),txt=document.getElementById("sc").value;
- if(!txt.trim()){toast("붙여 넣은 글이 없습니다.");return}
- var rows=[],pars=null,pool=r.players.slice();
- txt.split(/\r?\n/).forEach(function(ln){
-  if(!ln.trim())return;
-  var head=ln.trim().split(/[\s,|\t]+/)[0];
-  var nums=ln.trim().slice(head.length).match(/(\d+|\?|-)/g)||[];
-  if(nums.length<Math.min(5,r.holeCount))return;
-  var vals=nums.slice(0,r.holeCount).map(function(x){
-   if(x==="?"||x==="-")return null;var v=parseInt(x,10);return isNaN(v)?null:v});
-  if(/^par$/i.test(head)||/파/.test(head)){pars=vals;return}
-  var mid=matchMember(head,pool);
-  rows.push({raw:head,mid:mid,vals:vals});
-  if(mid)pool=pool.filter(function(x){return x!==mid})});
- if(!rows.length){toast("사람 줄을 찾지 못했습니다.");return}
- scan={rid:r.id,rows:rows,pars:pars};render()}
+ '<textarea id="sc" placeholder="'+CARD_HEAD+' 으로 시작하는 글 전체를 붙여 넣으십시오"></textarea>'+
+ '<div style="height:10px"></div><button class="btn sm quiet" onclick="runParse('+(isNew?'true':'false')+')">읽어들이기</button>'+
+ (isNew?'<p class="note">읽어들이면 날짜와 장소와 참가자와 홀별 타수가 한꺼번에 들어옵니다. 다음 화면에서 고치신 뒤 등록하십시오.</p>':'')+
+ '</div></div></div>'}
+function runParse(isNew){
+ var txt=document.getElementById("sc").value;
+ var p=parseCard(txt);
+ if(!p.ok){toast(p.why);return}
+ if(isNew){
+  scan={mode:"new",rid:null,meta:p.meta,pars:p.pars,rows:p.rows,holeCount:p.holeCount}}
+ else{
+  var r=round(view.rid);
+  scan={mode:"round",rid:r.id,meta:p.meta,pars:p.pars,rows:p.rows,holeCount:r.holeCount}}
+ render()}
+
 function scanConfirm(r){
+ var isNew=(scan.mode==="new");
+ var hc=scan.holeCount;
+ var head='<tr><th>이름</th>';
+ for(var i=0;i<hc;i++){var pv=scan.pars&&typeof scan.pars[i]==="number"?scan.pars[i]:null;
+  head+='<th>'+(i+1)+'<br><span class="mt">'+(pv?pv:"·")+'</span></th>'}
+ head+='<th>합</th><th>카드</th></tr>';
  var body=scan.rows.map(function(row,ri){
-  var sel='<select onchange="scanSetMember('+ri+',this.value)"><option value="">(넣지 않음)</option>'+
-   r.players.map(function(mid){return '<option value="'+mid+'"'+(row.mid===mid?" selected":"")+'>'+esc(mname(mid))+'</option>'}).join("")+'</select>';
-  var cells=row.vals.map(function(v,i){
-   return '<td><input type="number" min="1" inputmode="numeric" value="'+(v==null?"":v)+
-    '" onchange="scanSetVal('+ri+','+i+',this.value)"></td>'}).join("");
-  return '<tr><td style="min-width:140px">'+sel+'<div class="mt">읽은 이름: '+esc(row.raw)+'</div></td>'+cells+'</tr>'}).join("");
- var head='<tr><th>이름</th>'+r.pars.map(function(p,i){return '<th>'+(i+1)+'<br><span class="mt">파'+p+'</span></th>'}).join("")+'</tr>';
- return '<div class="screen"><div class="bar"><button class="chip" onclick="scan=null;render()">다시</button><h1>읽은 내용 확인</h1></div>'+
- '<div class="body"><div class="card"><h2>확인하고 고치기</h2>'+
- '<p class="note">1과 7, 4와 9를 자주 헷갈립니다. 눈으로 한 번 훑어 주세요.</p>'+
- '<div class="scroll ed"><table class="hx"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>'+
+  var opts='<option value="">(넣지 않음)</option>'+
+   S.members.map(function(m){return '<option value="'+m.id+'"'+(row.mid===m.id?" selected":"")+'>'+
+    esc(m.nick?(m.name+" ("+m.nick+")"):m.name)+'</option>'}).join("");
+  var sel='<select onchange="scanSetMember('+ri+',this.value)">'+opts+'</select>';
+  var add=row.mid?'':'<div style="height:5px"></div><button class="chip" onclick="scanAddMember('+ri+')">이 이름으로 회원 등록</button>';
+  var cells="";
+  for(var h=0;h<hc;h++){var v=row.vals[h];
+   cells+='<td><input type="number" min="1" inputmode="numeric" value="'+(v==null?"":v)+
+    '" onchange="scanSetVal('+ri+','+h+',this.value)"></td>'}
+  var rs=rowSum(row.vals);
+  var okTotal=(row.total==null)||(rs.filled===hc&&rs.sum===row.total);
+  cells+='<td><b>'+(rs.filled?rs.sum:"-")+'</b></td>'+
+   '<td'+(okTotal?'':' class="u"')+'>'+(row.total==null?"-":row.total)+(okTotal?"":" ✕")+'</td>';
+  return '<tr><td style="min-width:150px">'+sel+
+   '<div class="mt">읽은 이름: '+esc(row.raw)+'</div>'+add+'</td>'+cells+'</tr>'}).join("");
+ var bad=scan.rows.filter(function(row){var rs=rowSum(row.vals);
+  return row.total!=null&&!(rs.filled===hc&&rs.sum===row.total)});
+ var miss=scan.rows.filter(function(row){return rowSum(row.vals).filled<hc});
+ var warn="";
+ if(bad.length)warn+='<p class="note" style="color:var(--clay)">합계가 맞지 않는 줄이 '+bad.length+'개 있습니다. 카드와 대조해 고쳐 주십시오.</p>';
+ if(miss.length)warn+='<p class="note" style="color:var(--clay)">읽지 못한 칸이 남은 줄이 '+miss.length+'개 있습니다.</p>';
+ var metaCard=isNew?('<div class="card"><h2>라운드 정보</h2>'+
+  '<label for="cd">날짜</label><input type="date" id="cd" value="'+esc(scan.meta.date||today())+'">'+
+  '<label for="ct">티오프 시간</label><input type="time" id="ct" value="'+esc(scan.meta.teeTime||"")+'">'+
+  '<label for="cv">구분</label><select id="cv">'+
+   '<option value=""'+(scan.meta.venue?"":" selected")+'>정하지 않음</option>'+
+   '<option value="screen"'+(scan.meta.venue==="screen"?" selected":"")+'>스크린</option>'+
+   '<option value="field"'+(scan.meta.venue==="field"?" selected":"")+'>필드</option></select>'+
+  '<label for="cp">골프장 · 매장</label><input type="text" id="cp" value="'+esc(scan.meta.place||"")+'">'+
+  '<label for="cc">코스</label><input type="text" id="cc" value="'+esc(scan.meta.course||"")+'">'+
+  '<p class="note">홀 수 '+hc+'홀로 읽었습니다.</p></div>'):"";
+ return '<div class="screen"><div class="bar"><button class="chip" onclick="scan=null;render()">다시</button>'+
+ '<h1>읽은 내용 확인</h1></div><div class="body">'+metaCard+
+ '<div class="card"><h2>참가자와 타수</h2>'+
+ '<p class="note">1과 7, 4와 9를 자주 헷갈립니다. 맨 오른쪽 두 칸은 더한 값과 카드에 적힌 합계이니 서로 같은지 보십시오.</p>'+
+ '<div class="scroll ed"><table class="hx"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>'+warn+'</div>'+
  (scan.pars?'<div class="card"><label style="display:flex;align-items:center;gap:10px;margin:0">'+
   '<input type="checkbox" id="usepar" checked style="width:22px;height:22px"> 카드에 적힌 파를 이 라운드의 파로 삼기</label>'+
-  '<p class="note">읽은 파 배열: '+scan.pars.join(" ")+'</p></div>'
-  :'<div class="card"><p class="note">카드에서 파 줄을 찾지 못했습니다. 파가 없으면 버디킹과 다파상과 어니언킹이 계산되지 않으니, 입력 화면에서 홀마다 파를 골라 주십시오.</p></div>')+
- '</div><div class="foot"><button class="btn" onclick="applyScan()">이 내용으로 저장</button></div></div>'}
-function scanSetMember(ri,mid){scan.rows[ri].mid=mid||null}
+  '<p class="note">읽은 파: '+scan.pars.map(function(x){return x==null?"?":x}).join(" ")+'</p></div>'
+  :'<div class="card"><p class="note">카드에서 파 줄을 찾지 못했습니다. 파가 없으면 버디킹과 다파상과 어니언킹이 계산되지 않습니다.</p></div>')+
+ '</div><div class="foot"><button class="btn" onclick="'+(isNew?'applyScanNew()':'applyScan()')+'">'+
+ (isNew?"이 내용으로 라운드 등록":"이 내용으로 저장")+'</button></div></div>'}
+function scanSetMember(ri,mid){scan.rows[ri].mid=mid||null;render()}
 function scanSetVal(ri,i,v){var n=parseInt(v,10);scan.rows[ri].vals[i]=isNaN(n)?null:n}
+function scanAddMember(ri){
+ var row=scan.rows[ri];
+ var nm=(prompt("새 회원의 이름을 확인해 주십시오.",row.raw)||"").trim();
+ if(!nm)return;
+ var nk=(prompt("닉네임 (없으면 비워 두십시오)",row.raw===nm?"":row.raw)||"").trim();
+ var m={id:uid(),name:nm,nick:nk,hcpManual:0};
+ S.members.push(m);row.mid=m.id;save();render();
+ toast(nm+" 회원을 등록했습니다.")}
 function applyScan(){
  var r=round(scan.rid);if(!r){scan=null;render();return}
  var cb=document.getElementById("usepar");
@@ -1448,11 +1618,36 @@ function applyScan(){
   if(typeof scan.pars[i]==="number")r.pars[i]=scan.pars[i];
  var n=0;
  scan.rows.forEach(function(row){if(!row.mid)return;
+  if(r.players.indexOf(row.mid)<0)r.players.push(row.mid);
   row.vals.forEach(function(v,i){if(typeof v!=="number")return;
    setCell(r,row.mid,i+1,{s:v,st:"ok"});n++});
   if(hasHoles(r,row.mid))delete r.grossOnly[row.mid]});
  r.confirmed=true;save();var rid=r.id;scan=null;go("result",{rid:rid});
  toast(n+"개 칸을 저장했습니다.")}
+function applyScanNew(){
+ var used=scan.rows.filter(function(row){return row.mid});
+ if(!used.length){toast("회원으로 지정된 줄이 없습니다.");return}
+ var tee=document.getElementById("ct").value;
+ if(!teeTimeValid(tee)){toast("티오프 시간을 확인하십시오.");return}
+ var hc=scan.holeCount;
+ var pars=[];for(var i=0;i<hc;i++)pars.push(0);
+ var cb=document.getElementById("usepar");
+ if(cb&&cb.checked&&scan.pars)for(var j=0;j<hc;j++)
+  if(typeof scan.pars[j]==="number")pars[j]=scan.pars[j];
+ var r={id:uid(),date:document.getElementById("cd").value||today(),teeTime:tee,
+  venue:document.getElementById("cv").value,
+  place:document.getElementById("cp").value.trim(),
+  course:document.getElementById("cc").value.trim(),
+  holeCount:hc,pars:pars,players:used.map(function(row){return row.mid}),
+  groupCount:1,groupOf:{},scores:{},grossOnly:{},times:{},teams:{},perio:null,
+  games:[{type:"net",prize:0},{type:"gross",prize:0}],confirmed:true,
+  createdAt:new Date().toISOString()};
+ var n=0;
+ used.forEach(function(row){
+  row.vals.forEach(function(v,i){if(typeof v!=="number")return;
+   setCell(r,row.mid,i+1,{s:v,st:"ok"});n++})});
+ S.rounds.push(r);save();scan=null;go("result",{rid:r.id});
+ toast(used.length+"명, "+n+"개 칸으로 라운드를 등록했습니다.")}
 
 /* ---- 연간 ---- */
 function scrYear(){
@@ -1461,7 +1656,7 @@ function scrYear(){
  var y=view.year||ys[0]||String(new Date().getFullYear());
  var rs=S.rounds.filter(function(r){return (r.date||"").indexOf(y)===0});
  var acc={};
- function A(mid){if(!acc[mid])acc[mid]={mid:mid,name:mname(mid),prize:0,last:0,wins:0,
+ function A(mid){if(!acc[mid])acc[mid]={mid:mid,name:mfull(mid),prize:0,last:0,wins:0,
   dapa:0,birdie:0,onion:0,improve:0,rounds:0};return acc[mid]}
  rs.forEach(function(r){
   r.players.forEach(function(mid){A(mid).rounds++});
@@ -1601,6 +1796,11 @@ function scrData(){
  '<label for="hostNewPw">새 암호 (10~72글자)</label><input type="password" id="hostNewPw" autocomplete="new-password" placeholder="새 경기위원장 암호">'+
  '<label for="hostNewPw2">새 암호 확인</label><input type="password" id="hostNewPw2" autocomplete="new-password" placeholder="새 암호를 다시 입력">'+
  '<div style="height:10px"></div><button class="btn sm quiet" onclick="changeHostPassword()">암호 변경</button></div>':'')+
+ '<div class="card"><h2>이름 표시</h2>'+
+ '<p class="note">닉네임을 등록한 회원은 이름과 함께 보입니다. 꺼두시면 본명만 나옵니다.</p>'+
+ '<div style="height:10px"></div><div class="row2">'+
+ '<button class="btn sm '+(L.showNick!==false?"":"line")+'" onclick="setShowNick(true)">닉네임 보이기</button>'+
+ '<button class="btn sm '+(L.showNick===false?"":"line")+'" onclick="setShowNick(false)">본명만</button></div></div>'+
  '<div class="card"><h2>프로그램 판본</h2>'+
  '<p class="note">화면 <b>H'+APP_VER+'</b> · 서버 <b>'+(L.serverVer?("S"+L.serverVer):"확인 전")+'</b></p>'+
  '<p class="note">H는 깃허브에 올리는 화면 파일이고 S는 앱스 스크립트 서버입니다. 둘은 짝이므로 함께 올리셔야 합니다.</p>'+
@@ -1640,6 +1840,7 @@ function changeClubName(){
   else toast('모임 이름 변경 실패: '+(res&&res.error||'서버에서 확인이 필요합니다.'));
  },function(e){busy=false;toast('모임 이름 변경 통신 오류: '+e.message)});
 }
+function setShowNick(v){L.showNick=!!v;save(false);render();toast(v?"닉네임을 함께 보입니다.":"본명만 보입니다.")}
 function setRole(m){
  if(m!=="host"){
   forgetHostSession();L.mode="member";save(false);render();toast("회원 모드로 전환했습니다.");return;
