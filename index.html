@@ -124,6 +124,17 @@ td.win{font-weight:700;color:var(--turf)}
 .hero .hsub{display:flex;align-items:center;gap:4px;min-width:0;font-size:clamp(10px,2.9vw,12px);opacity:.85;margin-top:3px;white-space:nowrap;letter-spacing:-.02em}
 .hero .hcounts{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .hero .hversion{flex:none}
+.hero .hmain{flex:1;min-width:0}
+.hero .hline{font-size:clamp(10px,2.9vw,12px);opacity:.88;margin-top:3px;
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.02em}
+.sig{flex:none;display:flex;flex-direction:column;align-items:center;gap:5px;
+ background:rgba(255,255,255,.14);border-radius:12px;padding:9px 11px;min-width:76px}
+.sig .lamp{width:17px;height:17px;border-radius:50%;background:rgba(255,255,255,.26);
+ box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)}
+.sig .lamp.on{background:#5fe08a;box-shadow:0 0 0 3px rgba(95,224,138,.3)}
+.sig .lamp.red{background:#ff7a5c;box-shadow:0 0 0 3px rgba(255,122,92,.3)}
+.sig .lamps{display:flex;gap:7px}
+.sig .txt{font-size:11px;font-weight:650;line-height:1.2;text-align:center}
 .ribbon{background:var(--clay);color:#fff;padding:3px 9px;border-radius:999px;
  font-size:11.5px;font-weight:700;flex:none}
 .ribbon.done{background:var(--turf-mid)}
@@ -174,7 +185,7 @@ tr.gold td:first-child{color:var(--turf)}
 <div id="app"></div>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.2.0";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.2.1";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -231,7 +242,7 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){
  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
 function blankS(){return{schemaVersion:4,room:{id:"pending",clubId:SUPPLY_CLUB_ID,name:SUPPLY_CLUB_NAME,createdAt:null},members:[],rounds:[],hcpWindow:5,updatedAt:null}}
 function validClubData(d){return !!(d&&d.schemaVersion===4&&d.room&&d.room.clubId===SUPPLY_CLUB_ID&&typeof d.room.name==="string"&&d.room.name.length>0&&Array.isArray(d.members)&&Array.isArray(d.rounds))}
-function blankL(){return{mode:"member",inputMode:"numbers",myGroup:{},cloudUrl:"",cloudReadKey:"",dirty:false,
+function blankL(){return{mode:"member",cloudNew:false,serverVer:"",inputMode:"numbers",myGroup:{},cloudUrl:"",cloudReadKey:"",dirty:false,
  lastSaved:null,lastSync:null,lastName:"",seeded:false}}
 function load(){
  try{var a=localStorage.getItem(DKEY);S=a?JSON.parse(a):blankS()}catch(e){S=blankS()}
@@ -617,6 +628,32 @@ function cloudTest(){
   if(box)box.textContent=res&&res.ok?"연결 정상 · "+SUPPLY_CLUB_NAME+" · "+res.version:"연결 실패 · "+(res&&res.error||"인증정보 확인 필요");
  },function(e){if(box)box.textContent="연결 실패 · "+e.message})
 }
+/* v1.2.1 신호등
+   초록: 서버에 새 기록이 있음 (받을 것이 있음)
+   빨강: 이 기기에 아직 올리지 않은 수정이 있음
+   눌러서 받으면 초록이 꺼집니다. 꺼져 있어도 눌러 다시 확인하실 수 있습니다. */
+/* 화면과 서버의 앞 두 자리가 다르면 짝이 어긋난 것으로 봅니다.
+   끝자리는 고치기만 한 판이라 섞여 있어도 보통 문제가 없습니다. */
+function verMismatch(){
+ if(!L.serverVer)return false;
+ var a=String(APP_VER).split("."),b=String(L.serverVer).split(".");
+ return a[0]!==b[0]||a[1]!==b[1];
+}
+function signalTap(){
+ if(L.cloudNew){L.cloudNew=false;save(false);pullCloud();return}
+ pullCloud();
+}
+/* 조용히 서버를 살펴 새 기록이 있는지만 확인합니다. 받지는 않습니다. */
+function peekCloud(){
+ if(!cloudOn()||!L.cloudReadKey)return;
+ cloudRpc("status",L.cloudReadKey).then(function(res){
+  if(!res||!res.ok||!res.version)return;
+  if(res.serverVer)L.serverVer=res.serverVer;
+  var isNew=(L.lastName!==res.version);
+  if(isNew!==!!L.cloudNew||res.serverVer){L.cloudNew=isNew;save(false);
+   if(view.name==="home")render()}
+ },function(){});
+}
 function pullCloud(silent){
  if(!cloudOn()){if(!silent)toast("설정에 서버 주소를 넣어 주십시오.");return}
  var key=L.cloudReadKey;
@@ -625,10 +662,11 @@ function pullCloud(silent){
  cloudRpc("latest",key).then(function(res){busy=false;
   if(!res||!res.ok){if(!silent)toast("받기 실패: "+(res&&res.error||"인증 오류"));return}
   if(!res.version)return;
-  if(L.lastName===res.version&&S.room&&S.room.id!=="pending"){if(!silent)toast("이미 최신 기록입니다.");return}
+  if(res.serverVer)L.serverVer=res.serverVer;
+  if(L.lastName===res.version&&S.room&&S.room.id!=="pending"){L.cloudNew=false;save(false);if(!silent)toast("이미 최신 기록입니다.");render();return}
   var inc;try{inc=JSON.parse(res.data)}catch(e){toast("기록 파일을 읽지 못했습니다.");return}
   if(!validClubData(inc)){toast("다른 모임의 기록은 받아올 수 없습니다.");return}
-  function apply(){S=inc;SUPPLY_CLUB_NAME=inc.room.name;L.lastName=res.version;L.lastSync=new Date().toISOString();L.dirty=false;save(false);go("home");if(!silent)toast("최신 기록을 받았습니다.")}
+  function apply(){S=inc;SUPPLY_CLUB_NAME=inc.room.name;L.lastName=res.version;L.lastSync=new Date().toISOString();L.dirty=false;L.cloudNew=false;if(res.serverVer)L.serverVer=res.serverVer;save(false);go("home");if(!silent)toast("최신 기록을 받았습니다.")}
   if(S.room.id==="pending"&&!L.dirty){apply();return}
   if(L.dirty){ask("이 기기에 아직 서버에 올리지 않은 수정사항이 있습니다. 최신 서버 기록을 받으면 그 수정사항이 사라집니다. 계속할까요?",apply,"받기");return}
   if(silent){apply();return}
@@ -646,7 +684,7 @@ function doPush(){
  busy=true;toast("서버에 저장하는 중입니다…");
  var copy=JSON.parse(JSON.stringify(S));copy.updatedAt=new Date().toISOString();
  cloudRpc("publish",L.cloudReadKey,{hostSession:hostSession,baseVersion:L.lastName,data:JSON.stringify(copy)}).then(function(res){busy=false;
-  if(res&&res.ok){S.updatedAt=copy.updatedAt;L.lastName=res.version;L.lastSync=new Date().toISOString();L.dirty=false;save(false);render();toast("서버 저장이 완료되었습니다.")}
+  if(res&&res.ok){S.updatedAt=copy.updatedAt;L.lastName=res.version;L.lastSync=new Date().toISOString();L.dirty=false;L.cloudNew=false;if(res.serverVer)L.serverVer=res.serverVer;save(false);render();toast("서버 저장이 완료되었습니다.")}
   else if(res&&res.conflict)toast("다른 기기에서 최신 기록을 올렸습니다. 백업 후 새 기록을 확인하십시오.");
   else if(isHostExpiredResult(res))rejectHostSession(res.error);
   else toast("저장 실패: "+(res&&res.error||"알 수 없는 오류"))
@@ -724,15 +762,19 @@ function scrHome(){
    '<span class="mt">\u203a</span></li>'}).join("")
   :'<div class="empty">아직 라운드가 없습니다.</div>';
  var host=hostSessionActive();
+ var sigNew=!!L.cloudNew, sigDirty=!!L.dirty;
+ var sigTxt=sigNew?"새 기록":(sigDirty?"올릴 것":"최신");
  return '<div class="screen">'+
- (cloudOn()?'<div class="banner"><span>'+esc(SUPPLY_CLUB_NAME)+' 최신 기록을 받습니다</span>'+
-  '<button onclick="pullCloud()">받기</button></div>':'')+
- '<div class="hero"><div class="crest">\u26f3</div><div style="min-width:0">'+
+ '<div class="hero"><div class="crest">\u26f3</div><div class="hmain">'+
  '<div class="hname">'+esc(S.room.name)+
  '<span class="hrole">'+(host?"경기위원장":"회원")+'</span></div>'+
- '<div class="hsub"><span class="hcounts">회원 '+S.members.length+'명 · 라운드 '+S.rounds.length+'회 </span>'+
- '<span class="hversion">· v'+APP_VER+'</span></div>'+
- '</div></div>'+
+ '<div class="hline">회원 '+S.members.length+'명 · 라운드 '+S.rounds.length+'회</div>'+
+ '<div class="hline">'+APP_NAME+' H'+APP_VER+'</div></div>'+
+ (cloudOn()?'<button class="sig" onclick="signalTap()" aria-label="기록 받기">'+
+  '<div class="lamps"><span class="lamp'+(sigNew?" on":"")+'"></span>'+
+  '<span class="lamp'+(sigDirty?" red":"")+'"></span></div>'+
+  '<span class="txt">기록받기<br>'+sigTxt+'</span></button>':'')+
+ '</div>'+
  '<div class="bar home-nav" aria-label="주요 메뉴">'+
  '<button class="chip" onclick="go(\'year\')">연간 집계</button>'+
  '<button class="chip" onclick="go(\'stats\')">누적 기록</button>'+
@@ -1559,7 +1601,11 @@ function scrData(){
  '<label for="hostNewPw">새 암호 (10~72글자)</label><input type="password" id="hostNewPw" autocomplete="new-password" placeholder="새 경기위원장 암호">'+
  '<label for="hostNewPw2">새 암호 확인</label><input type="password" id="hostNewPw2" autocomplete="new-password" placeholder="새 암호를 다시 입력">'+
  '<div style="height:10px"></div><button class="btn sm quiet" onclick="changeHostPassword()">암호 변경</button></div>':'')+
- '<div class="card"><h2>프로그램</h2><p class="note">'+APP_NAME+' 공급본 v'+APP_VER+'</p></div>'+
+ '<div class="card"><h2>프로그램 판본</h2>'+
+ '<p class="note">화면 <b>H'+APP_VER+'</b> · 서버 <b>'+(L.serverVer?("S"+L.serverVer):"확인 전")+'</b></p>'+
+ '<p class="note">H는 깃허브에 올리는 화면 파일이고 S는 앱스 스크립트 서버입니다. 둘은 짝이므로 함께 올리셔야 합니다.</p>'+
+ (verMismatch()?'<p class="note" style="color:var(--clay)"><b>짝이 맞지 않습니다.</b> 화면과 서버 중 한쪽이 아직 옛 판입니다. 둘 다 같은 판으로 올려 주십시오.</p>':'')+
+ '<div style="height:10px"></div><button class="btn sm quiet" onclick="peekCloud();toast(\'서버 판본을 확인했습니다.\')">서버 판본 확인</button></div>'+
  '<div class="card"><h2>이 기기의 자료</h2><p class="note">서버의 기록을 삭제하지 않고 이 기기에 저장된 자료만 초기화합니다.</p><div style="height:10px"></div><button class="btn sm line" onclick="wipe()">이 기기의 기록 지우기</button></div>'+
  '</div></div>'
 }
@@ -1680,7 +1726,9 @@ function restoreBackup(){
 /* ---- 공급본 시작: 초기 화면은 서버에 등록된 빈 모임 기준 ---- */
 load();
 render();
-if(!SUPPLY_CLUB_PICK&&cloudOn()&&L.cloudReadKey)setTimeout(function(){pullCloud(true)},600);
+if(!SUPPLY_CLUB_PICK&&cloudOn()&&L.cloudReadKey)setTimeout(function(){
+ if(L.dirty)peekCloud(); else pullCloud(true);
+},600);
 window.addEventListener("pagehide",function(){if(view.name==="play")recordTime()});
 document.addEventListener("visibilitychange",function(){
  if(document.visibilityState==="hidden"&&view.name==="play")recordTime();
