@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="골프챌린지">
+<meta name="apple-mobile-web-app-title" content="골프챌린지" id="iosTitle">
 <meta name="theme-color" content="#14532d">
 <style>
 :root{--bg:#f6f4ee;--card:#fff;--sand:#ece5d6;--turf:#14532d;--turf-mid:#2a7a51;
@@ -185,7 +185,7 @@ tr.gold td:first-child{color:var(--turf)}
 <div id="app"></div>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.3.0";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.3.1";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -334,12 +334,11 @@ function member(id){for(var i=0;i<S.members.length;i++)if(S.members[i].id===id)r
 function mname(id){var m=member(id);return m?m.name:"(알 수 없음)"}
 /* v1.3.0 닉네임 */
 function mnick(id){var m=member(id);return (m&&m.nick)||""}
-/* 넓은 자리: 이름과 닉네임을 함께 */
+/* v1.3.1 닉네임은 회원현황과 스코어카드 화면에서만 보입니다.
+   경기 화면과 결과표에는 본명만 나옵니다. */
 function mfull(id){var m=member(id);if(!m)return "(알 수 없음)";
- return (L.showNick!==false&&m.nick)?(m.name+" ("+m.nick+")"):m.name}
-/* 좁은 자리: 닉네임이 있으면 닉네임만 */
-function mshort(id){var m=member(id);if(!m)return "?";
- return (L.showNick!==false&&m.nick)?m.nick:m.name}
+ return m.nick?(m.name+" ("+m.nick+")"):m.name}
+function mshort(id){var m=member(id);return m?m.name:"?"}
 function cell(r,mid,h){return (r.scores[mid]&&r.scores[mid][h])||null}
 function setCell(r,mid,h,v){if(!r.scores[mid])r.scores[mid]={};if(v===null)delete r.scores[mid][h];else r.scores[mid][h]=v}
 function parOf(r,h){var v=r.pars[h-1];return (typeof v==="number"&&v>=3)?v:0}
@@ -429,7 +428,7 @@ function gameRows(r,type,rev){
    if(gp!=null&&ph!=null){ex.hcp=ph;ex.gross=gp;v=Math.round((gp-ph)*10)/10}}
   else {if(!hasHoles(r,mid))return;v=countType(r,mid,type)}
   if(v==null)return;
-  out.push(Object.assign({mid:mid,name:mfull(mid),v:v},ex))});
+  out.push(Object.assign({mid:mid,name:mname(mid),v:v},ex))});
  return rankBy(out,rev?!g.asc:g.asc)}
 var TEAM_KEYS=["A","B","C","D"];
 function basisVal(r,mid,type){
@@ -506,7 +505,7 @@ function teamResult(r,g){
  var grp=teamsOf(r);
  var sides=TEAM_KEYS.filter(function(k){return grp[k]&&grp[k].length}).map(function(k){
   return{key:k,rows:grp[k].map(function(mid){
-   return{mid:mid,name:mfull(mid),hcp:curHcp(mid),rh:roundHcp(r,mid),
+   return{mid:mid,name:mname(mid),hcp:curHcp(mid),rh:roundHcp(r,mid),
     gross:grossOf(r,mid),v:val(mid)}})
    .filter(function(x){return x.v!=null})}})
   .filter(function(s){return s.rows.length});
@@ -679,7 +678,7 @@ function pullCloud(silent){
   if(L.lastName===res.version&&S.room&&S.room.id!=="pending"){L.cloudNew=false;save(false);if(!silent)toast("이미 최신 기록입니다.");render();return}
   var inc;try{inc=JSON.parse(res.data)}catch(e){toast("기록 파일을 읽지 못했습니다.");return}
   if(!validClubData(inc)){toast("다른 모임의 기록은 받아올 수 없습니다.");return}
-  function apply(){S=inc;SUPPLY_CLUB_NAME=inc.room.name;L.lastName=res.version;L.lastSync=new Date().toISOString();L.dirty=false;L.cloudNew=false;if(res.serverVer)L.serverVer=res.serverVer;save(false);go("home");if(!silent)toast("최신 기록을 받았습니다.")}
+  function apply(){S=inc;SUPPLY_CLUB_NAME=inc.room.name;try{setDocTitle(inc.room.name)}catch(e){}L.lastName=res.version;L.lastSync=new Date().toISOString();L.dirty=false;L.cloudNew=false;if(res.serverVer)L.serverVer=res.serverVer;save(false);go("home");if(!silent)toast("최신 기록을 받았습니다.")}
   if(S.room.id==="pending"&&!L.dirty){apply();return}
   if(L.dirty){ask("이 기기에 아직 서버에 올리지 않은 수정사항이 있습니다. 최신 서버 기록을 받으면 그 수정사항이 사라집니다. 계속할까요?",apply,"받기");return}
   if(silent){apply();return}
@@ -738,6 +737,7 @@ function scrPick(){
 function render(){
  var app=document.getElementById("app");
  if(SUPPLY_CLUB_PICK){app.innerHTML=scrPick();return}
+ if(S&&S.room&&S.room.name)setDocTitle(S.room.name);
  if(!S.room&&view.name!=="data")app.innerHTML=scrStart();
  else if(view.name==="members")app.innerHTML=scrMembers();
  else if(view.name==="newround")app.innerHTML=scrNewRound();
@@ -795,7 +795,7 @@ function scrHome(){
  '<button class="chip" onclick="go(\'data\')">설정</button></div>'+
  '<div class="body">'+
  '<div class="card"><h2>회원현황</h2><p class="note">'+
- (S.members.length?esc(byHcp(S.members).map(function(m){return mshort(m.id)+" "+curHcp(m.id)}).join(" · ")):"아직 없습니다.")+'</p>'+
+ (S.members.length?esc(byHcp(S.members).map(function(m){return m.name+" "+curHcp(m.id)}).join(" · ")):"아직 없습니다.")+'</p>'+
  '<div style="height:10px"></div>'+
  '<button class="btn sm quiet" onclick="go(\'members\')">회원현황 열기</button></div>'+
  (host?'<div class="card"><h2>경기위원장</h2><div class="row2">'+
@@ -861,7 +861,7 @@ function playerPicker(r){
   return '<div class="item">'+
    '<label style="display:flex;align-items:center;gap:9px;flex:1;min-width:0;cursor:pointer">'+
    '<input type="checkbox" class="pck" value="'+m.id+'" onchange="teamPreview()" style="width:22px;height:22px;flex:none"'+(on?" checked":"")+'>'+
-   '<span class="nm">'+esc(mfull(m.id))+'</span></label>'+
+   '<span class="nm">'+esc(m.name)+'</span></label>'+
    '<span class="mt">'+curHcp(m.id)+'</span>'+
    '<select class="tsel" data-mid="'+m.id+'" onchange="teamAssigned(this)" style="width:84px;padding:7px 6px">'+
    '<option value="">팀없음</option>'+TEAM_KEYS.map(function(k){
@@ -1036,7 +1036,7 @@ function needPerio(games){
 /* ---- 지난 기록 등록 ---- */
 function scrPast(){
  var rows=S.members.map(function(m){
-  return '<div class="gm"><div class="nm">'+esc(mfull(m.id))+'</div>'+
+  return '<div class="gm"><div class="nm">'+esc(m.name)+'</div>'+
    '<input type="number" class="pg" data-mid="'+m.id+'" min="1" inputmode="numeric" placeholder="타수"></div>'}).join("");
  return '<div class="screen"><div class="bar"><button class="chip" onclick="go(\'home\')">뒤로</button><h1>지난 기록 등록</h1></div>'+
  '<div class="body">'+
@@ -1413,6 +1413,31 @@ function scrResult(){
    mode "round" : 이미 있는 라운드에 홀별 타수를 채웁니다.
    mode "new"   : 카드 하나로 지난 라운드를 새로 만듭니다. */
 var CARD_HEAD="#WGK1";
+/* v1.3.1 공급본에 복사 함수가 없어 지시문 복사 단추가 동작하지 않았습니다. */
+/* v1.3.1 홈 화면에 추가할 때 쓰이는 이름을 모임 이름으로 맞춥니다.
+   이미 만들어 두신 바로가기의 이름은 바뀌지 않으므로, 바꾸시려면
+   아이콘을 지우고 다시 추가하시거나 런처에서 이름을 고치셔야 합니다. */
+function setDocTitle(nm){
+ try{
+  if(!nm)return;
+  if(document.title!==nm)document.title=nm;
+  var it=document.getElementById("iosTitle");
+  if(it&&it.getAttribute("content")!==nm)it.setAttribute("content",nm);
+ }catch(e){}}
+function copyText(t){
+ function fallback(){
+  try{
+   var ta=document.createElement("textarea");
+   ta.value=t;ta.setAttribute("readonly","");
+   ta.style.position="fixed";ta.style.top="-1000px";ta.style.opacity="0";
+   document.body.appendChild(ta);ta.select();
+   try{ta.setSelectionRange(0,t.length)}catch(e){}
+   var ok=document.execCommand("copy");ta.remove();
+   toast(ok?"복사했습니다.":"복사하지 못했습니다. 글을 길게 눌러 직접 복사해 주십시오.")
+  }catch(e){toast("복사하지 못했습니다. 글을 길게 눌러 직접 복사해 주십시오.")}}
+ if(navigator.clipboard&&navigator.clipboard.writeText){
+  navigator.clipboard.writeText(t).then(function(){toast("복사했습니다.")},fallback)}
+ else fallback()}
 function cardPrompt(holeCount,forNew){
  var who=S.members.map(function(m){return m.nick?(m.name+"("+m.nick+")"):m.name}).join(", ");
  var hc=holeCount||18;
@@ -1470,7 +1495,12 @@ function matchMember(raw,pool){
 function parseCard(txt){
  var out={ok:false,why:"",meta:{},pars:null,rows:[],holeCount:0,warn:[]};
  if(!txt||!txt.trim()){out.why="붙여 넣은 글이 없습니다.";return out}
- var lines=txt.replace(/\r/g,"").split("\n").map(function(x){return x.trim()}).filter(function(x){return x});
+ /* v1.3.1 붙여넣기에서 줄바꿈이 사라지는 경우가 있어, 항목 이름 앞에
+    줄바꿈을 다시 넣어 한 줄짜리 글도 읽어냅니다. */
+ var norm=txt.replace(/\r/g,"\n")
+  .replace(/(#WGK1|#END)/g,"\n$1\n")
+  .replace(/(^|[\s|])(DATE|TIME|TYPE|PLACE|COURSE|HOLES|PAR|P)\s*:\s*/g,"\n$2: ");
+ var lines=norm.split("\n").map(function(x){return x.trim()}).filter(function(x){return x});
  var hi=-1;for(var i=0;i<lines.length;i++)if(lines[i].indexOf(CARD_HEAD)===0){hi=i;break}
  if(hi<0){out.why="첫 줄의 "+CARD_HEAD+" 표시를 찾지 못했습니다. 지시문을 그대로 넣으셨는지 확인해 주십시오.";return out}
  lines=lines.slice(hi+1);
@@ -1656,7 +1686,7 @@ function scrYear(){
  var y=view.year||ys[0]||String(new Date().getFullYear());
  var rs=S.rounds.filter(function(r){return (r.date||"").indexOf(y)===0});
  var acc={};
- function A(mid){if(!acc[mid])acc[mid]={mid:mid,name:mfull(mid),prize:0,last:0,wins:0,
+ function A(mid){if(!acc[mid])acc[mid]={mid:mid,name:mname(mid),prize:0,last:0,wins:0,
   dapa:0,birdie:0,onion:0,improve:0,rounds:0};return acc[mid]}
  rs.forEach(function(r){
   r.players.forEach(function(mid){A(mid).rounds++});
@@ -1796,11 +1826,6 @@ function scrData(){
  '<label for="hostNewPw">새 암호 (10~72글자)</label><input type="password" id="hostNewPw" autocomplete="new-password" placeholder="새 경기위원장 암호">'+
  '<label for="hostNewPw2">새 암호 확인</label><input type="password" id="hostNewPw2" autocomplete="new-password" placeholder="새 암호를 다시 입력">'+
  '<div style="height:10px"></div><button class="btn sm quiet" onclick="changeHostPassword()">암호 변경</button></div>':'')+
- '<div class="card"><h2>이름 표시</h2>'+
- '<p class="note">닉네임을 등록한 회원은 이름과 함께 보입니다. 꺼두시면 본명만 나옵니다.</p>'+
- '<div style="height:10px"></div><div class="row2">'+
- '<button class="btn sm '+(L.showNick!==false?"":"line")+'" onclick="setShowNick(true)">닉네임 보이기</button>'+
- '<button class="btn sm '+(L.showNick===false?"":"line")+'" onclick="setShowNick(false)">본명만</button></div></div>'+
  '<div class="card"><h2>프로그램 판본</h2>'+
  '<p class="note">화면 <b>H'+APP_VER+'</b> · 서버 <b>'+(L.serverVer?("S"+L.serverVer):"확인 전")+'</b></p>'+
  '<p class="note">H는 깃허브에 올리는 화면 파일이고 S는 앱스 스크립트 서버입니다. 둘은 짝이므로 함께 올리셔야 합니다.</p>'+
@@ -1840,7 +1865,6 @@ function changeClubName(){
   else toast('모임 이름 변경 실패: '+(res&&res.error||'서버에서 확인이 필요합니다.'));
  },function(e){busy=false;toast('모임 이름 변경 통신 오류: '+e.message)});
 }
-function setShowNick(v){L.showNick=!!v;save(false);render();toast(v?"닉네임을 함께 보입니다.":"본명만 보입니다.")}
 function setRole(m){
  if(m!=="host"){
   forgetHostSession();L.mode="member";save(false);render();toast("회원 모드로 전환했습니다.");return;
@@ -1926,6 +1950,8 @@ function restoreBackup(){
 
 /* ---- 공급본 시작: 초기 화면은 서버에 등록된 빈 모임 기준 ---- */
 load();
+/* v1.3.1 홈 화면에 추가할 때 쓰이는 이름을 모임 이름으로 맞춥니다. */
+try{if(S&&S.room&&S.room.name)setDocTitle(S.room.name)}catch(e){}
 render();
 if(!SUPPLY_CLUB_PICK&&cloudOn()&&L.cloudReadKey)setTimeout(function(){
  if(L.dirty)peekCloud(); else pullCloud(true);
