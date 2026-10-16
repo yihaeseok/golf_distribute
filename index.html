@@ -9,6 +9,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="골프챌린지" id="iosTitle">
 <meta name="theme-color" content="#14532d">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="./golf-icon-192.png">
+<link rel="apple-touch-icon" href="./golf-icon-192.png">
 <style>
 :root{--bg:#f6f4ee;--card:#fff;--sand:#ece5d6;--turf:#14532d;--turf-mid:#2a7a51;
  --ink:#16211b;--muted:#657a6f;--line:#ddd7c8;--clay:#a8491c;--shade:rgba(20,40,30,.22);
@@ -228,9 +231,10 @@ tr.gold td:first-child{color:var(--turf)}
 .rules-intro{font-size:14px;line-height:1.6;margin:0}
 .rule-desc{font-size:14px;line-height:1.65;margin:0}
 .rule-desc+.rule-desc{margin-top:7px}
-/* H1.9.1: portal entry and fixed one-line VAN strip. */
-#app{padding-bottom:calc(44px + env(safe-area-inset-bottom,0px))}
-#vanStrip{position:fixed;inset:auto 0 0 0;min-height:40px;
+/* H1.9.2: a compact golf emblem + two distinct ad presentations. */
+#app{padding-bottom:calc(46px + env(safe-area-inset-bottom,0px))}
+body.portal-active #app{padding-bottom:calc(114px + env(safe-area-inset-bottom,0px))}
+#vanStrip{position:fixed;inset:auto 0 0 0;min-height:42px;
  padding:7px 12px calc(7px + env(safe-area-inset-bottom,0px));
  background:#eae5d9;color:#123b26;text-decoration:none;
  border-top:1px solid #cfc5b2;display:flex;align-items:center;justify-content:center;
@@ -238,14 +242,31 @@ tr.gold td:first-child{color:var(--turf)}
  line-height:1.4;box-shadow:0 -2px 8px rgba(0,0,0,.07)}
 #vanStripWord{text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #vanStrip .vanOut{font-size:13px;flex:none}
+#vanStrip .vanPortalLines{display:none}
+body.portal-active #vanStrip{background:linear-gradient(115deg,#f3efdf 0%,#e6e8d8 100%);
+ min-height:103px;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));border-top:2px solid #b5a876}
+body.portal-active #vanStripWord,body.portal-active #vanStrip .vanOut{display:none}
+body.portal-active #vanStrip .vanPortalLines{display:flex;flex-direction:column;gap:3px;text-align:center;line-height:1.3}
+.vanServiceLine{font-size:clamp(11px,3vw,14px);color:#194b32;font-weight:800;letter-spacing:.01em}
+.vanDetailLine{font-size:clamp(10px,2.7vw,12px);color:#5b6856;font-weight:550}
+.vanContactLine{display:flex;align-items:center;justify-content:center;gap:9px;font-size:clamp(17px,4.7vw,22px);
+ color:#124930;font-weight:900;letter-spacing:.01em}
+.vanContactLine em{font-style:normal;font-size:11px;font-weight:650;color:#fff;background:#246644;
+ padding:3px 8px;border-radius:999px;letter-spacing:0}
 .toTop{bottom:calc(59px + env(safe-area-inset-bottom,0px))}
 .toast{bottom:calc(70px + env(safe-area-inset-bottom,0px))}
-.portal-hero{background:#14532d;color:#fff;padding:24px 18px 20px}
-.portal-hero h1{font-size:clamp(22px,6.5vw,28px);line-height:1.25;margin:0 0 7px}
-.portal-hero p{margin:0;font-size:13px;opacity:.85}
+.portal-hero{background:linear-gradient(132deg,#10442d,#176446 72%,#246b47);color:#fff;
+ padding:19px 16px 18px;border-bottom:3px solid #c4ae69}
+.portal-brand{display:flex;align-items:center;gap:12px;min-width:0}
+.portal-emblem{display:block;flex:none;width:60px;height:60px;border-radius:15px;
+ background:#0e422e;box-shadow:0 3px 13px rgba(0,0,0,.23);object-fit:cover}
+.portal-brand-copy{flex:1;min-width:0}
+.portal-hero h1{font-size:clamp(19px,5.15vw,24px);letter-spacing:-.045em;
+ line-height:1.24;margin:0 0 6px;word-break:keep-all}
+.portal-hero p{margin:0;font-size:12px;opacity:.90;letter-spacing:-.01em}
 .portal-sub{font-size:13px;color:var(--muted);margin:8px 0 12px;line-height:1.6}
 .portal-entry-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
-.portal-entry-row button{padding:13px 6px;font-size:clamp(12px,3.6vw,16px);word-break:keep-all;line-height:1.35}
+.portal-entry-row button{padding:13px 5px;font-size:clamp(12px,3.6vw,16px);word-break:keep-all;line-height:1.35}
 .portal-small{font-size:12px;color:var(--muted);line-height:1.65}
 .portal-list-btn{display:flex;width:100%;align-items:center;justify-content:space-between;
  gap:10px;text-align:left;border-bottom:1px solid var(--line);padding:12px 1px;
@@ -253,19 +274,24 @@ tr.gold td:first-child{color:var(--turf)}
 .portal-list-btn:last-child{border-bottom:none}
 .portal-back{font-size:11px;background:rgba(255,255,255,.15);border-radius:8px;
  padding:6px 7px;color:white;flex:none;line-height:1.25}
-@media(max-width:345px){.portal-entry-row button{font-size:12px}}
+@media(max-width:345px){.portal-entry-row button{font-size:12px}.portal-emblem{width:50px;height:50px}.portal-brand{gap:9px}}
 </style>
 </head>
 <body>
 <div id="app"></div>
-<a id="vanStrip" href="https://freshall.co.kr" target="_blank" rel="noopener noreferrer"
-   aria-label="프레시올 카드기 포스 키오스크 테이블오더 상담 1899-4540 홈페이지 새 창 열기">
+<a id="vanStrip" href="https://freshall.co.kr/" target="_blank" rel="noopener noreferrer"
+   aria-label="프레시올 카드기 포스 키오스크 테이블오더 용지 상담 1899-4540 홈페이지 열기">
   <span id="vanStripWord">카드기 / 포스 / 키오스크 / 테이블오더</span>
   <span class="vanOut" aria-hidden="true">↗</span>
+  <span class="vanPortalLines" aria-hidden="true">
+    <span class="vanServiceLine">카드기 · 포스 · 키오스크 · 테이블오더 · 용지</span>
+    <span class="vanDetailLine">매장 결제시스템 설치 · 임대 · 관리 상담</span>
+    <span class="vanContactLine">1899-4540 <em>홈페이지 ↗</em></span>
+  </span>
 </a>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.1";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.2";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -1063,23 +1089,37 @@ function portalEnter(){
   PORTAL_OPEN=false;go("home");
  },function(e){PORTAL_ENTER_BUSY=false;render();toast("서버 연결 실패: "+e.message);});
 }
+function portalIsInstalled(){
+ return !!((window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches)||
+  window.navigator.standalone===true);
+}
 function portalInstall(){
+ // In Chromium, native installation must be triggered inside the user's click handler.
  if(PORTAL_INSTALL_PROMPT){
   var p=PORTAL_INSTALL_PROMPT;PORTAL_INSTALL_PROMPT=null;
-  p.prompt();return;
+  try{
+   var offered=p.prompt();
+   if(p.userChoice&&typeof p.userChoice.then==="function")p.userChoice.then(function(choice){
+    if(choice&&choice.outcome==="accepted")toast("홈 화면 설치를 진행합니다.");
+    else toast("설치가 취소되었습니다. 필요할 때 다시 눌러 주세요.");
+   });
+   else if(offered&&typeof offered.then==="function")offered.catch(function(){toast("설치 창을 열지 못했습니다.")});
+   return;
+  }catch(err){/* Fall through to browser guidance below. */}
  }
+ if(portalIsInstalled()){toast("이미 홈 화면 앱으로 실행 중입니다.");return;}
  var ua=navigator.userAgent||"", isIos=/iPad|iPhone|iPod/.test(ua),isAndroid=/Android/i.test(ua);
  var steps=isIos?
-  "아이폰 Safari에서 열기 → 아래 공유(□↑) → '홈 화면에 추가' → 추가":
+  "Safari에서 열기 → 공유(□↑) → '홈 화면에 추가' → 추가":
   (isAndroid?(/SamsungBrowser/i.test(ua)?
-   "삼성 인터넷 우측 아래 ≡ 메뉴 → '현재 페이지 추가' 또는 '홈 화면에 추가' → 확인":
-   "크롬 우측 상단 ⋮ 메뉴 → '홈 화면에 추가' 또는 '앱 설치' → 추가"):
-   "브라우저 메뉴(⋮ 또는 공유) → '홈 화면에 추가' 또는 '앱 설치'를 선택하세요.");
+   "삼성 인터넷 메뉴(≡) → '현재 페이지 추가' → '홈 화면' → 추가":
+   "Chrome 메뉴(⋮) → '앱 설치' 또는 '홈 화면에 추가' → 설치/추가"):
+   "브라우저 메뉴(⋮ 또는 공유) → '앱 설치' 또는 '홈 화면에 추가'를 선택하세요.");
  sheet='<div class="sheet"><div class="inner">'+
   '<h2 style="margin:0 0 9px;font-size:18px">홈 화면에 추가</h2>'+
-  '<p class="portal-sub">현재 열린 모임 포털 주소로 바로가기를 만듭니다.</p>'+
-  '<p style="white-space:pre-line;line-height:1.75">'+esc(steps)+'</p>'+
-  '<p class="portal-small">카카오톡 등의 앱 안에서 열었다면 브라우저에서 열기를 먼저 선택하세요. 새 아이콘에서 인증정보가 보이지 않으면 초대주소로 한 번 더 인증하세요.</p>'+
+  '<p class="portal-sub">브라우저가 바로 설치창을 제공하면 버튼 한 번으로 열립니다. 현재 브라우저는 설치창이 준비되지 않아 아래 방법을 안내합니다.</p>'+
+  '<p style="white-space:pre-line;line-height:1.75;font-weight:650">'+esc(steps)+'</p>'+
+  '<p class="portal-small">처음 방문한 직후에는 브라우저 설치 조건이 아직 충족되지 않았을 수 있습니다. 잠시 사용한 후 재시도하거나 메뉴에서 추가하세요. 카카오톡 등 앱 내부에서 열었다면 외부 브라우저로 열어 주세요. 홈 화면 앱은 포털부터 시작합니다.</p>'+
   '<button class="btn sm quiet" onclick="askNo()">안내 닫기</button></div></div>';
  render();
 }
@@ -1088,7 +1128,9 @@ window.addEventListener("appinstalled",function(){PORTAL_INSTALL_PROMPT=null;toa
 function scrPortal(){
  setDocTitle(APP_NAME);
  var selected=!!SUPPLY_CLUB_ID;
- var banner='<div class="portal-hero"><h1>'+esc(APP_NAME)+'</h1><p>우리의 골프, 함께하는 기록</p></div>';
+ var banner='<div class="portal-hero"><div class="portal-brand">'+
+  '<img class="portal-emblem" src="./golf-icon-192.png" width="60" height="60" alt="골프공과 깃발 엠블렘">'+
+  '<div class="portal-brand-copy"><h1>'+esc(APP_NAME)+'</h1><p>우리의 골프, 함께하는 기록</p></div></div></div>';
  var introduction='<div class="card"><p style="font-weight:650;margin:0 0 8px">초대인증키를 발급받으신 분에게만 입장이 허용됩니다.</p>'+
   '<p class="portal-small" style="margin:0">즐겁게 라운딩 하세요~</p></div>';
  var items=SUPPLY_STORED.length?SUPPLY_STORED.map(function(c){
@@ -1115,6 +1157,7 @@ function scrPortal(){
   '<p class="portal-small">새로운 골프모임 신청과 통합 관리 기능은 추후 관리자 포털에 연결될 예정입니다.</p></div></div></div>';
 }
 function render(){
+ document.body.classList.toggle("portal-active",!!PORTAL_OPEN);
  var app=document.getElementById("app");
  if(PORTAL_OPEN){
   app.innerHTML=scrPortal();
@@ -2707,10 +2750,17 @@ load();
 /* v1.3.1 홈 화면에 추가할 때 쓰이는 이름을 모임 이름으로 맞춥니다. */
 try{if(S&&S.room&&S.room.name)setDocTitle(S.room.name)}catch(e){}
 render();
+if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){
+ window.addEventListener("load",function(){
+  navigator.serviceWorker.register("./sw.js",{scope:"./"}).catch(function(e){
+   if(window.console&&console.warn)console.warn("PWA service worker 등록 실패",e);
+  });
+ });
+}
 if(!PORTAL_OPEN&&!SUPPLY_CLUB_PICK&&cloudOn()&&L.cloudReadKey)setTimeout(function(){
  if(L.dirty)peekCloud(); else pullCloud(true);
 },600);
-/* Fixed banner: one-line alternating text, no backend polling. */
+/* Fixed internal banner alternates; portal displays all three lines without animation. */
 (function(){
  var a=document.getElementById("vanStripWord");if(!a)return;
  var texts=["카드기 / 포스 / 키오스크 / 테이블오더","1899-4540"];

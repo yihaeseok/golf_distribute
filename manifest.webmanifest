@@ -1,0 +1,27 @@
+{
+  "id": "./",
+  "name": "우리끼리 골프챌린지",
+  "short_name": "골프챌린지",
+  "description": "골프모임의 라운딩 기록과 핸디, 예정 라운딩을 함께 관리합니다.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f4ee",
+  "theme_color": "#14532d",
+  "lang": "ko",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "./golf-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./golf-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
