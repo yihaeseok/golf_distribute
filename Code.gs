@@ -1,5 +1,5 @@
 /**
- * 우리끼리 골프챌린지 외부 공급용 서버 v1.1.2
+ * 우리끼리 골프챌린지 외부 공급용 서버 S1.9.0
  * 기존 경오마스터즈와 완전히 별도인 앱스 스크립트 프로젝트에만 설치하십시오.
  * 기존 3단계에 생성된 팔성마스터즈 스냅샷과 폴더 ID는 보존합니다.
  *
@@ -35,6 +35,7 @@ var GS_SESSION_TTL_MS=12*60*60*1000;
 var GS_PASSWORD_FAIL_LIMIT=6;
 var GS_PASSWORD_BLOCK_MS=60*1000;
 
+var GS_SERVER_VER='1.9.0';
 function gsProps_(){return PropertiesService.getScriptProperties()}
 function gsClubPrefix_(id){if(!GS_SLUG_RE.test(id))throw Error('모임 식별번호 오류');return 'GOLF_SUPPLY_CLUB_'+id.toUpperCase().replace(/-/g,'_')+'_'}
 function gsAuthPrefix_(id){return 'GOLF_SUPPLY_'+id.toUpperCase().replace(/-/g,'_')+'_'}
@@ -282,8 +283,8 @@ function gsRpc_(req){
   }finally{authLock.releaseLock()}
  }
  if(req.action==='status')return {ok:true,clubId:meta.id,clubName:meta.name,version:last.name,
-  hostPasswordReady:gsHostReady_(meta.id)};
- if(req.action==='latest')return {ok:true,clubId:meta.id,name:last.name,version:last.name,data:JSON.stringify(data)};
+  serverVer:GS_SERVER_VER,hostPasswordReady:gsHostReady_(meta.id)};
+ if(req.action==='latest')return {ok:true,clubId:meta.id,name:last.name,version:last.name,serverVer:GS_SERVER_VER,data:JSON.stringify(data)};
  if(req.action==='changeHostPassword'){
   if(!gsSessionCheck_(meta.id,req.hostSession))throw Error('경기위원장 인증이 만료되었습니다. 다시 암호를 입력하십시오.');
   if(!gsPasswordValid_(req.newPassword))throw Error('새 암호는 공백 없는 10~72글자여야 합니다.');
@@ -386,7 +387,9 @@ function doPost(e){
   rid=(e&&e.parameter&&e.parameter.rid)||'';
   origin=(e&&e.parameter&&e.parameter.origin)||'*';
   if(!/^wgk[a-f0-9]{32}$/.test(rid))throw Error('요청 식별번호 형식 오류');
-  if(!/^https:\/\/[a-z0-9.-]+(?::\d+)?$/.test(origin))origin='*';
+  // v1.2.0: 형식이 올바르지 않은 출처는 '*'로 되돌리지 않고 거부합니다.
+  //          경기위원장 세션 토큰이 임의의 대상에게 전달될 경로를 남기지 않기 위함입니다.
+  if(!/^https:\/\/[a-z0-9.-]+(?::\d+)?$/.test(origin))throw Error('요청 출처 형식 오류');
   var raw=e&&e.parameter&&e.parameter.payload;
   if(typeof raw!=='string'||raw.length>GS_MAX_BYTES*2)throw Error('요청 크기 오류');
   result=gsRpc_(JSON.parse(raw));
@@ -413,23 +416,95 @@ function doPost(e){
  return HtmlService.createHtmlOutput(page).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-/**
- * 비밀번호 재설정 실패 원인 점검 (운영 정보 읽기 전용).
- * 비밀번호 자체, 접근키, 속성값은 로그나 반환값에 포함하지 않습니다.
- * Apps Script 함수 선택: golfSupplyDiagnosePassword > 실행
- * 원인을 확인한 뒤에도 이 함수를 남겨두어도 기록 수정은 하지 않습니다.
- */
-function golfSupplyDiagnosePassword() {
-  var props = PropertiesService.getScriptProperties();
-  var key = 'GOLF_SUPPLY_PALSEONG_RESET_PASSWORD';
-  var value = props.getProperty(key);
-  var result = {
-    propertyExists: value !== null,
-    length: value === null ? null : value.length,
-    noOuterSpaces: value === null ? null : value.trim() === value,
-    actualValidation: gsPasswordValid_(value),
-    tenCharacterTest: gsPasswordValid_('0123456789')
+/* ===== v1.2.0 운영 보조 함수 (관리자가 편집기에서만 실행) ===== */
+var GS_ARCHIVE_NAME='보관';
+
+/** 모임 폴더 아래의 보관 폴더를 얻습니다. 없으면 만듭니다.
+ *  보관 폴더의 파일은 gsFiles_와 getFilesByName의 대상이 아니므로
+ *  최신 판본 선택과 파일명 재사용에 영향을 주지 않습니다. */
+function gsArchive_(meta){
+  var it = meta.folder.getFoldersByName(GS_ARCHIVE_NAME);
+  return it.hasNext() ? it.next() : meta.folder.createFolder(GS_ARCHIVE_NAME);
+}
+
+/** 데이터를 전혀 바꾸지 않는 점검. 이관 전후 대조에 사용합니다.
+ *  스크립트 속성 GOLF_SUPPLY_INSPECT_CLUB_ID 에 모임 식별번호를 넣고 실행하십시오. */
+function golfSupplyInspectClub(){
+  var id = (gsProps_().getProperty('GOLF_SUPPLY_INSPECT_CLUB_ID')||'').trim();
+  if(!GS_SLUG_RE.test(id)) throw Error('GOLF_SUPPLY_INSPECT_CLUB_ID 속성을 먼저 설정하십시오.');
+  var meta = gsMeta_(id), files = gsFiles_(meta.folder);
+  if(!files.length) throw Error('기록이 없습니다.');
+  var d = gsRead_(files[0], meta);
+  var out = {
+    clubId: meta.id,
+    clubName: meta.name,
+    accessReady: gsReady_(meta.id),
+    hostPasswordReady: gsHostReady_(meta.id),
+    snapshotCount: files.length,
+    latestVersion: files[0].name,
+    schemaVersion: d.schemaVersion,
+    roomId: d.room.id,
+    updatedAt: d.updatedAt,
+    members: d.members.length,
+    rounds: d.rounds.length,
+    memberIds: d.members.map(function(m){return m.id}),
+    memberNames: d.members.map(function(m){return m.name}),
+    roundIds: d.rounds.map(function(r){return r.id}),
+    roundDates: d.rounds.map(function(r){return (r.date||'')+(r.teeTime?(' '+r.teeTime):'')})
   };
-  Logger.log(JSON.stringify(result, null, 2));
-  return result;
+  Logger.log(JSON.stringify(out, null, 2));
+  return out;
+}
+
+/** 되돌리기: 최신 스냅샷 N개를 보관 폴더로 옮깁니다. 휴지통으로 보내지 않습니다.
+ *  GOLF_SUPPLY_ROLLBACK_CLUB_ID 와 GOLF_SUPPLY_ROLLBACK_COUNT 를 설정하고,
+ *  확인용으로 GOLF_SUPPLY_ROLLBACK_CONFIRM 에 ROLLBACK-<모임식별번호> 를 넣어야 실행됩니다.
+ *  실행 전에 반드시 모든 기기의 저장을 멈추고, 실행 후 각 기기에서 '최신 기록 받기'를 하십시오. */
+function golfSupplyRollbackSnapshots(){
+  var p = gsProps_();
+  var id = (p.getProperty('GOLF_SUPPLY_ROLLBACK_CLUB_ID')||'').trim();
+  var count = Number(p.getProperty('GOLF_SUPPLY_ROLLBACK_COUNT')||'0');
+  if(!GS_SLUG_RE.test(id)) throw Error('GOLF_SUPPLY_ROLLBACK_CLUB_ID 속성을 설정하십시오.');
+  if(p.getProperty('GOLF_SUPPLY_ROLLBACK_CONFIRM') !== 'ROLLBACK-'+id)
+    throw Error('확인 속성 GOLF_SUPPLY_ROLLBACK_CONFIRM 값을 ROLLBACK-'+id+' 로 설정하십시오.');
+  if(!Number.isInteger(count) || count < 1 || count > 20)
+    throw Error('되돌릴 판본 수는 1에서 20 사이여야 합니다.');
+  var lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try{
+    var meta = gsMeta_(id), files = gsFiles_(meta.folder);
+    if(files.length - count < 1) throw Error('되돌린 뒤 남는 기록이 없습니다. 중단했습니다.');
+    var archive = gsArchive_(meta), moved = [];
+    for(var i = 0; i < count; i++){
+      var f = files[i].file;
+      f.moveTo(archive);
+      moved.push(files[i].name);
+    }
+    var rest = gsFiles_(meta.folder);
+    gsRead_(rest[0], meta);
+    p.deleteProperty('GOLF_SUPPLY_ROLLBACK_CONFIRM');
+    var out = {ok:true, clubId:meta.id, moved:moved, latestVersion:rest[0].name,
+      message:'보관 폴더로 옮겼습니다. 각 기기에서 최신 기록 받기를 실행하십시오.'};
+    Logger.log(JSON.stringify(out, null, 2));
+    return out;
+  } finally { lock.releaseLock() }
+}
+
+/** 오래된 스냅샷 정리: 최근 keep개만 남기고 나머지를 보관 폴더로 옮깁니다.
+ *  GOLF_SUPPLY_TIDY_CLUB_ID 와 GOLF_SUPPLY_TIDY_KEEP 을 설정하고 실행하십시오. */
+function golfSupplyTidySnapshots(){
+  var p = gsProps_();
+  var id = (p.getProperty('GOLF_SUPPLY_TIDY_CLUB_ID')||'').trim();
+  var keep = Number(p.getProperty('GOLF_SUPPLY_TIDY_KEEP')||'0');
+  if(!GS_SLUG_RE.test(id)) throw Error('GOLF_SUPPLY_TIDY_CLUB_ID 속성을 설정하십시오.');
+  if(!Number.isInteger(keep) || keep < 5) throw Error('남길 판본 수는 5 이상이어야 합니다.');
+  var lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try{
+    var meta = gsMeta_(id), files = gsFiles_(meta.folder);
+    if(files.length <= keep) return {ok:true, moved:0, message:'정리할 기록이 없습니다.'};
+    var archive = gsArchive_(meta), moved = 0;
+    for(var i = keep; i < files.length; i++){ files[i].file.moveTo(archive); moved++ }
+    var out = {ok:true, clubId:meta.id, moved:moved, kept:keep, latestVersion:files[0].name};
+    Logger.log(JSON.stringify(out, null, 2));
+    return out;
+  } finally { lock.releaseLock() }
 }
