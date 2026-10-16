@@ -228,13 +228,44 @@ tr.gold td:first-child{color:var(--turf)}
 .rules-intro{font-size:14px;line-height:1.6;margin:0}
 .rule-desc{font-size:14px;line-height:1.65;margin:0}
 .rule-desc+.rule-desc{margin-top:7px}
+/* H1.9.1: portal entry and fixed one-line VAN strip. */
+#app{padding-bottom:calc(44px + env(safe-area-inset-bottom,0px))}
+#vanStrip{position:fixed;inset:auto 0 0 0;min-height:40px;
+ padding:7px 12px calc(7px + env(safe-area-inset-bottom,0px));
+ background:#eae5d9;color:#123b26;text-decoration:none;
+ border-top:1px solid #cfc5b2;display:flex;align-items:center;justify-content:center;
+ gap:8px;z-index:20;font-size:clamp(11px,3.3vw,15px);font-weight:750;
+ line-height:1.4;box-shadow:0 -2px 8px rgba(0,0,0,.07)}
+#vanStripWord{text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#vanStrip .vanOut{font-size:13px;flex:none}
+.toTop{bottom:calc(59px + env(safe-area-inset-bottom,0px))}
+.toast{bottom:calc(70px + env(safe-area-inset-bottom,0px))}
+.portal-hero{background:#14532d;color:#fff;padding:24px 18px 20px}
+.portal-hero h1{font-size:clamp(22px,6.5vw,28px);line-height:1.25;margin:0 0 7px}
+.portal-hero p{margin:0;font-size:13px;opacity:.85}
+.portal-sub{font-size:13px;color:var(--muted);margin:8px 0 12px;line-height:1.6}
+.portal-entry-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.portal-entry-row button{padding:13px 6px;font-size:clamp(12px,3.6vw,16px);word-break:keep-all;line-height:1.35}
+.portal-small{font-size:12px;color:var(--muted);line-height:1.65}
+.portal-list-btn{display:flex;width:100%;align-items:center;justify-content:space-between;
+ gap:10px;text-align:left;border-bottom:1px solid var(--line);padding:12px 1px;
+ font-size:16px;font-weight:650}
+.portal-list-btn:last-child{border-bottom:none}
+.portal-back{font-size:11px;background:rgba(255,255,255,.15);border-radius:8px;
+ padding:6px 7px;color:white;flex:none;line-height:1.25}
+@media(max-width:345px){.portal-entry-row button{font-size:12px}}
 </style>
 </head>
 <body>
 <div id="app"></div>
+<a id="vanStrip" href="https://freshall.co.kr" target="_blank" rel="noopener noreferrer"
+   aria-label="프레시올 카드기 포스 키오스크 테이블오더 상담 1899-4540 홈페이지 새 창 열기">
+  <span id="vanStripWord">카드기 / 포스 / 키오스크 / 테이블오더</span>
+  <span class="vanOut" aria-hidden="true">↗</span>
+</a>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.0";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.1";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -257,8 +288,10 @@ function supplyStoredClubs(){
 }
 var SUPPLY_STORED=supplyStoredClubs();
 var SUPPLY_CLUB_ID=SUPPLY_SLUG_RE.test(SUPPLY_PARAMS.get("club")||"")?SUPPLY_PARAMS.get("club")
- :(SUPPLY_STORED.length===1?SUPPLY_STORED[0].id:"");
+ :"";
 var SUPPLY_CLUB_PICK=!SUPPLY_CLUB_ID;
+/* H1.9.1: all visits begin in the portal. */
+var PORTAL_OPEN=true,PORTAL_ENTER_BUSY=false,PORTAL_INSTALL_PROMPT=null;
 var SUPPLY_CLUB_NAME=SUPPLY_CLUB_ID?((SUPPLY_PARAMS.get("name")||"").slice(0,60)||
  (function(){for(var i=0;i<SUPPLY_STORED.length;i++)if(SUPPLY_STORED[i].id===SUPPLY_CLUB_ID)return SUPPLY_STORED[i].name;return SUPPLY_CLUB_ID})())
  :APP_NAME;
@@ -713,7 +746,16 @@ function roundGames(r){
   if(!g){g={type:t,prize:0};if(t==="team"){g.basis="net";g.teamCount=2}}
   else if(t==="team"){if(!g.basis)g.basis="net";if(!g.teamCount)g.teamCount=2}
   return g})}
-function isPlanned(r){return (r.date||"")>today()}
+/* Start + 5h inclusive: only after five full hours show result.
+   Old records without a valid tee time keep the existing date-based rule. */
+function isPlanned(r){
+ var date=r&&r.date||"", tee=r&&r.teeTime||"";
+ if(/^\d{4}-\d{2}-\d{2}$/.test(date)&&/^([01]\d|2[0-3]):[0-5]\d$/.test(tee)){
+  var st=Date.parse(date+"T"+tee+":00+09:00");
+  if(Number.isFinite(st))return Date.now()<st+5*60*60*1000;
+ }
+ return date>today();
+}
 /* v1.7.2 첫 화면 목록에는 대회순위 종목의 우승자만 한 줄로 보입니다.
    대회순위가 정해지지 않은 라운드는 맨 앞 종목 하나만 보입니다. */
 function roundSummary(r){
@@ -978,24 +1020,107 @@ function supplyMemberInvite(){
  },function(e){busy=false;toast("서버 확인 실패: "+e.message)})
 }
 /* ===== 렌더 ===== */
-function scrPick(){
- var list=SUPPLY_STORED.length?SUPPLY_STORED.map(function(c){
-  return '<li class="item" style="cursor:pointer" onclick="supplyGoClub(\''+c.id+'\')">'+
-   '<div style="flex:1;min-width:0"><div class="nm">'+esc(c.name)+'</div>'+
-   '<div class="mt">'+esc(c.id)+'</div></div><span class="mt">\u203a</span></li>'}).join("")
-  :'<div class="empty">이 기기에 저장된 모임이 없습니다.</div>';
- return '<div class="screen"><div class="bar"><h1>'+esc(APP_NAME)+'</h1></div><div class="body">'+
- '<div class="card"><h2>어느 모임이신지요</h2>'+
- '<p class="note">이 주소에는 모임 식별번호가 없습니다. 받으신 초대주소로 들어오시면 모임이 자동으로 정해집니다.</p>'+
- '<ul class="list">'+list+'</ul></div>'+
- '<div class="card"><h2>초대주소가 없으신 경우</h2>'+
- '<p class="note">경기위원장께 초대주소를 받으십시오. 식별번호를 알고 계시면 아래에서 바로 넣으셔도 됩니다.</p>'+
- '<div style="height:10px"></div>'+
- '<button class="btn sm quiet" onclick="supplyAskClub()">모임 식별번호 넣기</button></div>'+
- '</div></div>'}
+/* H1.9.1: shared entrance for both bare domain and club invite URLs. */
+function portalClubName(){
+ if(!SUPPLY_CLUB_ID)return "";
+ if(S&&S.room&&S.room.id!=="pending"&&S.room.name)return S.room.name;
+ for(var i=0;i<SUPPLY_STORED.length;i++)if(SUPPLY_STORED[i].id===SUPPLY_CLUB_ID)return SUPPLY_STORED[i].name;
+ return SUPPLY_CLUB_NAME;
+}
+function portalReturn(){
+ if(view.name==="play")recordTime();
+ sheet=null;PORTAL_OPEN=true;view={name:"home"};
+ setDocTitle(APP_NAME);render();window.scrollTo(0,0);
+}
+function portalEnter(){
+ if(PORTAL_ENTER_BUSY)return;
+ if(!SUPPLY_CLUB_ID){toast("먼저 내 모임을 선택하십시오.");return;}
+ if(!L||!cloudOn()||!L.cloudReadKey){
+  alert("초대인증키를 발급받으신 분에게만 입장이 허용됩니다.\n경기위원장에게 초대주소를 받아 접속해 주세요.");return;
+ }
+ PORTAL_ENTER_BUSY=true;render();
+ cloudRpc("latest",L.cloudReadKey).then(function(res){
+  PORTAL_ENTER_BUSY=false;
+  if(!res||!res.ok||!res.data){
+   render();alert("인증을 확인하지 못했습니다.\n"+(res&&res.error||"초대인증키를 확인해 주세요."));return;
+  }
+  var latest;try{latest=JSON.parse(res.data)}catch(e){render();toast("서버 기록을 읽지 못했습니다.");return;}
+  if(res.clubId!==SUPPLY_CLUB_ID||!validClubData(latest)){
+   render();alert("선택한 모임과 초대인증키가 일치하지 않습니다.");return;
+  }
+  if(L.dirty){
+   // Do not destroy changes awaiting upload from host device.
+   L.cloudNew=L.lastName!==res.version;
+   if(res.serverVer)L.serverVer=res.serverVer;
+   save(false);
+   PORTAL_OPEN=false;go("home");
+   toast("미전송 수정사항을 보존했습니다. 최신 기록 받기는 신중히 진행해 주세요.");return;
+  }
+  S=latest;SUPPLY_CLUB_NAME=latest.room.name;
+  L.lastName=res.version;L.lastSync=new Date().toISOString();L.dirty=false;L.cloudNew=false;
+  if(res.serverVer)L.serverVer=res.serverVer;
+  save(false);
+  PORTAL_OPEN=false;go("home");
+ },function(e){PORTAL_ENTER_BUSY=false;render();toast("서버 연결 실패: "+e.message);});
+}
+function portalInstall(){
+ if(PORTAL_INSTALL_PROMPT){
+  var p=PORTAL_INSTALL_PROMPT;PORTAL_INSTALL_PROMPT=null;
+  p.prompt();return;
+ }
+ var ua=navigator.userAgent||"", isIos=/iPad|iPhone|iPod/.test(ua),isAndroid=/Android/i.test(ua);
+ var steps=isIos?
+  "아이폰 Safari에서 열기 → 아래 공유(□↑) → '홈 화면에 추가' → 추가":
+  (isAndroid?(/SamsungBrowser/i.test(ua)?
+   "삼성 인터넷 우측 아래 ≡ 메뉴 → '현재 페이지 추가' 또는 '홈 화면에 추가' → 확인":
+   "크롬 우측 상단 ⋮ 메뉴 → '홈 화면에 추가' 또는 '앱 설치' → 추가"):
+   "브라우저 메뉴(⋮ 또는 공유) → '홈 화면에 추가' 또는 '앱 설치'를 선택하세요.");
+ sheet='<div class="sheet"><div class="inner">'+
+  '<h2 style="margin:0 0 9px;font-size:18px">홈 화면에 추가</h2>'+
+  '<p class="portal-sub">현재 열린 모임 포털 주소로 바로가기를 만듭니다.</p>'+
+  '<p style="white-space:pre-line;line-height:1.75">'+esc(steps)+'</p>'+
+  '<p class="portal-small">카카오톡 등의 앱 안에서 열었다면 브라우저에서 열기를 먼저 선택하세요. 새 아이콘에서 인증정보가 보이지 않으면 초대주소로 한 번 더 인증하세요.</p>'+
+  '<button class="btn sm quiet" onclick="askNo()">안내 닫기</button></div></div>';
+ render();
+}
+window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();PORTAL_INSTALL_PROMPT=e});
+window.addEventListener("appinstalled",function(){PORTAL_INSTALL_PROMPT=null;toast("홈 화면에 설치되었습니다.")});
+function scrPortal(){
+ setDocTitle(APP_NAME);
+ var selected=!!SUPPLY_CLUB_ID;
+ var banner='<div class="portal-hero"><h1>'+esc(APP_NAME)+'</h1><p>우리의 골프, 함께하는 기록</p></div>';
+ var introduction='<div class="card"><p style="font-weight:650;margin:0 0 8px">초대인증키를 발급받으신 분에게만 입장이 허용됩니다.</p>'+
+  '<p class="portal-small" style="margin:0">즐겁게 라운딩 하세요~</p></div>';
+ var items=SUPPLY_STORED.length?SUPPLY_STORED.map(function(c){
+  return '<button class="portal-list-btn" onclick="supplyGoClub(\''+c.id+'\')">'+
+   '<span>'+esc(c.name)+'</span><span aria-hidden="true">›</span></button>';}).join(""):
+  '<p class="portal-sub">이 기기에 등록된 모임이 없습니다. 경기위원장에게 받은 초대주소로 접속해 주세요.</p>';
+ var main=selected?
+  '<div class="card"><h2>'+esc(portalClubName())+'</h2>'+
+   '<p class="portal-sub">'+(L&&cloudOn()&&L.cloudReadKey?
+   '초대인증 정보가 등록되어 있습니다. 입장할 때 서버에서 유효성을 확인합니다.':
+   '초대인증키가 없습니다. 경기위원장에게 회원용 초대주소를 받으십시오.')+'</p>'+
+   '<div class="portal-entry-row"><button class="btn sm" onclick="portalEnter()"'+
+   (PORTAL_ENTER_BUSY?' disabled':'')+'>'+(PORTAL_ENTER_BUSY?'인증 확인 중…':'내 모임으로<br>들어가기')+'</button>'+
+   '<button class="btn sm quiet" onclick="portalInstall()">홈 화면에 추가</button></div>'+
+   '<p style="margin:12px 0 0"><button class="chip" onclick="location.href=location.pathname">다른 모임 선택</button></p></div>':
+  '<div class="card"><h2>어느 모임이신지요</h2>'+
+   '<p class="portal-sub">가입한 모임을 선택하십시오. 초대주소로 처음 접속하시면 해당 모임이 자동 선택됩니다.</p>'+items+
+   '<div style="height:12px"></div><div class="portal-entry-row">'+
+   '<button class="btn sm quiet" onclick="supplyAskClub()">모임 식별번호 넣기</button>'+
+   '<button class="btn sm quiet" onclick="portalInstall()">홈 화면에 추가</button></div></div>';
+ return '<div class="screen">'+banner+'<div class="body">'+introduction+main+
+  '<div class="card"><h2>모임을 처음 이용하시나요?</h2>'+ 
+  '<p class="portal-sub">회원 초대주소는 해당 모임의 경기위원장에게 받으실 수 있습니다.</p>'+ 
+  '<p class="portal-small">새로운 골프모임 신청과 통합 관리 기능은 추후 관리자 포털에 연결될 예정입니다.</p></div></div></div>';
+}
 function render(){
  var app=document.getElementById("app");
- if(SUPPLY_CLUB_PICK){app.innerHTML=scrPick();return}
+ if(PORTAL_OPEN){
+  app.innerHTML=scrPortal();
+  if(sheet)app.insertAdjacentHTML("beforeend",sheet);
+  return;
+ }
  if(S&&S.room&&S.room.name)setDocTitle(S.room.name);
  if(view.name!=="result")fwShown="";
  if(!S.room&&view.name!=="data")app.innerHTML=scrStart();
@@ -1062,6 +1187,7 @@ function scrHome(){
  '<span class="hrole">'+(host?"경기위원장":"회원")+'</span></div>'+
  '<div class="hline">회원 '+S.members.length+'명 · 라운드 '+S.rounds.length+'회</div>'+
  '<div class="hline">'+APP_NAME+' H'+APP_VER+'</div></div>'+
+ '<button class="portal-back" onclick="portalReturn()">포털</button>'+
  (cloudOn()?'<button class="sig" onclick="pullCloud()" aria-label="최신 기록 받기">'+
   '<div class="lamps"><span class="lamp'+(sigNew?" on":"")+'"></span></div>'+
   '<span class="txt">받기<br>'+(sigNew?"새 기록":"최신")+'</span></button>':'')+
@@ -1751,6 +1877,44 @@ function setStatus(mid,st){var r=round(view.rid),par=parOf(r,view.hole)||4,c=cel
  else{var s=c&&typeof c.s==="number"?c.s:par+2;setCell(r,mid,view.hole,{s:s,st:st})}
  save();closeSheet()}
 
+/* H1.9.1: external maps/calendar are opened on client, no extra Script calls. */
+function golfPlaceQuery(r){return String((r&&r.place)||"").trim()}
+function golfExternal(url){window.open(url,"_blank","noopener,noreferrer")}
+function golfMap(rid,provider){
+ var r=round(rid),q=golfPlaceQuery(r);
+ if(!q){toast("먼저 골프장·매장 위치를 입력하십시오.");return;}
+ if(provider==="naver")golfExternal("https://map.naver.com/p/search/"+encodeURIComponent(q));
+ else golfExternal("https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(q)+"&travelmode=driving");
+}
+function golfCalendar(rid){
+ var r=round(rid);
+ if(!r||!/^\d{4}-\d{2}-\d{2}$/.test(r.date||"")||!teeTimeValid(r.teeTime)||!r.teeTime){
+  toast("구글 캘린더에 보내려면 날짜와 티오프 시간을 등록하십시오.");return;
+ }
+ var start=new Date(r.date+"T"+r.teeTime+":00+09:00");
+ if(!Number.isFinite(start.getTime())){toast("날짜·시각을 확인하십시오.");return;}
+ var end=new Date(start.getTime()+5*60*60*1000);
+ function kst(d){var x=new Date(d.getTime()+9*3600000);
+  return x.getUTCFullYear()+p2(x.getUTCMonth()+1)+p2(x.getUTCDate())+"T"+
+   p2(x.getUTCHours())+p2(x.getUTCMinutes())+"00";}
+ var place=golfPlaceQuery(r),title=(S.room.name||APP_NAME)+" · "+(place||"골프 라운딩");
+ var desc="모임: "+(S.room.name||"")+"\n라운딩: "+r.date+" "+r.teeTime+
+  "\n구분: "+venueLabel(r)+"\n장소: "+(place||"미정")+
+  "\n코스: "+(r.course||"미정")+"\n참가: "+r.players.map(mname).join(", ")+
+  "\n골프챌린지: "+location.origin+location.pathname+"?club="+encodeURIComponent(SUPPLY_CLUB_ID);
+ var url="https://calendar.google.com/calendar/render?action=TEMPLATE"+
+  "&text="+encodeURIComponent(title)+"&dates="+kst(start)+"/"+kst(end)+
+  "&ctz=Asia%2FSeoul&location="+encodeURIComponent(place)+"&details="+encodeURIComponent(desc);
+ golfExternal(url);
+}
+function golfLinks(r){
+ if(!r||!r.place&&!r.teeTime)return "";
+ return '<div class="card"><h2>지도 · 길찾기 · 일정</h2>'+
+  '<div class="row2"><button class="btn sm quiet" onclick="golfMap(\''+r.id+'\',\'naver\')">네이버지도</button>'+
+  '<button class="btn sm quiet" onclick="golfMap(\''+r.id+'\',\'google\')">구글 길찾기</button></div>'+
+  '<div style="height:8px"></div><button class="btn sm line" onclick="golfCalendar(\''+r.id+'\')">구글 캘린더에 추가</button>'+
+  '<p class="portal-small">구글 캘린더에는 날짜·시간·장소·코스·참가자 정보가 미리 입력됩니다. 회원이 직접 저장합니다.</p></div>';
+}
 /* ---- 결과 ---- */
 /* 종목 카드 아래에 붙는 순위별 회비·상금 표 */
 /* 한 라운드의 특기할 기록을 모읍니다. */
@@ -1935,7 +2099,7 @@ function scrResult(){
  (host?'<button class="btn sm quiet" onclick="go(\'scan\',{rid:\''+r.id+'\'})">라운드 기록 올리기</button>':'')+
  '</div>'+(host?'<div style="height:8px"></div>'+
  '<button class="btn sm quiet" onclick="go(\'edit\',{rid:\''+r.id+'\'})">라운딩 수정</button>':'')+'</div>'+
- '<div class="body">'+gHtml+cards+marks+
+ '<div class="body">'+golfLinks(r)+gHtml+cards+marks+
  '<div class="card"><h2>홀별 기록</h2><div class="scroll"><table class="hx"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>'+
  cumTable(r.id,no+"차까지의 누적","이 라운드를 마친 시점의 누적입니다. 핸디순으로 늘어놓았으며, 핸디는 다음 라운드에 적용될 값입니다.")+
  (host?'<div class="card"><h2>모임에 공유</h2>'+
@@ -2543,9 +2707,15 @@ load();
 /* v1.3.1 홈 화면에 추가할 때 쓰이는 이름을 모임 이름으로 맞춥니다. */
 try{if(S&&S.room&&S.room.name)setDocTitle(S.room.name)}catch(e){}
 render();
-if(!SUPPLY_CLUB_PICK&&cloudOn()&&L.cloudReadKey)setTimeout(function(){
+if(!PORTAL_OPEN&&!SUPPLY_CLUB_PICK&&cloudOn()&&L.cloudReadKey)setTimeout(function(){
  if(L.dirty)peekCloud(); else pullCloud(true);
 },600);
+/* Fixed banner: one-line alternating text, no backend polling. */
+(function(){
+ var a=document.getElementById("vanStripWord");if(!a)return;
+ var texts=["카드기 / 포스 / 키오스크 / 테이블오더","1899-4540"];
+ var i=0;setInterval(function(){i=1-i;a.textContent=texts[i]},4500);
+})();
 window.addEventListener("pagehide",function(){if(view.name==="play")recordTime()});
 document.addEventListener("visibilitychange",function(){
  if(document.visibilityState==="hidden"&&view.name==="play")recordTime();
