@@ -234,7 +234,7 @@ tr.gold td:first-child{color:var(--turf)}
 <div id="app"></div>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.7.1";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.0";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -651,23 +651,21 @@ function markHtml(sc,par){
  else if(d===-1)cls="birdie";
  else if(d<=-2)cls="eagle";
  return '<span class="mk '+cls+'">'+sc+'</span>'}
-/* 라운드의 종목을 보이는 순서로 정렬합니다.
-   대회순위종목 → 금액이 걸린 종목 → 나머지 */
+/* 결과에 보일 종목입니다. 팀전은 팀을 배정하셨을 때만 나옵니다.
+   무작위로 조를 짜는 것은 뜻이 없기 때문입니다. */
+function visibleGames(r){
+ var has=Object.keys(teamsOf(r)).length>0;
+ return roundGames(r).filter(function(g){return g.type!=="team"||has})}
+/* 보이는 순서는 대회순위종목 → 금액이 걸린 종목 → 나머지입니다. */
 function orderedGames(r){
- var gl=roundGames(r).slice();
- var hasMain=gl.some(function(g){return g.main});
- if(!hasMain&&gl.length)gl[0].__autoMain=true;
- return gl.sort(function(a,b){
-  var am=(a.main||a.__autoMain)?0:1, bm=(b.main||b.__autoMain)?0:1;
+ return visibleGames(r).slice().sort(function(a,b){
+  var am=a.main?0:1, bm=b.main?0:1;
   if(am!==bm)return am-bm;
   var ap=payoutOf(a).length?0:1, bp=payoutOf(b).length?0:1;
   if(ap!==bp)return ap-bp;
   return 0})}
-function isMainGame(r,g){
- var gl=roundGames(r);
- var hasMain=gl.some(function(x){return x.main});
- if(hasMain)return !!g.main;
- return gl[0]===g}
+/* 체크된 것만 대회순위입니다. 체크가 없으면 모두 참고순위입니다. */
+function isMainGame(r,g){return !!g.main}
 /* 한 종목의 순위별 정산 결과.
    반환: [{mid,name,rank,tie,fee,prize,net}], 그리고 모임 적립금 */
 function gamePayout(r,g){
@@ -704,11 +702,25 @@ function roundMoney(r){
    if(!map[x.mid])map[x.mid]={mid:x.mid,fee:0,prize:0,net:0};
    map[x.mid].fee+=x.fee;map[x.mid].prize+=x.prize;map[x.mid].net+=x.net})});
  return map}
-function roundGames(r){return (r.games&&r.games.length)?r.games:[{type:"net",prize:0}]}
+/* v1.8.0 저장된 내용과 상관없이 모든 종목을 늘 돌려줍니다.
+   저장된 것에서는 대회순위, 거꾸로, 순위별 금액, 팀 설정만 가져옵니다.
+   그래서 예전에 만든 라운드를 열어도 빠져 있던 종목이 참고순위로 함께 나옵니다. */
+function roundGames(r){
+ var saved={};
+ (r&&r.games||[]).forEach(function(g){if(g&&g.type)saved[g.type]=g});
+ return GAME_ORDER.map(function(t){
+  var g=saved[t];
+  if(!g){g={type:t,prize:0};if(t==="team"){g.basis="net";g.teamCount=2}}
+  else if(t==="team"){if(!g.basis)g.basis="net";if(!g.teamCount)g.teamCount=2}
+  return g})}
 function isPlanned(r){return (r.date||"")>today()}
+/* v1.7.2 첫 화면 목록에는 대회순위 종목의 우승자만 한 줄로 보입니다.
+   대회순위가 정해지지 않은 라운드는 맨 앞 종목 하나만 보입니다. */
 function roundSummary(r){
  var out=[];
- roundGames(r).forEach(function(g){
+ var gl=roundGames(r).filter(function(g){return g.main});
+ if(!gl.length)gl=roundGames(r).slice(0,1);
+ gl.forEach(function(g){
   var G=GAMES[g.type];if(!G)return;
   if(g.type==="team"){
    var tr=teamResult(r,g);if(!tr)return;
@@ -1142,7 +1154,6 @@ function teamAssigned(sel){
  if(sel.value){
   var item=sel.closest(".item"),pick=item&&item.querySelector(".pck");
   if(pick)pick.checked=true;
-  var ck=document.querySelector('.gck[value="team"]');if(ck)ck.checked=true;
   var count=document.getElementById("tcount"),used=TEAM_KEYS.indexOf(sel.value)+1;
   if(count&&used>parseInt(count.value,10))count.value=String(Math.max(2,used));
  }
@@ -1172,7 +1183,7 @@ function teamPreview(){
  teamAutoHint();
  var pk=readPlayers();
  syncEditParticipants();
- if(!teamOn()){box.innerHTML='<p class="note">이 라운드는 팀 나누기를 하지 않습니다. 팀으로 겨루시려면 경기 종목에서 팀 나누기에 체크해 주십시오. 참가 '+pk.players.length+'명.</p>';return}
+ if(!teamOn()){box.innerHTML='<p class="note">아직 팀을 배정하지 않으셨습니다. 참가자 오른쪽에서 팀을 고르시거나 자동 배정을 누르시면 팀전이 결과에 나옵니다. 참가 '+pk.players.length+'명.</p>';return}
  var want=teamCountSel()||2;
  if(!pk.players.length){box.innerHTML='<p class="note">참가자를 고르시면 현황이 나옵니다.</p>';return}
  var basis=teamAutoBasis(),dateEl=document.getElementById(view.name==="edit"?"ed":"rd");
@@ -1205,42 +1216,55 @@ function readPlayers(){
   if(ps.indexOf(mid)>=0&&x.value)teams[mid]=x.value});
  return{players:ps,teams:teams}}
 function gameChecklist(sel){
+ /* v1.8.0 종목을 켜고 끄는 체크를 없앴습니다.
+    모든 종목이 늘 계산되어 결과에 나오고, 종목 이름 뒤의 체크로
+    그날의 대회순위 종목 하나만 고릅니다. 나머지는 모두 참고순위입니다.
+    팀전은 팀을 배정하셨을 때만 결과에 나오므로 여기서는 설정만 둡니다. */
  return GAME_ORDER.map(function(t){var g=GAMES[t],on=sel&&sel[t];
-  return '<div class="gm"><input type="checkbox" class="gck" value="'+t+'"'+
-   (t==="team"?' onchange="teamPreview()"':'')+' style="width:22px;height:22px;flex:none"'+
-   (on?" checked":"")+'><div style="flex:1;min-width:0"><div class="nm">'+
-   (t==="team"?"팀 나누기":g.name)+'</div>'+
-   '<div class="mt">'+g.desc+'</div>'+
-   (t==="team"?'':'<label class="mt reverse-label" style="display:inline-flex;align-items:center;gap:6px;margin-top:5px">'+
-    '<input type="checkbox" class="grv" style="width:18px;height:18px;flex:none"'+(on&&on.rev?" checked":"")+'>'+
-    '거꾸로 ('+(GAMES[t].asc?"많을수록":"적을수록")+' 우승)</label>')+
-   '</div>'+
-   '<div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">'+
-   '<label class="mt" style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">'+
-   '<input type="radio" name="mainGame" class="gmain" value="'+t+'" style="width:17px;height:17px;flex:none"'+
-   (on&&on.main?" checked":"")+'>대회순위</label>'+
-   '<button type="button" class="chip" onclick="openPayout(\''+t+'\')">순위별 회비·상금'+
-   (on&&on.payout&&on.payout.length?' <b>\u25cf</b>':'')+'</button></div>'+
-   '<input type="hidden" class="gpay" value="'+esc(JSON.stringify((on&&on.payout)||[]))+'"></div>'+
-   (t==="team"?'<div class="gm" style="padding-left:30px"><div style="flex:1;min-width:0">'+
-    '<div class="nm">팀 점수 기준</div>'+
-    '<div class="mt">개인전 종목 하나를 골라 그 점수를 팀별로 더합니다</div>'+
+  if(t==="team"){
+   return '<div class="gm"><div style="flex:1;min-width:0">'+
+    '<div class="nm">팀 나누기</div>'+
+    '<div class="mt">참가자에게 팀을 배정하시면 팀전이 결과에 나옵니다.</div>'+
     '<label class="mt reverse-label" style="display:inline-flex;align-items:center;gap:6px;margin-top:5px">'+
     '<input type="checkbox" id="trev" style="width:18px;height:18px;flex:none"'+(on&&on.rev?" checked":"")+'>'+
     '거꾸로</label></div>'+
-    '<select id="tbasis" onchange="teamAutoHint();teamPreview()" style="width:120px">'+GAME_ORDER.filter(function(k){return k!=="team"}).map(function(k){
+    '<div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">'+
+    '<label class="mt" style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">'+
+    '<input type="checkbox" class="gmain" value="team" onchange="pickMain(this)" style="width:18px;height:18px;flex:none"'+
+    (on&&on.main?" checked":"")+'>대회순위</label>'+
+    '<button type="button" class="chip" onclick="openPayout(\'team\')">순위별 회비·상금'+
+    (on&&on.payout&&on.payout.length?' <b>\u25cf</b>':'')+'</button></div>'+
+    '<input type="hidden" class="gpay" data-type="team" value="'+esc(JSON.stringify((on&&on.payout)||[]))+'"></div>'+
+    '<div class="gm" style="padding-left:30px"><div style="flex:1;min-width:0">'+
+    '<div class="nm">팀 점수 기준</div>'+
+    '<div class="mt">개인전 종목 하나를 골라 그 점수를 팀별로 더합니다</div></div>'+
+    '<select id="tbasis" onchange="teamAutoHint();teamPreview()" style="width:120px">'+
+    GAME_ORDER.filter(function(k){return k!=="team"}).map(function(k){
      return '<option value="'+k+'"'+(((on&&on.basis)||"net")===k?" selected":"")+'>'+GAMES[k].name+'</option>'}).join("")+
     '</select></div>'+
     '<div class="gm" style="padding-left:30px"><div class="nm mt">팀 수</div>'+
     '<select id="tcount" onchange="teamPreview()" style="width:120px">'+[2,3,4].map(function(nn){
      return '<option value="'+nn+'"'+((on&&on.teamCount||2)===nn?" selected":"")+'>'+nn+'팀 (A~'+TEAM_KEYS[nn-1]+')</option>'}).join("")+
-    '</select></div>':"")}).join("")}
-/* ===== v1.6.0 순위별 회비와 상금 =====
+    '</select></div>';
+  }
+  return '<div class="gm"><div style="flex:1;min-width:0">'+
+   '<div class="nm">'+g.name+'</div>'+
+   '<div class="mt">'+g.desc+'</div>'+
+   '<label class="mt reverse-label" style="display:inline-flex;align-items:center;gap:6px;margin-top:5px">'+
+   '<input type="checkbox" class="grv" data-type="'+t+'" style="width:18px;height:18px;flex:none"'+(on&&on.rev?" checked":"")+'>'+
+   '거꾸로 ('+(g.asc?"많을수록":"적을수록")+' 우승)</label></div>'+
+   '<div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">'+
+   '<label class="mt" style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">'+
+   '<input type="checkbox" class="gmain" value="'+t+'" onchange="pickMain(this)" style="width:18px;height:18px;flex:none"'+
+   (on&&on.main?" checked":"")+'>대회순위</label>'+
+   '<button type="button" class="chip" onclick="openPayout(\''+t+'\')">순위별 회비·상금'+
+   (on&&on.payout&&on.payout.length?' <b>\u25cf</b>':'')+'</button></div>'+
+   '<input type="hidden" class="gpay" data-type="'+t+'" value="'+esc(JSON.stringify((on&&on.payout)||[]))+'"></div>'}).join("")}
+/* ===== 순위별 회비와 상금 =====
    종목마다 등수별로 회비와 상금을 따로 정합니다.
-   손익 = 받은 상금 - 낸 회비. 회비만 있는 날이면 모두 음수가 되고,
-   많이 낸 분이 기부왕, 적게 낸 분이 상금왕이 됩니다.
-   공동 순위는 등수 표시는 위로, 금액은 아래 등수 것으로 맞춥니다.
-   (공동 2위 둘이면 둘 다 3위 금액을 씁니다. 차액은 모임에 쌓입니다.) */
+   손익 = 받은 상금 - 낸 회비. 회비만 걷는 날이면 모두 음수가 되고,
+   많이 내신 분이 기부왕, 적게 내신 분이 상금왕이 됩니다.
+   공동 순위는 등수 표시는 위로, 금액은 아래 등수 것으로 맞춥니다. */
 var PAYOUT_MAX=20;
 var payEdit=null;
 function payoutOf(g){return (g&&g.payout)||[]}
@@ -1251,22 +1275,56 @@ function payRow(pay,rank){
  var fee=Number(r.fee)||0,prize=Number(r.prize)||0;
  if(!fee&&!prize)return null;
  return{fee:fee,prize:prize}}
-/* 공동 순위면 아래 등수 금액을 씁니다. same 은 같은 등수 인원 수입니다. */
 function payFor(pay,rank,same){
  var use=rank+(same>1?(same-1):0);
  return payRow(pay,use)}
+/* ===== v1.9.0 회비로 상금 배정 =====
+   한 사람당 회비만 정하시면 참가 인원을 곱해 총 상금이 되고,
+   프로그램이 등수별로 쪼개 순위별 표를 자동으로 채웁니다.
+   채운 뒤에 손으로 고치실 수 있습니다. */
+function prizeTiers(n){
+ if(n<=4)return[65,35];
+ if(n<=8)return[50,30,20];
+ return[50,25,15,10]}
+/* 비율대로 나누되 단위를 맞춰 떨어뜨리고, 남는 끝수는 1등에게 몰아
+   합이 총액과 정확히 맞게 합니다. */
+function splitPrize(total,tiers){
+ var unit=1;
+ if(total%10000===0&&total>=10000*tiers.length)unit=10000;
+ else if(total%1000===0&&total>=1000*tiers.length)unit=1000;
+ var out=[],used=0;
+ for(var i=1;i<tiers.length;i++){
+  var v=Math.floor(total*tiers[i]/100/unit)*unit;
+  out.push(v);used+=v}
+ out.unshift(total-used);
+ return out}
+function payAuto(){
+ var r=view.rid?round(view.rid):null;
+ var ps=readPlayers().players;
+ var n=(ps&&ps.length)?ps.length:((r&&r.players.length)||0);
+ if(!n){toast("참가자를 먼저 정해 주십시오.");return}
+ var v=prompt("한 사람당 회비를 넣어 주십시오. 참가 "+n+"명 기준으로 총 상금을 나눕니다.","50000");
+ if(v===null)return;
+ var fee=parseInt(String(v).replace(/[^0-9]/g,""),10);
+ if(isNaN(fee)||fee<=0){toast("회비를 숫자로 넣어 주십시오.");return}
+ var total=fee*n,tiers=prizeTiers(n),got=splitPrize(total,tiers);
+ payEdit.rows=[];
+ for(var i=0;i<PAYOUT_MAX;i++)payEdit.rows.push({fee:(i<n?fee:0),prize:(got[i]||0)});
+ renderPayout();
+ toast(n+"명 \u00d7 "+won(fee)+" = "+won(total)+" 를 "+tiers.length+"등까지 나눴습니다.")}
+function payBox(type){return document.querySelector('.gpay[data-type="'+type+'"]')}
 function openPayout(type){
- var idx=-1,cks=document.querySelectorAll(".gck");
- for(var i=0;i<cks.length;i++)if(cks[i].value===type)idx=i;
- if(idx<0)return;
- var box=document.querySelectorAll(".gpay")[idx];
- var cur=[];try{cur=JSON.parse(box.value||"[]")}catch(e){cur=[]}
- payEdit={type:type,idx:idx,rows:cur.slice()};
+ var box=payBox(type),cur=[];
+ if(box){try{cur=JSON.parse(box.value||"[]")}catch(e){cur=[]}}
+ if(!cur.length&&view.rid){
+  var r0=round(view.rid);
+  if(r0)roundGames(r0).forEach(function(g){if(g.type===type&&g.payout&&g.payout.length)cur=g.payout.slice()});
+ }
+ payEdit={type:type,rows:cur.slice()};
  while(payEdit.rows.length<PAYOUT_MAX)payEdit.rows.push({fee:0,prize:0});
  renderPayout()}
 function renderPayout(){
- var g=GAMES[payEdit.type];
- var rows="";
+ var g=GAMES[payEdit.type],rows="";
  for(var i=0;i<PAYOUT_MAX;i++){
   var r=payEdit.rows[i]||{fee:0,prize:0};
   rows+='<tr><td>'+(i+1)+'위</td>'+
@@ -1277,12 +1335,16 @@ function renderPayout(){
  }
  sheet='<div class="sheet" onclick="if(event.target===this)payClose()"><div class="inner">'+
   '<h2 style="margin:0 0 6px;font-size:16px">'+esc(g?g.name:"")+' · 순위별 회비와 상금</h2>'+
-  '<p class="note" style="margin:0 0 10px">비워 두신 등수는 결과에 나오지 않습니다. '+
-  '공동 순위는 아래 등수 금액으로 계산하여 차액이 모임에 쌓입니다.</p>'+
+  '<p class="note" style="margin:0 0 10px">저장을 누르시면 바로 반영됩니다. '+
+  '비워 두신 등수는 결과에 나오지 않습니다. 공동 순위는 아래 등수 금액으로 계산하여 '+
+  '차액이 모임에 쌓입니다. 회비로 상금 배정을 쓰시면 걷은 회비 전부가 '+
+  '등수별 상금으로 자동으로 나뉩니다.</p>'+
   '<div class="scroll paytbl" style="max-height:48vh"><table>'+
   '<thead><tr><th>등수</th><th>회비</th><th>상금</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
   '<div style="height:12px"></div>'+
   '<button class="btn sm" onclick="paySave()">저장</button>'+
+  '<div style="height:8px"></div>'+
+  '<button class="btn sm quiet" onclick="payAuto()">회비로 상금 배정</button>'+
   '<div style="height:8px"></div>'+
   '<div class="row2"><button class="btn sm line" onclick="payPrev()">직전 라운드에서 불러오기</button>'+
   '<button class="btn sm line" onclick="payClear()">모두 지우기</button></div>'+
@@ -1303,39 +1365,60 @@ function payPrev(){
   if(gg){found=gg.payout;break}}
  if(!found){toast("이 종목에 금액이 적힌 지난 라운드가 없습니다.");return}
  payEdit.rows=[];
- for(var j=0;j<PAYOUT_MAX;j++)payEdit.rows.push(found[j]?{fee:Number(found[j].fee)||0,prize:Number(found[j].prize)||0}:{fee:0,prize:0});
+ for(var j=0;j<PAYOUT_MAX;j++)payEdit.rows.push(found[j]?
+  {fee:Number(found[j].fee)||0,prize:Number(found[j].prize)||0}:{fee:0,prize:0});
  renderPayout();toast("직전 설정을 불러왔습니다.")}
 function paySave(){
+ /* 금액 창의 저장이 그 자리에서 라운드에 반영됩니다. */
  var out=payEdit.rows.map(function(r){return{fee:Number(r.fee)||0,prize:Number(r.prize)||0}});
  while(out.length&&!out[out.length-1].fee&&!out[out.length-1].prize)out.pop();
- var box=document.querySelectorAll(".gpay")[payEdit.idx];
+ var type=payEdit.type,box=payBox(type);
  if(box)box.value=JSON.stringify(out);
+ var r=view.rid?round(view.rid):null;
+ if(r){
+  if(!r.games)r.games=[];
+  var hit=null;
+  r.games.forEach(function(g){if(g.type===type)hit=g});
+  if(!hit){hit={type:type,prize:0};if(type==="team"){hit.basis="net";hit.teamCount=2}r.games.push(hit)}
+  if(out.length)hit.payout=out;else delete hit.payout;
+  save();
+ }
  payEdit=null;sheet=null;render();
- toast(out.length?(out.length+"개 등수를 저장했습니다. 종목 저장을 눌러 주십시오."):"금액을 모두 지웠습니다.")}
+ toast(out.length?((GAMES[type]?GAMES[type].name:"")+" 순위별 금액 "+out.length+"개를 저장했습니다.")
+  :((GAMES[type]?GAMES[type].name:"")+" 금액을 지웠습니다."))}
 function payClose(){payEdit=null;sheet=null;render()}
+function pickMain(el){
+ var all=document.querySelectorAll(".gmain");
+ if(el&&el.checked)for(var i=0;i<all.length;i++)if(all[i]!==el)all[i].checked=false;
+}
+/* v1.8.0 팀전은 팀을 한 명이라도 배정하셨을 때만 결과에 나옵니다. */
 function teamOn(){
- var cks=document.querySelectorAll(".gck");
- for(var i=0;i<cks.length;i++)if(cks[i].value==="team")return cks[i].checked;
+ var sel=document.querySelectorAll(".tsel");
+ for(var i=0;i<sel.length;i++)if(sel[i].value)return true;
  return false}
 function teamCountSel(){
  var t=document.getElementById("tcount");if(!t)return 0;
  var v=parseInt(t.value,10);return isNaN(v)?0:v}
 function readGames(){
- var games=[],cks=document.querySelectorAll(".gck"),rvs=document.querySelectorAll(".grv");
- for(var i=0;i<cks.length;i++){
-  var revIdx=0;for(var j=0;j<i;j++)if(cks[j].value!=="team")revIdx++;
-  if(!cks[i].checked)continue;
-  var g={type:cks[i].value,prize:0};
-  var pay=document.querySelectorAll(".gpay")[i];
-  try{g.payout=pay?JSON.parse(pay.value||"[]"):[]}catch(e){g.payout=[]}
-  if(!g.payout.length)delete g.payout;
-  var mr=document.querySelectorAll(".gmain");
-  for(var q=0;q<mr.length;q++)if(mr[q].checked&&mr[q].value===g.type)g.main=true;
-  if(g.type==="team"){var b=document.getElementById("tbasis");g.basis=b?b.value:"net";
-   var tc=document.getElementById("tcount");g.teamCount=tc?parseInt(tc.value,10):2;
-   var tv=document.getElementById("trev");g.rev=!!(tv&&tv.checked)}
-  else g.rev=!!(rvs[revIdx]&&rvs[revIdx].checked);
-  games.push(g)}
+ /* v1.8.0 모든 종목을 늘 담습니다. 종목을 끄는 길은 없습니다. */
+ var games=[],pays={},revs={},main="";
+ [].slice.call(document.querySelectorAll(".gpay")).forEach(function(el){
+  var t=el.getAttribute("data-type");
+  try{pays[t]=JSON.parse(el.value||"[]")}catch(e){pays[t]=[]}});
+ [].slice.call(document.querySelectorAll(".grv")).forEach(function(el){
+  revs[el.getAttribute("data-type")]=!!el.checked});
+ var tv=document.getElementById("trev");if(tv)revs.team=!!tv.checked;
+ [].slice.call(document.querySelectorAll(".gmain")).forEach(function(el){
+  if(el.checked)main=el.value});
+ GAME_ORDER.forEach(function(t){
+  var g={type:t,prize:0};
+  if(pays[t]&&pays[t].length)g.payout=pays[t];
+  if(revs[t])g.rev=true;
+  if(main===t)g.main=true;
+  if(t==="team"){
+   var b=document.getElementById("tbasis");g.basis=b?b.value:"net";
+   var tc=document.getElementById("tcount");g.teamCount=tc?parseInt(tc.value,10):2}
+  games.push(g)});
  return games}
 
 /* ---- 새 라운드 ---- */
@@ -1385,11 +1468,8 @@ function createRound(){
   confirmed:false,createdAt:new Date().toISOString()};
  var tg=games.filter(function(g){return g.type==="team"})[0];
  if(tg&&!Object.keys(pk.teams).length)autoTeams(r,tg.teamCount,tg.basis);
- if(needPerio(games))drawPerio(r);
+ drawPerio(r);
  S.rounds.push(r);save();go("result",{rid:r.id});toast("라운드를 만들었습니다.")}
-function needPerio(games){
- return games.some(function(g){
-  return g.type==="perio"||(g.type==="team"&&g.basis==="perio")})}
 
 /* ---- 지난 기록 등록 ---- */
 function scrPast(){
@@ -1450,13 +1530,12 @@ function scrEdit(){
    '<input type="number" class="eg" data-mid="'+mid+'" min="1" inputmode="numeric" value="'+
    (typeof r.grossOnly[mid]==="number"?r.grossOnly[mid]:"")+'" placeholder="타수"'+
    (hasHoles(r,mid)?' disabled':'')+'></div>'}).join("");
- var showPerio=needPerio(roundGames(r));
  var perioHtml='<div class="card"><h2>신페리오 숨은 홀</h2>'+
   '<p class="note" id="eperioText">'+(r.perio&&r.perio.length?(r.perio.join(", ")+"번 홀"):"아직 뽑지 않았습니다.")+'</p>'+
   '<input type="hidden" id="eperio" value="'+(r.perio?r.perio.join(","):"")+'">'+
-  '<p class="note">숨은 홀도 마지막 수정저장 때 확정됩니다. 신페리오를 선택하지 않았다면 이 항목은 적용되지 않습니다.</p>'+
+  '<p class="note">라운드를 만들 때 프로그램이 조용히 뽑아 둡니다. 여기서 다시 뽑으시면 수정저장 때 확정됩니다. 결과 화면의 뒤집기 추첨을 쓰시는 편이 더 간단합니다.</p>'+
   '<div style="height:10px"></div><button class="btn sm quiet" onclick="rollPerioDraft(\''+r.id+'\')">'+
-  (showPerio&&r.perio&&r.perio.length?"다시 뽑기":"숨은 홀 뽑기")+'</button></div>';
+  (r.perio&&r.perio.length?"다시 뽑기":"숨은 홀 뽑기")+'</button></div>';
  return '<div class="screen">'+
  '<div class="bar"><button class="chip" onclick="go(\'result\',{rid:\''+r.id+'\'})">뒤로</button>'+
  '<h1>라운드 수정<div class="sub">'+roundNo(r)+'차 · '+esc(r.date)+
@@ -1549,7 +1628,7 @@ function saveRoundEdit(rid){
  }
  var ep=document.getElementById("eperio");
  if(ep&&ep.value){draft.perio=ep.value.split(",").map(Number).filter(function(n){return n>=1&&n<=draft.holeCount})}
- if(needPerio(games)&&(!draft.perio||!draft.perio.length))drawPerio(draft);
+ if(!draft.perio||!draft.perio.length)drawPerio(draft);
  var pos=S.rounds.indexOf(r);if(pos<0)return;
  S.rounds[pos]=draft;
  save();go("result",{rid:rid});toast("라운딩 수정을 저장했습니다.");
@@ -1710,6 +1789,52 @@ function marksCard(r){
    '<td style="text-align:left;white-space:normal">'+esc(x.who)+
    (x.note?' <span class="mt">'+esc(x.note)+'</span>':'')+'</td></tr>'}).join("")+
   '</tbody></table><p class="note">홀별 타수가 있어야 나옵니다. 최종 타수만 넣은 라운드에서는 언더와 이븐과 라베만 나옵니다.</p></div>'}
+/* ===== v1.8.0 신페리오 뒤집기 추첨 =====
+   숨은 홀은 라운드를 만들 때 프로그램이 조용히 뽑아 둡니다.
+   결과를 열면 그때 드러납니다. 이의가 있는 분이 있으면 경기위원장이
+   그분 이름을 골라 다시 뽑기를 누릅니다. 한 사람에 한 번뿐입니다.
+   누가 뽑았고 그때 어느 홀이었는지가 기록으로 남습니다. */
+function perioLog(r){return (r.perioLog&&r.perioLog.length)?r.perioLog:[]}
+function perioUsed(r){return perioLog(r).map(function(x){return x.mid})}
+function perioCard(r){
+ if(!r.perio||!r.perio.length)return "";
+ var host=hostSessionActive();
+ var used=perioUsed(r);
+ var left=r.players.filter(function(mid){return used.indexOf(mid)<0});
+ var log=perioLog(r);
+ var hist=log.length?('<div style="height:10px"></div><table><tbody>'+
+  log.map(function(x,i){return '<tr><td style="min-width:60px">'+(i+1)+'번째</td>'+
+   '<td style="text-align:left;white-space:normal">'+esc(mname(x.mid))+
+   ' <span class="mt">이전 '+(x.from||[]).join(", ")+'번 홀</span></td></tr>'}).join("")+
+  '</tbody></table>'):"";
+ var pick=host?(left.length?
+  ('<div style="height:10px"></div><p class="note">이의가 있는 분의 이름을 누르시면 그 자리에서 다시 뽑습니다. 한 분에 한 번뿐입니다.</p>'+
+   '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:9px">'+
+   left.map(function(mid){return '<button class="chip" onclick="perioReroll(\''+r.id+'\',\''+mid+'\')">'+
+    esc(mname(mid))+'</button>'}).join("")+'</div>')
+  :'<p class="note">참가자 모두가 권리를 쓰셨습니다. 숨은 홀이 확정되었습니다.</p>')
+  :(left.length?'<p class="note">이의가 있으시면 경기위원장께 말씀하십시오. 아직 '+left.length+'분이 다시 뽑기를 하실 수 있습니다.</p>'
+   :'<p class="note">참가자 모두가 권리를 쓰셨습니다. 숨은 홀이 확정되었습니다.</p>');
+ var reset=(host&&log.length)?('<div style="height:10px"></div>'+
+  '<button class="btn sm line" onclick="perioResetRights(\''+r.id+'\')">권리 모두 되돌리기</button>'):"";
+ return '<div class="card"><h2>신페리오 뒤집기 추첨</h2>'+
+  '<p class="note">지금 숨은 홀 <b>'+r.perio.join(", ")+'</b>번 · 다시 뽑기 '+log.length+'회</p>'+
+  hist+pick+reset+'</div>'}
+function perioReroll(rid,mid){
+ var r=round(rid);if(!r)return;
+ if(!hostSessionActive()){toast("경기위원장 모드에서만 다시 뽑을 수 있습니다.");return}
+ if(perioUsed(r).indexOf(mid)>=0){toast(mname(mid)+" 님은 이미 쓰셨습니다.");return}
+ ask(mname(mid)+" 님의 권리로 숨은 홀을 다시 뽑습니다.\n한 번 쓰시면 되돌릴 수 없습니다.",function(){
+  var before=(r.perio||[]).slice();
+  if(!r.perioLog)r.perioLog=[];
+  r.perioLog.push({mid:mid,from:before,at:new Date().toISOString()});
+  drawPerio(r);save();render();
+  toast(mname(mid)+" 님이 다시 뽑았습니다. 숨은 홀 "+r.perio.join(", ")+"번");
+ },"다시 뽑기")}
+function perioResetRights(rid){
+ var r=round(rid);if(!r)return;
+ ask("다시 뽑기 권리를 모두 되돌립니다. 지금까지의 기록도 지워집니다.",function(){
+  r.perioLog=[];save();render();toast("권리를 되돌렸습니다.")},"되돌리기")}
 function payoutSummary(p){
  if(!p)return "";
  return '<p class="note" style="color:var(--turf)">걷은 회비 '+won(p.fee)+
@@ -1799,7 +1924,7 @@ function scrResult(){
    gHtml+='<li class="item"><div class="nm">'+k+'조</div><div class="mt">'+esc(gs[k].map(mname).join(", "))+'</div></li>';
   gHtml='<div class="card"><h2>조 편성</h2><ul class="list">'+gHtml+'</ul></div>'}
  var host=L.mode==="host",no=roundNo(r);
- var marks=marksCard(r);
+ var marks=perioCard(r)+marksCard(r);
  return '<div class="screen">'+
  '<div class="bar"><button class="chip" onclick="go(\'home\')">홈</button>'+
  '<span class="ribbon'+(isPlanned(r)?'':' done')+'">'+(isPlanned(r)?'예정':'결과')+'</span>'+
