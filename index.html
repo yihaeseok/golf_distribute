@@ -134,6 +134,9 @@ td.win{font-weight:700;color:var(--turf)}
 .sig .lamp.on{background:#5fe08a;box-shadow:0 0 0 3px rgba(95,224,138,.3)}
 .sig .lamp.red{background:#ff7a5c;box-shadow:0 0 0 3px rgba(255,122,92,.3)}
 .sig .lamps{display:flex;gap:7px}
+.card.maincard{border:2px solid var(--turf)}
+.maintag{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;
+ border-radius:5px;background:var(--turf);color:var(--card);vertical-align:2px}
 .btn.alertbtn{background:var(--clay);color:#fff;
  display:flex;align-items:center;justify-content:center;gap:8px}
 .btn.alertbtn .lamp{width:11px;height:11px;border-radius:50%;background:#fff;flex:none;
@@ -226,7 +229,7 @@ tr.gold td:first-child{color:var(--turf)}
 <div id="app"></div>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.5.0";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.7.0";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -432,6 +435,70 @@ function improveOf(r,mid){
  var g=grossOf(r,mid);if(g==null)return null;
  var last=pr[pr.length-1];
  return (grossOf(last,mid)-parSum(last))-(g-parSum(r))}
+/* ===== v1.7.0 기록 항목 =====
+   홀별 타수가 있어야 셉니다. 최종 타수만 넣은 라운드에서는 라베만 나옵니다.
+   아우디는 네 홀 연속 파 이상, 올림픽은 다섯 홀 연속 파 이상입니다.
+   다섯 홀이 이어지면 올림픽만 세고 아우디로 거듭 세지 않습니다.
+   버디나 이글이 끼어도 파 이상이므로 연속이 이어집니다. */
+function holeDiffs(r,mid){
+ var out=[];
+ for(var h=1;h<=r.holeCount;h++){
+  var c=cell(r,mid,h),par=parOf(r,h);
+  if(!par||!c||typeof c.s!=="number"){out.push(null);continue}
+  out.push(c.s-par)}
+ return out}
+/* 파 이상(0 이하)이 이어지는 구간 길이들을 돌려줍니다. */
+function parRuns(r,mid){
+ var d=holeDiffs(r,mid),runs=[],cur=0;
+ for(var i=0;i<d.length;i++){
+  if(d[i]!=null&&d[i]<=0){cur++}
+  else{if(cur)runs.push(cur);cur=0}}
+ if(cur)runs.push(cur);
+ return runs}
+function countAudi(r,mid){
+ var n=0;parRuns(r,mid).forEach(function(L){if(L===4)n++});return n}
+function countOlympic(r,mid){
+ var n=0;parRuns(r,mid).forEach(function(L){if(L>=5)n++});return n}
+/* 사이클버디: 파3·파4·파5에서 각각 한 번 이상 버디 */
+function cycleBirdie(r,mid){
+ var got={};
+ for(var h=1;h<=r.holeCount;h++){
+  var c=cell(r,mid,h),par=parOf(r,h);
+  if(!par||!c||typeof c.s!=="number")continue;
+  if(c.s<=par-1)got[par]=true}
+ return (got[3]&&got[4]&&got[5])?1:0}
+function countEagle(r,mid){
+ var n=0;
+ for(var h=1;h<=r.holeCount;h++){var c=cell(r,mid,h),par=parOf(r,h);
+  if(par&&c&&typeof c.s==="number"&&c.s<=par-2)n++}
+ return n}
+function countAce(r,mid){
+ var n=0;
+ for(var h=1;h<=r.holeCount;h++){var c=cell(r,mid,h);
+  if(c&&c.s===1)n++}
+ return n}
+function allPar(r,mid){
+ if(!hasHoles(r,mid))return 0;
+ var d=holeDiffs(r,mid);
+ for(var i=0;i<d.length;i++)if(d[i]!==0)return 0;
+ return 1}
+/* 그 라운드에서 가장 먼저 나온 버디의 주인. 홀 번호가 빠른 쪽입니다. */
+function firstBirdie(r){
+ for(var h=1;h<=r.holeCount;h++){
+  var par=parOf(r,h);if(!par)continue;
+  var who=[];
+  r.players.forEach(function(mid){var c=cell(r,mid,h);
+   if(c&&typeof c.s==="number"&&c.s<=par-1)who.push(mid)});
+  if(who.length)return{hole:h,mids:who}}
+ return null}
+/* 라베: 그 사람의 기록 가운데 가장 낮은 파 대비 타수. 그 라운드에서 경신했는지 봅니다. */
+function isPersonalBest(r,mid){
+ var g=grossOf(r,mid);if(g==null)return false;
+ var cur=g-parSum(r),best=null;
+ priorOf(mid,r.date,r.id).forEach(function(pr){
+  var v=grossOf(pr,mid);if(v==null)return;
+  var d=v-parSum(pr);if(best===null||d<best)best=d});
+ return best!==null&&cur<best}
 function countType(r,mid,type){
  var n=0;
  for(var h=1;h<=r.holeCount;h++){var c=cell(r,mid,h),par=parOf(r,h);
@@ -579,6 +646,59 @@ function markHtml(sc,par){
  else if(d===-1)cls="birdie";
  else if(d<=-2)cls="eagle";
  return '<span class="mk '+cls+'">'+sc+'</span>'}
+/* 라운드의 종목을 보이는 순서로 정렬합니다.
+   대회순위종목 → 금액이 걸린 종목 → 나머지 */
+function orderedGames(r){
+ var gl=roundGames(r).slice();
+ var hasMain=gl.some(function(g){return g.main});
+ if(!hasMain&&gl.length)gl[0].__autoMain=true;
+ return gl.sort(function(a,b){
+  var am=(a.main||a.__autoMain)?0:1, bm=(b.main||b.__autoMain)?0:1;
+  if(am!==bm)return am-bm;
+  var ap=payoutOf(a).length?0:1, bp=payoutOf(b).length?0:1;
+  if(ap!==bp)return ap-bp;
+  return 0})}
+function isMainGame(r,g){
+ var gl=roundGames(r);
+ var hasMain=gl.some(function(x){return x.main});
+ if(hasMain)return !!g.main;
+ return gl[0]===g}
+/* 한 종목의 순위별 정산 결과.
+   반환: [{mid,name,rank,tie,fee,prize,net}], 그리고 모임 적립금 */
+function gamePayout(r,g){
+ var pay=payoutOf(g);if(!pay.length)return null;
+ var out=[];
+ if(g.type==="team"){
+  var tr=teamResult(r,g);if(!tr)return null;
+  var cnt={};tr.sides.forEach(function(s){cnt[s.rank]=(cnt[s.rank]||0)+1});
+  tr.sides.forEach(function(s){
+   var row=payFor(pay,s.rank,cnt[s.rank]);
+   if(!row)return;
+   s.rows.forEach(function(x){
+    out.push({mid:x.mid,name:x.name,rank:s.rank,tie:cnt[s.rank]>1,team:s.key,
+     fee:row.fee,prize:row.prize,net:row.prize-row.fee})})});
+ }else{
+  var rows=gameRows(r,g.type,g.rev);if(!rows.length)return null;
+  var c2={};rows.forEach(function(x){c2[x.rank]=(c2[x.rank]||0)+1});
+  rows.forEach(function(x){
+   var row=payFor(pay,x.rank,c2[x.rank]);
+   if(!row)return;
+   out.push({mid:x.mid,name:x.name,rank:x.rank,tie:x.tie,
+    fee:row.fee,prize:row.prize,net:row.prize-row.fee})});
+ }
+ if(!out.length)return null;
+ var sumFee=0,sumPrize=0;
+ out.forEach(function(x){sumFee+=x.fee;sumPrize+=x.prize});
+ return{rows:out,fee:sumFee,prize:sumPrize,pot:sumFee-sumPrize}}
+/* 라운드 전체의 사람별 손익 (금액이 걸린 모든 종목 합) */
+function roundMoney(r){
+ var map={};
+ roundGames(r).forEach(function(g){
+  var p=gamePayout(r,g);if(!p)return;
+  p.rows.forEach(function(x){
+   if(!map[x.mid])map[x.mid]={mid:x.mid,fee:0,prize:0,net:0};
+   map[x.mid].fee+=x.fee;map[x.mid].prize+=x.prize;map[x.mid].net+=x.net})});
+ return map}
 function roundGames(r){return (r.games&&r.games.length)?r.games:[{type:"net",prize:0}]}
 function isPlanned(r){return (r.date||"")>today()}
 function roundSummary(r){
@@ -696,8 +816,7 @@ function verMismatch(){
    같은 라운드를 다시 그릴 때는 터지지 않고, 화면을 새로 열 때만 터집니다. */
 var fwShown="";
 function firstWinnerLabel(r){
- var gl=roundGames(r).slice().sort(function(x,y){
-  return (x.type==="team"?0:1)-(y.type==="team"?0:1)});
+ var gl=orderedGames(r);
  var g=gl[0];if(!g)return "";
  if(g.type==="team"){
   var tr=teamResult(r,g);if(!tr)return "";
@@ -717,16 +836,17 @@ function firstWinnerLabel(r){
 function bodyEl(){return document.querySelector(".body")}
 function scrollEnd(){
  var b=bodyEl();if(!b)return;
- var atEnd=(b.scrollTop+b.clientHeight>=b.scrollHeight-24);
+ var atEnd=(b.scrollHeight-b.scrollTop-b.clientHeight)<=24;
  b.scrollTo({top:atEnd?0:b.scrollHeight,behavior:"smooth"});
- setTimeout(syncToEnd,420);
+ setTimeout(syncToEnd,120);setTimeout(syncToEnd,520);
 }
 function syncToEnd(){
  var btn=document.getElementById("toEnd"),b=bodyEl();
  if(!btn)return;
  if(!b||b.scrollHeight-b.clientHeight<160){btn.style.display="none";return}
  btn.style.display="flex";
- var atEnd=(b.scrollTop+b.clientHeight>=b.scrollHeight-24);
+ /* 바닥 가까이 있을 때만 위로 올라가는 모양이 됩니다. */
+ var atEnd=(b.scrollHeight-b.scrollTop-b.clientHeight)<=24;
  btn.textContent=atEnd?"\u2191":"\u2193";
  btn.setAttribute("aria-label",atEnd?"맨 위로":"맨 아래로");
  if(!b.__toEndBound){b.__toEndBound=true;
@@ -859,8 +979,8 @@ function render(){
   if(fr){var lab=firstWinnerLabel(fr);
    if(lab){fwShown=view.rid;setTimeout(function(){fireworks(lab)},160)}}}
  app.insertAdjacentHTML("beforeend",
-  '<button class="toTop" id="toEnd" onclick="scrollEnd()" aria-label="맨 아래로">\u2193</button>');
- setTimeout(syncToEnd,0);
+  '<button class="toTop" id="toEnd" onclick="scrollEnd()" aria-label="맨 아래로" style="display:none">\u2193</button>');
+ setTimeout(syncToEnd,0);setTimeout(syncToEnd,120);
  if(sheet)app.insertAdjacentHTML("beforeend",sheet);
  if(view.name==="play")markEnter();
  if(view.name==="newround"||view.name==="edit")teamPreview()}
@@ -1070,7 +1190,13 @@ function gameChecklist(sel){
     '<input type="checkbox" class="grv" style="width:18px;height:18px;flex:none"'+(on&&on.rev?" checked":"")+'>'+
     '거꾸로 ('+(GAMES[t].asc?"많을수록":"적을수록")+' 우승)</label>')+
    '</div>'+
-   '<input type="number" class="gpz" inputmode="numeric" placeholder="상금" value="'+(on?(on.prize||0):0)+'" min="0"></div>'+
+   '<div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">'+
+   '<label class="mt" style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">'+
+   '<input type="radio" name="mainGame" class="gmain" value="'+t+'" style="width:17px;height:17px;flex:none"'+
+   (on&&on.main?" checked":"")+'>대회순위</label>'+
+   '<button type="button" class="chip" onclick="openPayout(\''+t+'\')">순위별 회비·상금'+
+   (on&&on.payout&&on.payout.length?' <b>\u25cf</b>':'')+'</button></div>'+
+   '<input type="hidden" class="gpay" value="'+esc(JSON.stringify((on&&on.payout)||[]))+'"></div>'+
    (t==="team"?'<div class="gm" style="padding-left:30px"><div style="flex:1;min-width:0">'+
     '<div class="nm">팀 점수 기준</div>'+
     '<div class="mt">개인전 종목 하나를 골라 그 점수를 팀별로 더합니다</div>'+
@@ -1084,6 +1210,84 @@ function gameChecklist(sel){
     '<select id="tcount" onchange="teamPreview()" style="width:120px">'+[2,3,4].map(function(nn){
      return '<option value="'+nn+'"'+((on&&on.teamCount||2)===nn?" selected":"")+'>'+nn+'팀 (A~'+TEAM_KEYS[nn-1]+')</option>'}).join("")+
     '</select></div>':"")}).join("")}
+/* ===== v1.6.0 순위별 회비와 상금 =====
+   종목마다 등수별로 회비와 상금을 따로 정합니다.
+   손익 = 받은 상금 - 낸 회비. 회비만 있는 날이면 모두 음수가 되고,
+   많이 낸 분이 기부왕, 적게 낸 분이 상금왕이 됩니다.
+   공동 순위는 등수 표시는 위로, 금액은 아래 등수 것으로 맞춥니다.
+   (공동 2위 둘이면 둘 다 3위 금액을 씁니다. 차액은 모임에 쌓입니다.) */
+var PAYOUT_MAX=20;
+var payEdit=null;
+function payoutOf(g){return (g&&g.payout)||[]}
+function payRow(pay,rank){
+ if(!pay||rank<1)return null;
+ var r=pay[rank-1];
+ if(!r)return null;
+ var fee=Number(r.fee)||0,prize=Number(r.prize)||0;
+ if(!fee&&!prize)return null;
+ return{fee:fee,prize:prize}}
+/* 공동 순위면 아래 등수 금액을 씁니다. same 은 같은 등수 인원 수입니다. */
+function payFor(pay,rank,same){
+ var use=rank+(same>1?(same-1):0);
+ return payRow(pay,use)}
+function openPayout(type){
+ var idx=-1,cks=document.querySelectorAll(".gck");
+ for(var i=0;i<cks.length;i++)if(cks[i].value===type)idx=i;
+ if(idx<0)return;
+ var box=document.querySelectorAll(".gpay")[idx];
+ var cur=[];try{cur=JSON.parse(box.value||"[]")}catch(e){cur=[]}
+ payEdit={type:type,idx:idx,rows:cur.slice()};
+ while(payEdit.rows.length<PAYOUT_MAX)payEdit.rows.push({fee:0,prize:0});
+ renderPayout()}
+function renderPayout(){
+ var g=GAMES[payEdit.type];
+ var rows="";
+ for(var i=0;i<PAYOUT_MAX;i++){
+  var r=payEdit.rows[i]||{fee:0,prize:0};
+  rows+='<tr><td style="min-width:46px">'+(i+1)+'위</td>'+
+   '<td><input type="number" min="0" inputmode="numeric" value="'+(Number(r.fee)||0?r.fee:"")+
+   '" placeholder="0" onchange="payVal('+i+',\'fee\',this.value)"></td>'+
+   '<td><input type="number" min="0" inputmode="numeric" value="'+(Number(r.prize)||0?r.prize:"")+
+   '" placeholder="0" onchange="payVal('+i+',\'prize\',this.value)"></td></tr>';
+ }
+ sheet='<div class="sheet" onclick="if(event.target===this)payClose()"><div class="inner">'+
+  '<h2 style="margin:0 0 6px;font-size:16px">'+esc(g?g.name:"")+' · 순위별 회비와 상금</h2>'+
+  '<p class="note" style="margin:0 0 10px">비워 두신 등수는 결과에 나오지 않습니다. '+
+  '공동 순위는 아래 등수 금액으로 계산하여 차액이 모임에 쌓입니다.</p>'+
+  '<div class="scroll ed" style="max-height:46vh"><table class="hx">'+
+  '<thead><tr><th>등수</th><th>회비</th><th>상금</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+  '<div style="height:12px"></div>'+
+  '<button class="btn sm" onclick="paySave()">저장</button>'+
+  '<div style="height:8px"></div>'+
+  '<div class="row2"><button class="btn sm line" onclick="payPrev()">직전 라운드에서 불러오기</button>'+
+  '<button class="btn sm line" onclick="payClear()">모두 지우기</button></div>'+
+  '<div style="height:8px"></div>'+
+  '<button class="btn sm quiet" onclick="payClose()">닫기</button></div></div>';
+ render()}
+function payVal(i,k,v){var n=parseInt(v,10);
+ if(!payEdit.rows[i])payEdit.rows[i]={fee:0,prize:0};
+ payEdit.rows[i][k]=isNaN(n)||n<0?0:n}
+function payClear(){
+ for(var i=0;i<PAYOUT_MAX;i++)payEdit.rows[i]={fee:0,prize:0};
+ renderPayout();toast("모두 지웠습니다.")}
+function payPrev(){
+ var rs=sortedRounds(),cur=view.rid||null,found=null;
+ for(var i=rs.length-1;i>=0;i--){
+  if(cur&&rs[i].id===cur)continue;
+  var gg=(rs[i].games||[]).filter(function(x){return x.type===payEdit.type&&x.payout&&x.payout.length})[0];
+  if(gg){found=gg.payout;break}}
+ if(!found){toast("이 종목에 금액이 적힌 지난 라운드가 없습니다.");return}
+ payEdit.rows=[];
+ for(var j=0;j<PAYOUT_MAX;j++)payEdit.rows.push(found[j]?{fee:Number(found[j].fee)||0,prize:Number(found[j].prize)||0}:{fee:0,prize:0});
+ renderPayout();toast("직전 설정을 불러왔습니다.")}
+function paySave(){
+ var out=payEdit.rows.map(function(r){return{fee:Number(r.fee)||0,prize:Number(r.prize)||0}});
+ while(out.length&&!out[out.length-1].fee&&!out[out.length-1].prize)out.pop();
+ var box=document.querySelectorAll(".gpay")[payEdit.idx];
+ if(box)box.value=JSON.stringify(out);
+ payEdit=null;sheet=null;render();
+ toast(out.length?(out.length+"개 등수를 저장했습니다. 종목 저장을 눌러 주십시오."):"금액을 모두 지웠습니다.")}
+function payClose(){payEdit=null;sheet=null;render()}
 function teamOn(){
  var cks=document.querySelectorAll(".gck");
  for(var i=0;i<cks.length;i++)if(cks[i].value==="team")return cks[i].checked;
@@ -1092,12 +1296,16 @@ function teamCountSel(){
  var t=document.getElementById("tcount");if(!t)return 0;
  var v=parseInt(t.value,10);return isNaN(v)?0:v}
 function readGames(){
- var games=[],cks=document.querySelectorAll(".gck"),pzs=document.querySelectorAll(".gpz"),
-  rvs=document.querySelectorAll(".grv");
+ var games=[],cks=document.querySelectorAll(".gck"),rvs=document.querySelectorAll(".grv");
  for(var i=0;i<cks.length;i++){
   var revIdx=0;for(var j=0;j<i;j++)if(cks[j].value!=="team")revIdx++;
   if(!cks[i].checked)continue;
-  var pz=parseInt(pzs[i].value,10),g={type:cks[i].value,prize:isNaN(pz)?0:pz};
+  var g={type:cks[i].value,prize:0};
+  var pay=document.querySelectorAll(".gpay")[i];
+  try{g.payout=pay?JSON.parse(pay.value||"[]"):[]}catch(e){g.payout=[]}
+  if(!g.payout.length)delete g.payout;
+  var mr=document.querySelectorAll(".gmain");
+  for(var q=0;q<mr.length;q++)if(mr[q].checked&&mr[q].value===g.type)g.main=true;
   if(g.type==="team"){var b=document.getElementById("tbasis");g.basis=b?b.value:"net";
    var tc=document.getElementById("tcount");g.teamCount=tc?parseInt(tc.value,10):2;
    var tv=document.getElementById("trev");g.rev=!!(tv&&tv.checked)}
@@ -1262,7 +1470,6 @@ function saveRoundEdit(rid){
  if(!games.length){toast("경기 종목을 하나 이상 선택해 주세요.");return}
  var ng=games.filter(function(g){return g.type==="team"})[0];
  if(ng&&(ng.teamCount<2||ng.teamCount>4)){toast("팀 수는 2~4개로 정해 주세요.");return}
- if(games.some(function(g){return g.prize<0})){toast("상금은 0원 이상으로 입력해 주세요.");return}
  var pars=[],patches=[],gross={};
  var valid=true;
  [].slice.call(document.querySelectorAll(".epar")).forEach(function(x){
@@ -1439,7 +1646,56 @@ function setStatus(mid,st){var r=round(view.rid),par=parOf(r,view.hole)||4,c=cel
  save();closeSheet()}
 
 /* ---- 결과 ---- */
-function gameCard(r,g){
+/* 종목 카드 아래에 붙는 순위별 회비·상금 표 */
+/* 한 라운드의 특기할 기록을 모읍니다. */
+function roundMarks(r){
+ var out=[],fb=firstBirdie(r);
+ if(fb)out.push({key:"firstBirdie",label:"첫버디",
+  who:fb.mids.map(mname).join(", "),note:fb.hole+"번 홀"});
+ function per(label,fn,note){
+  var hit=[];
+  r.players.forEach(function(mid){var v=fn(r,mid);
+   if(v)hit.push(v>1?(mname(mid)+" "+v+"회"):mname(mid))});
+  if(hit.length)out.push({label:label,who:hit.join(", "),note:note||""})}
+ per("홀인원",countAce);
+ per("이글",countEagle);
+ per("사이클버디",cycleBirdie,"파3·파4·파5에서 모두 버디");
+ per("올림픽",countOlympic,"다섯 홀 이상 연속 파");
+ per("아우디",countAudi,"네 홀 연속 파");
+ per("올파",allPar,"전 홀 파");
+ /* 이븐과 언더, 라베는 총타수로 가립니다. */
+ var even=[],under=[],best=[];
+ r.players.forEach(function(mid){
+  var g=grossOf(r,mid);if(g==null)return;
+  var d=g-parSum(r);
+  if(d===0)even.push(mname(mid));
+  else if(d<0)under.push(mname(mid)+" "+d);
+  if(isPersonalBest(r,mid))best.push(mname(mid)+" "+sgn(d))});
+ if(under.length)out.push({label:"언더",who:under.join(", ")});
+ if(even.length)out.push({label:"이븐",who:even.join(", ")});
+ if(best.length)out.push({label:"라베",who:best.join(", "),note:"자기 최저 기록 경신"});
+ return out}
+function marksCard(r){
+ var m=roundMarks(r);
+ if(!m.length)return "";
+ return '<div class="card"><h2>오늘의 기록</h2><table><tbody>'+
+  m.map(function(x){return '<tr><td style="min-width:84px"><b>'+esc(x.label)+'</b></td>'+
+   '<td style="text-align:left;white-space:normal">'+esc(x.who)+
+   (x.note?' <span class="mt">'+esc(x.note)+'</span>':'')+'</td></tr>'}).join("")+
+  '</tbody></table><p class="note">홀별 타수가 있어야 나옵니다. 최종 타수만 넣은 라운드에서는 언더와 이븐과 라베만 나옵니다.</p></div>'}
+function payoutTable(r,g){
+ var p=gamePayout(r,g);if(!p)return "";
+ var rows=p.rows.slice().sort(function(a,b){return a.rank-b.rank||(a.name<b.name?-1:1)});
+ return '<div style="height:10px"></div>'+
+  '<div class="scroll"><table><thead><tr><th>순위와 이름</th><th>회비</th><th>상금</th><th>손익</th></tr></thead><tbody>'+
+  rows.map(function(x){return '<tr><td>'+(x.tie?"공동 ":"")+x.rank+'위 '+esc(x.name)+
+   (x.team?' <span class="mt">'+x.team+'팀</span>':'')+'</td>'+
+   '<td>'+(x.fee?won(x.fee):"-")+'</td><td>'+(x.prize?won(x.prize):"-")+'</td>'+
+   '<td'+(x.net>0?' class="win"':(x.net<0?' class="u"':''))+'>'+(x.net>0?"+":"")+won(x.net)+'</td></tr>'}).join("")+
+  '</tbody></table></div>'+
+  '<p class="note">걷은 회비 '+won(p.fee)+' · 나간 상금 '+won(p.prize)+
+  ' · 모임에 남는 돈 '+won(p.pot)+'</p>'}
+function gameCard(r,g,isMain){
  var G=GAMES[g.type];if(!G)return "";
  if(g.type==="team"){
   var tr=teamResult(r,g);
@@ -1461,26 +1717,21 @@ function gameCard(r,g){
      '<td>'+(x.gross==null?"-":x.gross)+'</td><td>'+(tr.basis==="perio"?"-":x.rh)+'</td>'+
      '<td>'+(tr.basis==="improve"?sgn(x.v):(Math.round(x.v*10)/10))+basisUnit(tr.basis)+'</td>'+
      '<td>'+(x.mult>1?"\u00d7"+x.mult:"")+'</td></tr>'})});
-  var w=tr.sides.filter(function(sd){return sd.rank===1}),cnt=0;
-  w.forEach(function(sd){cnt+=sd.rows.length});
-  var prize=g.prize?('<p class="note">상금 '+won(g.prize)+' \u00b7 '+
-   w.map(function(sd){return sd.key+"팀"}).join(", ")+' \u00b7 1인당 '+
-   won(Math.floor(g.prize/Math.max(1,cnt)))+'</p>'):"";
-  return '<div class="card"><h2>팀전 <span class="mt">'+basisName(tr.basis)+(g.rev?' <span class="reverse-label">거꾸로</span>':'')+'</span></h2>'+
+  return '<div class="card'+(isMain?" maincard":"")+'"><h2>'+(isMain?'<span class="maintag">대회순위</span> ':'')+
+   '팀전 <span class="mt">'+basisName(tr.basis)+(g.rev?' <span class="reverse-label">거꾸로</span>':'')+'</span></h2>'+
    '<div class="scroll"><table><thead><tr><th>순위와 이름</th><th>타수</th><th>핸디</th>'+
    '<th>'+basisName(tr.basis)+'</th><th>합계</th></tr></thead><tbody>'+body+'</tbody></table></div>'+
    '<p class="note">'+basisName(tr.basis)+' 점수를 더해 '+(tr.asc?"적은":"많은")+' 팀이 이깁니다. '+
-   GAMES[tr.basis].desc+'. 인원이 맞지 않는 팀은 핸디가 중간인 분의 점수를 두 배로 칩니다.</p>'+prize+'</div>'}
+   GAMES[tr.basis].desc+'. 인원이 맞지 않는 팀은 핸디가 중간인 분의 점수를 두 배로 칩니다.</p>'+
+   payoutTable(r,g)+'</div>'}
  var rows=gameRows(r,g.type,g.rev);
  if(!rows.length)return '<div class="card"><h2>'+G.name+'</h2><div class="empty">아직 계산할 기록이 없습니다.'+
   (G.need==="hole"?'<br>홀별 타수가 필요합니다.':'')+'</div></div>';
- var w=rows.filter(function(x){return x.rank===1});
- var prize2=g.prize?('<p class="note">상금 '+won(g.prize)+' · '+esc(w.map(function(x){return x.name}).join(", "))+
-  ' '+(w.length>1?('각 '+won(Math.floor(g.prize/w.length))):won(g.prize))+'</p>'):"";
  var showHcp=(g.type==="net"||g.type==="perio");
  var showGross=(g.type==="net"||g.type==="perio"||g.type==="improve");
  var LBL={gross:"타수",net:"네트",perio:"네트",improve:"개선",dapa:"개수",birdie:"개수",onion:"개수"};
- return '<div class="card"><h2>'+G.name+(g.rev?' <span class="mt reverse-label">거꾸로</span>':'')+(g.type==="perio"&&r.perio?' <span class="mt">숨은 홀 '+r.perio.join(",")+'</span>':'')+'</h2>'+
+ return '<div class="card'+(isMain?" maincard":"")+'"><h2>'+(isMain?'<span class="maintag">대회순위</span> ':'')+
+  G.name+(g.rev?' <span class="mt reverse-label">거꾸로</span>':'')+(g.type==="perio"&&r.perio?' <span class="mt">숨은 홀 '+r.perio.join(",")+'</span>':'')+'</h2>'+
   '<table><thead><tr><th>순위와 이름</th>'+(showGross?'<th>타수</th>':'')+(showHcp?'<th>핸디</th>':'')+
   '<th>'+(LBL[g.type]||"결과")+'</th></tr></thead><tbody>'+
   rows.map(function(x){return '<tr'+(x.rank===1?' class="gold"':'')+'><td>'+
@@ -1490,12 +1741,12 @@ function gameCard(r,g){
    (showHcp?'<td>'+x.hcp+'</td>':'')+
    '<td>'+(g.type==="improve"?sgn(x.v):x.v)+G.unit+'</td></tr>'}).join("")+
   '</tbody></table><p class="note">'+G.desc+
-  (g.rev?'<br>거꾸로 적용 \u00b7 '+(G.asc?"많을수록":"적을수록")+' 우승입니다.':'')+'</p>'+prize2+'</div>'}
+  (g.rev?'<br>거꾸로 적용 \u00b7 '+(G.asc?"많을수록":"적을수록")+' 우승입니다.':'')+'</p>'+
+  payoutTable(r,g)+'</div>'}
 function scrResult(){
  var r=round(view.rid);if(!r)return scrHome();
- var gl=roundGames(r).slice().sort(function(x,y){
-  return (x.type==="team"?0:1)-(y.type==="team"?0:1)});
- var cards=gl.map(function(g){return gameCard(r,g)}).join("");
+ var gl=orderedGames(r);
+ var cards=gl.map(function(g){return gameCard(r,g,isMainGame(r,g))}).join("");
  var head='<tr><th>이름</th>'+r.pars.map(function(p,i){
   var hid=r.perio&&r.perio.indexOf(i+1)>=0,pv=parOf(r,i+1);
   return '<th'+(hid?' class="hid"':'')+'>'+(i+1)+'<br><span class="mt">'+(pv?pv:"·")+'</span></th>'}).join("")+'<th>합</th></tr>';
@@ -1514,6 +1765,7 @@ function scrResult(){
    gHtml+='<li class="item"><div class="nm">'+k+'조</div><div class="mt">'+esc(gs[k].map(mname).join(", "))+'</div></li>';
   gHtml='<div class="card"><h2>조 편성</h2><ul class="list">'+gHtml+'</ul></div>'}
  var host=L.mode==="host",no=roundNo(r);
+ var marks=marksCard(r);
  return '<div class="screen">'+
  '<div class="bar"><button class="chip" onclick="go(\'home\')">홈</button>'+
  '<span class="ribbon'+(isPlanned(r)?'':' done')+'">'+(isPlanned(r)?'예정':'결과')+'</span>'+
@@ -1524,7 +1776,7 @@ function scrResult(){
  (host?'<button class="btn sm quiet" onclick="go(\'scan\',{rid:\''+r.id+'\'})">라운드 기록 올리기</button>':'')+
  '</div>'+(host?'<div style="height:8px"></div>'+
  '<button class="btn sm quiet" onclick="go(\'edit\',{rid:\''+r.id+'\'})">라운딩 수정</button>':'')+'</div>'+
- '<div class="body">'+gHtml+cards+
+ '<div class="body">'+gHtml+cards+marks+
  '<div class="card"><h2>홀별 기록</h2><div class="scroll"><table class="hx"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>'+
  cumTable(r.id,no+"차까지의 누적","이 라운드를 마친 시점의 누적입니다. 핸디순으로 늘어놓았으며, 핸디는 다음 라운드에 적용될 값입니다.")+
  (host?'<div class="card"><h2>모임에 공유</h2>'+
@@ -1813,12 +2065,25 @@ function scrYear(){
  var rs=S.rounds.filter(function(r){return (r.date||"").indexOf(y)===0});
  var acc={};
  function A(mid){if(!acc[mid])acc[mid]={mid:mid,name:mname(mid),prize:0,last:0,wins:0,
-  dapa:0,birdie:0,onion:0,improve:0,rounds:0};return acc[mid]}
+  dapa:0,birdie:0,onion:0,improve:0,rounds:0,fee:0,won:0,net:0,give:0,gain:0,
+  ace:0,eagle:0,cycle:0,olympic:0,audi:0,allpar:0,under:0,even:0,best:0,fbird:0};return acc[mid]}
  rs.forEach(function(r){
   r.players.forEach(function(mid){A(mid).rounds++});
   ["dapa","birdie","onion"].forEach(function(t){
    r.players.forEach(function(mid){if(hasHoles(r,mid))A(mid)[t]+=countType(r,mid,t)})});
   r.players.forEach(function(mid){var im=improveOf(r,mid);if(im!=null&&im>0)A(mid).improve+=im});
+  /* v1.7.0 기록 항목 누적 */
+  r.players.forEach(function(mid){
+   var a=A(mid);
+   a.ace+=countAce(r,mid);a.eagle+=countEagle(r,mid);
+   a.cycle+=cycleBirdie(r,mid);a.olympic+=countOlympic(r,mid);
+   a.audi+=countAudi(r,mid);a.allpar+=allPar(r,mid);
+   var gg=grossOf(r,mid);
+   if(gg!=null){var dd=gg-parSum(r);
+    if(dd<0)a.under++;else if(dd===0)a.even++;
+    if(isPersonalBest(r,mid))a.best++}});
+  var fb=firstBirdie(r);
+  if(fb)fb.mids.forEach(function(mid){A(mid).fbird++});
   roundGames(r).forEach(function(g){
    if(g.type==="team"){
     var tr=teamResult(r,g);if(!tr)return;
@@ -1826,15 +2091,22 @@ function scrYear(){
     w.forEach(function(s){cnt+=s.rows.length});
     if(!cnt)return;
     w.forEach(function(s){s.rows.forEach(function(x){
-     A(x.mid).wins++;if(g.prize)A(x.mid).prize+=Math.floor(g.prize/cnt)})});
+     A(x.mid).wins++})});
     return}
    var rows=gameRows(r,g.type,g.rev);if(!rows.length)return;
    var w=rows.filter(function(x){return x.rank===1});
-   w.forEach(function(x){A(x.mid).wins++;if(g.prize)A(x.mid).prize+=Math.floor(g.prize/w.length)})});
+   w.forEach(function(x){A(x.mid).wins++})});
+  /* v1.6.0 금액이 걸린 모든 종목을 합산합니다. */
+  var mm=roundMoney(r);
+  for(var mid in mm){if(!mm.hasOwnProperty(mid))continue;
+   var a=A(mid);a.fee+=mm[mid].fee;a.won+=mm[mid].prize;a.net+=mm[mid].net}
   var nr=gameRows(r,"net");
   if(nr.length){var mx=nr[nr.length-1].rank;
    nr.filter(function(x){return x.rank===mx}).forEach(function(x){A(x.mid).last++})}});
  var arr=Object.keys(acc).map(function(k){return acc[k]});
+ /* 손익이 음수면 기부, 양수면 수익입니다. 둘은 같은 숫자의 양 끝입니다. */
+ arr.forEach(function(x){x.give=x.net<0?-x.net:0;x.gain=x.net>0?x.net:0});
+ var moneyRows=arr.filter(function(x){return x.fee||x.won});
  function tbl(title,key,unit,desc){
   var a=arr.filter(function(x){return x[key]>0}).sort(function(p,q){return q[key]-p[key]});
   if(!a.length)return '<div class="card"><h2>'+title+'</h2><div class="empty">기록 없음</div></div>';
@@ -1842,6 +2114,29 @@ function scrYear(){
    a.map(function(x,i){return '<tr><td>'+(i+1)+'. '+esc(x.name)+'</td><td class="'+(i===0?"win":"")+'">'+
     (unit==="원"?won(x[key]):x[key]+unit)+'</td></tr>'}).join("")+'</tbody></table>'+
    (desc?'<p class="note">'+desc+'</p>':'')+'</div>'}
+ function moneyTable(rows){
+  if(!rows.length)return '<div class="card"><h2>회비와 상금</h2>'+
+   '<div class="empty">금액이 걸린 종목이 없습니다.</div>'+
+   '<p class="note">종목 설정에서 순위별 회비와 상금을 넣으시면 여기에 모입니다.</p></div>';
+  var byNet=rows.slice().sort(function(p,q){return p.net-q.net});
+  var give=byNet.filter(function(x){return x.net<0});
+  var gain=byNet.slice().reverse().filter(function(x){return x.net>0});
+  var totFee=0,totWon=0;rows.forEach(function(x){totFee+=x.fee;totWon+=x.won});
+  var all='<div class="scroll"><table><thead><tr><th>이름</th><th>낸 회비</th><th>받은 상금</th><th>손익</th></tr></thead><tbody>'+
+   byNet.map(function(x){return '<tr><td>'+esc(x.name)+'</td><td>'+won(x.fee)+'</td><td>'+won(x.won)+'</td>'+
+    '<td'+(x.net>0?' class="win"':(x.net<0?' class="u"':''))+'>'+(x.net>0?"+":"")+won(x.net)+'</td></tr>'}).join("")+
+   '</tbody></table></div>';
+  function rank(title,list,key,desc){
+   if(!list.length)return "";
+   return '<div class="card"><h2>'+title+'</h2><table><tbody>'+
+    list.map(function(x,i){return '<tr><td>'+(i+1)+'. '+esc(x.name)+'</td>'+
+     '<td class="'+(i===0?"win":"")+'">'+won(x[key])+'</td></tr>'}).join("")+
+    '</tbody></table><p class="note">'+desc+'</p></div>'}
+  return '<div class="card"><h2>회비와 상금</h2>'+all+
+   '<p class="note">낸 회비가 많을수록 손익이 마이너스가 됩니다. 걷은 회비 '+won(totFee)+
+   ' · 나간 상금 '+won(totWon)+' · 모임에 남은 돈 '+won(totFee-totWon)+'</p></div>'+
+   rank("기부왕",give,"give","가장 많이 보태신 분부터입니다. 회비에서 상금을 뺀 금액입니다.")+
+   rank("상금왕",gain,"gain","회비보다 상금을 더 받으신 분입니다. 회비만 걷는 모임이면 비어 있고, 그때는 기부왕의 역순이 적게 내신 순서입니다.")}
  var hc=S.members.map(function(m){
   var inY=sortedRounds().filter(function(r){return (r.date||"").indexOf(y)===0&&r.players.indexOf(m.id)>=0});
   var mine=sortedRounds().filter(function(r){return r.players.indexOf(m.id)>=0});
@@ -1860,9 +2155,18 @@ function scrYear(){
  return '<div class="screen"><div class="bar"><button class="chip" onclick="go(\'home\')">뒤로</button><h1>'+y+'년 집계</h1></div>'+
  '<div class="body">'+(ys.length>1?'<div class="card">'+sel+'</div>':'')+
  '<div class="card"><h2>라운드</h2><p class="note">'+rs.length+'회</p></div>'+
- tbl("상금왕","prize","원","그해 각 게임에서 1등으로 받은 상금의 합계입니다.")+
+ moneyTable(moneyRows)+
  tbl("우승 횟수","wins","회","종목별 1등을 합친 횟수입니다. 팀전은 이긴 팀 모두에게 셉니다.")+
  tbl("개선 누적","improve","타","직전 라운드보다 줄인 타수를 모두 더한 것입니다.")+
+ tbl("홀인원","ace","회","")+
+ tbl("이글","eagle","회","")+
+ tbl("사이클버디","cycle","회","파3·파4·파5에서 모두 버디를 한 라운드 수입니다.")+
+ tbl("올림픽","olympic","회","다섯 홀 이상 연속으로 파 이상을 친 횟수입니다.")+
+ tbl("아우디","audi","회","네 홀 연속으로 파 이상을 친 횟수입니다.")+
+ tbl("올파","allpar","회","전 홀을 파로 친 라운드 수입니다.")+
+ tbl("첫버디","fbird","회","그 라운드에서 가장 먼저 버디를 한 횟수입니다.")+
+ tbl("언더","under","회","")+tbl("이븐","even","회","")+
+ tbl("라베","best","회","자기 최저 기록을 경신한 횟수입니다.")+
  tbl("다파상 누적","dapa","홀","")+tbl("버디킹 누적","birdie","홀","")+tbl("어니언킹 누적","onion","홀","")+
  tbl("꼴찌왕","last","회","핸디 적용 순위에서 꼴찌를 한 횟수입니다.")+
  hcTbl("올해 핸디를 줄인 순서","year","올해 첫 라운드 때 핸디와 지금 핸디의 차이입니다.")+
