@@ -114,9 +114,17 @@ td.win{font-weight:700;color:var(--turf)}
 .paytbl input{width:108px;padding:9px 8px;text-align:right;font-size:15px}
 .paytbl td,.paytbl th{padding:6px 5px}
 .paytbl td:first-child{min-width:52px;font-weight:600}
-.gm{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--line)}
+.gm{display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
 .gm:last-child{border-bottom:none}
-.gm .nm{flex:1;font-weight:600}
+.gm .nm{flex:1;font-weight:700;line-height:1.16}
+.gm .gmstack{flex:1;min-width:0}
+.gm .gmhead{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.gm .gmhead .nm{flex:1;min-width:0}
+.gm .gmmeta{margin-top:3px;font-size:12px;line-height:1.4;color:var(--muted)}
+.gm .gmopts{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}
+.gm .gmainlbl,.gm .grevlbl{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;font-size:12px;line-height:1.25}
+.gm .gmopts .chip{padding:7px 10px;min-height:34px;font-size:12px}
+.gm input[type=checkbox]{width:16px;height:16px;flex:none}
 .gm input[type=number]{width:88px}
 .teambox{display:flex;gap:10px}
 .teambox>div{flex:1;background:var(--sand);border-radius:10px;padding:10px}
@@ -398,7 +406,7 @@ body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(23p
 </a>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.9";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.10";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -1585,43 +1593,38 @@ function gameChecklist(sel){
     팀전은 팀을 배정하셨을 때만 결과에 나오므로 여기서는 설정만 둡니다. */
  return GAME_ORDER.map(function(t){var g=GAMES[t],on=sel&&sel[t];
   if(t==="team"){
-   return '<div class="gm"><div style="flex:1;min-width:0">'+
-    '<div class="nm">팀 나누기</div>'+
-    '<div class="mt">참가자에게 팀을 배정하시면 팀전이 결과에 나옵니다.</div>'+
-    '<label class="mt reverse-label" style="display:inline-flex;align-items:center;gap:6px;margin-top:5px">'+
-    '<input type="checkbox" id="trev" style="width:18px;height:18px;flex:none"'+(on&&on.rev?" checked":"")+'>'+
-    '거꾸로</label></div>'+
-    '<div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">'+
-    '<label class="mt" style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">'+
-    '<input type="checkbox" class="gmain" value="team" onchange="pickMain(this)" style="width:18px;height:18px;flex:none"'+
-    (on&&on.main?" checked":"")+'>대회순위</label>'+
-    '<button type="button" class="chip" onclick="openPayout(\'team\')">순위별 회비·상금'+
-    (on&&on.payout&&on.payout.length?' <b>\u25cf</b>':'')+'</button></div>'+
+   return '<div class="gm"><div class="gmstack">'+
+    '<div class="gmhead"><div class="nm">팀 나누기</div>'+
+    '<label class="gmainlbl"><input type="checkbox" class="gmain" value="team" onchange="pickMain(this)"'+
+    (on&&on.main?" checked":"")+'>대회순위</label></div>'+
+    '<div class="gmmeta">참가자에게 팀을 배정하시면 팀전이 결과에 나옵니다.</div>'+
+    '<div class="gmopts">'+
+    '<button type="button" class="chip" onclick="openPayout(\'team\')">회비 상금'+
+    (on&&on.payout&&on.payout.length?' <b>●</b>':'')+'</button>'+
+    '<label class="grevlbl reverse-label"><input type="checkbox" id="trev"'+(on&&on.rev?" checked":"")+'>거꾸로</label></div>'+
     '<input type="hidden" class="gpay" data-type="team" value="'+esc(JSON.stringify((on&&on.payout)||[]))+'"></div>'+
-    '<div class="gm" style="padding-left:30px"><div style="flex:1;min-width:0">'+
+    '<div class="gm" style="padding-left:18px"><div class="gmstack">'+
     '<div class="nm">팀 점수 기준</div>'+
-    '<div class="mt">개인전 종목 하나를 골라 그 점수를 팀별로 더합니다</div></div>'+
+    '<div class="gmmeta">개인전 종목 하나를 골라 그 점수를 팀별로 더합니다</div></div>'+
     '<select id="tbasis" onchange="teamAutoHint();teamPreview()" style="width:120px">'+
     GAME_ORDER.filter(function(k){return k!=="team"}).map(function(k){
      return '<option value="'+k+'"'+(((on&&on.basis)||"net")===k?" selected":"")+'>'+GAMES[k].name+'</option>'}).join("")+
     '</select></div>'+
-    '<div class="gm" style="padding-left:30px"><div class="nm mt">팀 수</div>'+
+    '<div class="gm" style="padding-left:18px"><div class="nm mt">팀 수</div>'+
     '<select id="tcount" onchange="teamPreview()" style="width:120px">'+[2,3,4].map(function(nn){
      return '<option value="'+nn+'"'+((on&&on.teamCount||2)===nn?" selected":"")+'>'+nn+'팀 (A~'+TEAM_KEYS[nn-1]+')</option>'}).join("")+
     '</select></div>';
   }
-  return '<div class="gm"><div style="flex:1;min-width:0">'+
-   '<div class="nm">'+g.name+'</div>'+
-   '<div class="mt">'+g.desc+'</div>'+
-   '<label class="mt reverse-label" style="display:inline-flex;align-items:center;gap:6px;margin-top:5px">'+
-   '<input type="checkbox" class="grv" data-type="'+t+'" style="width:18px;height:18px;flex:none"'+(on&&on.rev?" checked":"")+'>'+
-   '거꾸로 ('+(g.asc?"많을수록":"적을수록")+' 우승)</label></div>'+
-   '<div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">'+
-   '<label class="mt" style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">'+
-   '<input type="checkbox" class="gmain" value="'+t+'" onchange="pickMain(this)" style="width:18px;height:18px;flex:none"'+
-   (on&&on.main?" checked":"")+'>대회순위</label>'+
-   '<button type="button" class="chip" onclick="openPayout(\''+t+'\')">순위별 회비·상금'+
-   (on&&on.payout&&on.payout.length?' <b>\u25cf</b>':'')+'</button></div>'+
+  return '<div class="gm"><div class="gmstack">'+
+   '<div class="gmhead"><div class="nm">'+g.name+'</div>'+
+   '<label class="gmainlbl"><input type="checkbox" class="gmain" value="'+t+'" onchange="pickMain(this)"'+
+   (on&&on.main?" checked":"")+'>대회순위</label></div>'+
+   '<div class="gmmeta">'+g.desc+'</div>'+
+   '<div class="gmopts">'+
+   '<button type="button" class="chip" onclick="openPayout(\''+t+'\')">회비 상금'+
+   (on&&on.payout&&on.payout.length?' <b>●</b>':'')+'</button>'+
+   '<label class="grevlbl reverse-label"><input type="checkbox" class="grv" data-type="'+t+'"'+(on&&on.rev?" checked":"")+'>'+
+   '거꾸로 ('+(g.asc?"많으면":"적으면")+' 우승)</label></div>'+
    '<input type="hidden" class="gpay" data-type="'+t+'" value="'+esc(JSON.stringify((on&&on.payout)||[]))+'"></div>'}).join("")}
 /* ===== 순위별 회비와 상금 =====
    종목마다 등수별로 회비와 상금을 따로 정합니다.
