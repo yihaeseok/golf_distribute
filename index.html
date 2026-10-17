@@ -232,66 +232,139 @@ tr.gold td:first-child{color:var(--turf)}
 .rule-desc{font-size:14px;line-height:1.65;margin:0}
 .rule-desc+.rule-desc{margin-top:7px}
 /* H1.9.2: a compact golf emblem + two distinct ad presentations. */
+/* H1.9.3: portal-only scale, balanced golf mark, clearer ad strip. */
 #app{padding-bottom:calc(46px + env(safe-area-inset-bottom,0px))}
-body.portal-active #app{padding-bottom:calc(114px + env(safe-area-inset-bottom,0px))}
+body.portal-active #app{padding-bottom:calc(108px + env(safe-area-inset-bottom,0px))}
 #vanStrip{position:fixed;inset:auto 0 0 0;min-height:42px;
- padding:7px 12px calc(7px + env(safe-area-inset-bottom,0px));
- background:#eae5d9;color:#123b26;text-decoration:none;
- border-top:1px solid #cfc5b2;display:flex;align-items:center;justify-content:center;
- gap:8px;z-index:20;font-size:clamp(11px,3.3vw,15px);font-weight:750;
- line-height:1.4;box-shadow:0 -2px 8px rgba(0,0,0,.07)}
-#vanStripWord{text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#vanStrip .vanOut{font-size:13px;flex:none}
+ padding:7px 10px calc(7px + env(safe-area-inset-bottom,0px));
+ background:#eff0df;color:#16472f;text-decoration:none;
+ border-top:1px solid #cacbb6;display:flex;align-items:center;justify-content:center;
+ gap:0;z-index:20;font-size:clamp(10px,3.1vw,14px);font-weight:760;
+ line-height:1.3;box-shadow:0 -2px 8px rgba(0,0,0,.07)}
+#vanStripWord{text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+ letter-spacing:-.045em}
 #vanStrip .vanPortalLines{display:none}
-body.portal-active #vanStrip{background:linear-gradient(115deg,#f3efdf 0%,#e6e8d8 100%);
- min-height:103px;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));border-top:2px solid #b5a876}
-body.portal-active #vanStripWord,body.portal-active #vanStrip .vanOut{display:none}
-body.portal-active #vanStrip .vanPortalLines{display:flex;flex-direction:column;gap:3px;text-align:center;line-height:1.3}
-.vanServiceLine{font-size:clamp(11px,3vw,14px);color:#194b32;font-weight:800;letter-spacing:.01em}
-.vanDetailLine{font-size:clamp(10px,2.7vw,12px);color:#5b6856;font-weight:550}
-.vanContactLine{display:flex;align-items:center;justify-content:center;gap:9px;font-size:clamp(17px,4.7vw,22px);
- color:#124930;font-weight:900;letter-spacing:.01em}
-.vanContactLine em{font-style:normal;font-size:11px;font-weight:650;color:#fff;background:#246644;
- padding:3px 8px;border-radius:999px;letter-spacing:0}
+body.portal-active #vanStrip{background:linear-gradient(110deg,#f4f0df 0%,#e8efdf 100%);
+ min-height:97px;padding:6px 9px calc(7px + env(safe-area-inset-bottom,0px));
+ border-top:2px solid #baa969}
+body.portal-active #vanStripWord{display:none}
+body.portal-active #vanStrip .vanPortalLines{display:flex;flex-direction:column;gap:3px;
+ text-align:center;line-height:1.24;width:100%;min-width:0}
+.vanServiceLine{white-space:nowrap;font-size:clamp(10px,3vw,12px);
+ color:#245d3f;font-weight:800;letter-spacing:-.065em;}
+.vanDetailLine{font-size:clamp(10px,2.7vw,12px);color:#5b725a;font-weight:570}
+.vanContactLine{display:block;font-size:clamp(18px,5vw,23px);
+ color:#155a36;font-weight:900;letter-spacing:0}
 .toTop{bottom:calc(59px + env(safe-area-inset-bottom,0px))}
 .toast{bottom:calc(70px + env(safe-area-inset-bottom,0px))}
 .portal-hero{background:linear-gradient(132deg,#10442d,#176446 72%,#246b47);color:#fff;
- padding:19px 16px 18px;border-bottom:3px solid #c4ae69}
-.portal-brand{display:flex;align-items:center;gap:12px;min-width:0}
-.portal-emblem{display:block;flex:none;width:60px;height:60px;border-radius:15px;
+ padding:16px 14px 16px;border-bottom:3px solid #c4ae69}
+.portal-brand{display:flex;align-items:center;gap:11px;min-width:0}
+.portal-emblem{display:block;flex:none;width:78px;height:78px;border-radius:18px;
  background:#0e422e;box-shadow:0 3px 13px rgba(0,0,0,.23);object-fit:cover}
 .portal-brand-copy{flex:1;min-width:0}
-.portal-hero h1{font-size:clamp(19px,5.15vw,24px);letter-spacing:-.045em;
- line-height:1.24;margin:0 0 6px;word-break:keep-all}
-.portal-hero p{margin:0;font-size:12px;opacity:.90;letter-spacing:-.01em}
-.portal-sub{font-size:13px;color:var(--muted);margin:8px 0 12px;line-height:1.6}
-.portal-entry-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
-.portal-entry-row button{padding:13px 5px;font-size:clamp(12px,3.6vw,16px);word-break:keep-all;line-height:1.35}
-.portal-small{font-size:12px;color:var(--muted);line-height:1.65}
+.portal-hero h1{font-size:clamp(20px,5.65vw,25px);letter-spacing:-.045em;
+ line-height:1.12;margin:0 0 5px;word-break:keep-all}
+.portal-hero h1 .portal-pre{display:block;font-size:.72em;font-weight:700;opacity:.87;
+ line-height:1.3;letter-spacing:-.03em}
+.portal-hero h1 .portal-focus{display:block;font-size:1.1em;font-weight:850;white-space:nowrap;letter-spacing:-.05em}
+.portal-hero p{margin:0;font-size:11px;opacity:.91;letter-spacing:-.02em}
+body.portal-active .body{padding:12px}
+body.portal-active .card{padding:12px;margin-bottom:11px}
+body.portal-active .card h2{font-size:14px;margin-bottom:7px}
+body.portal-active .card p:not(.portal-sub):not(.portal-small){font-size:14px;line-height:1.5}
+.portal-sub{font-size:12px;color:var(--muted);margin:7px 0 10px;line-height:1.54}
+.portal-small{font-size:11px;color:var(--muted);line-height:1.55}
+.portal-entry-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:7px}
+.portal-entry-row button{padding:11px 5px;font-size:clamp(12px,3.3vw,14px);word-break:keep-all;line-height:1.32}
 .portal-list-btn{display:flex;width:100%;align-items:center;justify-content:space-between;
- gap:10px;text-align:left;border-bottom:1px solid var(--line);padding:12px 1px;
- font-size:16px;font-weight:650}
+ gap:10px;text-align:left;border-bottom:1px solid var(--line);padding:10px 1px;
+ font-size:14px;font-weight:650}
 .portal-list-btn:last-child{border-bottom:none}
 .portal-back{font-size:11px;background:rgba(255,255,255,.15);border-radius:8px;
  padding:6px 7px;color:white;flex:none;line-height:1.25}
-@media(max-width:345px){.portal-entry-row button{font-size:12px}.portal-emblem{width:50px;height:50px}.portal-brand{gap:9px}}
+.portal-install-warning{background:var(--sand);padding:11px;border-radius:9px;
+ font-size:13px;line-height:1.55;margin:10px 0}
+.portal-install-steps{background:var(--bg);padding:11px;border-radius:9px;
+ font-size:13px;line-height:1.7;white-space:pre-line;margin:10px 0}
+@media(max-width:345px){.portal-emblem{width:69px;height:69px}.portal-brand{gap:8px}
+ .portal-hero h1{font-size:19px}.portal-hero p{font-size:10px}
+ .vanServiceLine{font-size:9px}}
+
+/* H1.9.4: installed-PWA-first mobile typography. Keep score-entry buttons
+   and native form controls large enough for safe touch/input. Same rules also
+   apply to the phone browser so the two presentations remain consistent. */
+@media(max-width:600px){
+ body{font-size:14.5px;line-height:1.47}
+ .bar{padding:10px 12px}
+ .bar h1{font-size:15px}
+ .bar .sub{font-size:11px}
+ .body{padding:12px}
+ .card{padding:12px;margin-bottom:10px}
+ .card h2{font-size:14px;margin-bottom:8px}
+ p.note{font-size:12px}
+ label{font-size:12px}
+ .btn{font-size:15px;min-height:44px;padding:11px 12px}
+ .btn.sm{font-size:13.5px;min-height:42px;padding:10px}
+ .chip{font-size:12px;min-height:36px}
+ .item{padding:10px 0}
+ .item .mt{font-size:12px}
+ .empty{font-size:13px;padding:23px 8px}
+ .banner span{font-size:12px}
+ .hero{padding:11px 10px;gap:8px}
+ .hero .crest{width:38px;height:38px;font-size:22px}
+ .hero .hname{font-size:clamp(16px,4.7vw,18px);letter-spacing:-.035em;line-height:1.22;word-break:keep-all}
+ .hero .hrole{font-size:9.5px}
+ .sig{min-width:69px;padding:8px 9px}
+ .sig .txt{font-size:10px}
+ .home-nav{padding:8px 9px}
+ .home-nav .chip{font-size:clamp(10px,2.7vw,12px);min-height:38px}
+ .round-meta{font-size:11px}
+ .rules-intro,.rule-desc{font-size:12.5px}
+ .portal-hero{padding:14px 12px}
+ .portal-emblem{width:76px;height:76px}
+ .portal-brand{gap:10px}
+ .portal-hero h1{font-size:clamp(18px,5.05vw,23px)}
+ .portal-hero p{font-size:10px}
+ body.portal-active .body{padding:10px}
+ body.portal-active .card{padding:11px;margin-bottom:10px}
+ body.portal-active .card h2{font-size:13px}
+ body.portal-active .card p:not(.portal-sub):not(.portal-small){font-size:13px;line-height:1.46}
+ .portal-sub{font-size:11px}
+ .portal-small{font-size:10px}
+ .portal-list-btn{font-size:13px;min-height:42px}
+ .portal-entry-row button{font-size:clamp(11px,3.1vw,13px);min-height:44px}
+ .portal-install-status{font-size:12px}
+ /* Prevent Android native font boosting from making fixed-size headers huge. */
+ .screen,.card,.portal-hero{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+ /* Never shrink editing hit targets to match display-only typography. */
+ input[type=text],input[type=number],input[type=date],input[type=time],
+ input[type=password],textarea,select{font-size:16px;min-height:44px}
+ .keys .key{min-height:32px;font-size:14px}
+ .pm .mbtn{width:56px;height:48px;font-size:24px}
+ .pm .val{height:48px;font-size:21px}
+}
+@media(max-width:345px){.portal-emblem{width:69px;height:69px}}
+.portal-install-status{display:flex;align-items:center;justify-content:center;
+ background:var(--sand);color:var(--turf-mid);font-weight:750;border-radius:9px;
+ min-height:44px;padding:10px 5px;line-height:1.25;text-align:center;
+ border:1px solid var(--line);gap:5px}
 </style>
 </head>
 <body>
 <div id="app"></div>
-<a id="vanStrip" href="https://freshall.co.kr/" target="_blank" rel="noopener noreferrer"
+<a id="vanStrip" href="http://freshall.co.kr/" target="_blank" rel="noopener noreferrer"
    aria-label="프레시올 카드기 포스 키오스크 테이블오더 용지 상담 1899-4540 홈페이지 열기">
   <span id="vanStripWord">카드기 / 포스 / 키오스크 / 테이블오더</span>
-  <span class="vanOut" aria-hidden="true">↗</span>
   <span class="vanPortalLines" aria-hidden="true">
-    <span class="vanServiceLine">카드기 · 포스 · 키오스크 · 테이블오더 · 용지</span>
+    <span class="vanServiceLine">카드기·포스·키오스크·테이블오더·용지</span>
     <span class="vanDetailLine">매장 결제시스템 설치 · 임대 · 관리 상담</span>
-    <span class="vanContactLine">1899-4540 <em>홈페이지 ↗</em></span>
+    <span class="vanContactLine">1899-4540</span>
   </span>
 </a>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.2";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.4";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -323,6 +396,9 @@ var SUPPLY_CLUB_NAME=SUPPLY_CLUB_ID?((SUPPLY_PARAMS.get("name")||"").slice(0,60)
  :APP_NAME;
 function supplyGoClub(id){
  if(!SUPPLY_SLUG_RE.test(id))return;
+ // Leave local edits untouched; warn before switching the active club.
+ if(L&&L.dirty&&SUPPLY_CLUB_ID&&id!==SUPPLY_CLUB_ID&&
+    !confirm("이 모임에는 아직 서버에 올리지 않은 수정사항이 있습니다. 기록은 이 기기에 보관되지만, 모임을 바꾸기 전에 올리기를 권합니다. 다른 모임으로 이동할까요?"))return;
  location.href=location.pathname+"?club="+encodeURIComponent(id);
 }
 function supplyAskClub(){
@@ -1055,8 +1131,20 @@ function portalClubName(){
 }
 function portalReturn(){
  if(view.name==="play")recordTime();
- sheet=null;PORTAL_OPEN=true;view={name:"home"};
- setDocTitle(APP_NAME);render();window.scrollTo(0,0);
+ function showPortal(){
+  sheet=null;PORTAL_OPEN=true;view={name:"home"};
+  setDocTitle(APP_NAME);render();window.scrollTo(0,0);
+ }
+ if(L&&L.dirty){
+  ask("서버에 올리지 않은 수정사항이 있습니다. 포털로 돌아가도 이 기기의 기록은 보존됩니다. 다른 모임으로 이동하기 전에 서버에 올리는 것을 권합니다. 포털로 돌아가시겠습니까?",showPortal,"포털로 이동");
+  return;
+ }
+ showPortal();
+}
+function portalChooseClub(){
+ if(L&&L.dirty&&
+  !confirm("아직 서버에 올리지 않은 수정사항이 있습니다. 기록은 이 기기에 보관됩니다. 다른 모임 선택 화면으로 이동할까요?"))return;
+ location.href=location.pathname;
 }
 function portalEnter(){
  if(PORTAL_ENTER_BUSY)return;
@@ -1094,43 +1182,63 @@ function portalIsInstalled(){
   window.navigator.standalone===true);
 }
 function portalInstall(){
- // In Chromium, native installation must be triggered inside the user's click handler.
- if(PORTAL_INSTALL_PROMPT){
-  var p=PORTAL_INSTALL_PROMPT;PORTAL_INSTALL_PROMPT=null;
-  try{
-   var offered=p.prompt();
-   if(p.userChoice&&typeof p.userChoice.then==="function")p.userChoice.then(function(choice){
-    if(choice&&choice.outcome==="accepted")toast("홈 화면 설치를 진행합니다.");
-    else toast("설치가 취소되었습니다. 필요할 때 다시 눌러 주세요.");
-   });
-   else if(offered&&typeof offered.then==="function")offered.catch(function(){toast("설치 창을 열지 못했습니다.")});
-   return;
-  }catch(err){/* Fall through to browser guidance below. */}
+ // A user must be informed about Play Protect warnings BEFORE choosing a native install.
+ // The native prompt (if offered) is only launched by another explicit tap.
+ if(portalIsInstalled()){
+  sheet='<div class="sheet"><div class="inner">'+
+   '<h2 style="margin:0 0 8px;font-size:18px">홈 화면 바로가기</h2>'+
+   '<p class="portal-sub">이미 설치한 앱에서 실행 중입니다. 아이콘이 홈 화면에 없다면 휴대전화 앱 목록에서 <b>골프챌린지</b>를 찾아 길게 누른 뒤 홈 화면에 추가하세요.</p>'+
+   '<button class="btn sm quiet" onclick="askNo()">닫기</button></div></div>';
+  render();return;
  }
- if(portalIsInstalled()){toast("이미 홈 화면 앱으로 실행 중입니다.");return;}
- var ua=navigator.userAgent||"", isIos=/iPad|iPhone|iPod/.test(ua),isAndroid=/Android/i.test(ua);
+ var ua=navigator.userAgent||"",isIos=/iPad|iPhone|iPod/.test(ua),isAndroid=/Android/i.test(ua);
  var steps=isIos?
-  "Safari에서 열기 → 공유(□↑) → '홈 화면에 추가' → 추가":
+  "Safari에서 열기 → 공유(□↑) → 홈 화면에 추가 → 추가":
   (isAndroid?(/SamsungBrowser/i.test(ua)?
-   "삼성 인터넷 메뉴(≡) → '현재 페이지 추가' → '홈 화면' → 추가":
-   "Chrome 메뉴(⋮) → '앱 설치' 또는 '홈 화면에 추가' → 설치/추가"):
-   "브라우저 메뉴(⋮ 또는 공유) → '앱 설치' 또는 '홈 화면에 추가'를 선택하세요.");
+    "삼성 인터넷: 메뉴(≡) → 현재 페이지 추가 → 홈 화면 → 추가":
+    "Chrome: 메뉴(⋮) → 홈 화면에 추가 / 앱 설치 → 추가 또는 설치"):
+    "브라우저의 메뉴(⋮) 또는 공유 메뉴 → 홈 화면에 추가를 누르세요.");
+ var warning=isAndroid?
+  '<div class="portal-install-warning"><b>안드로이드 설치 전 안내</b><br>'+ 
+  '브라우저에 따라 일반 바로가기 대신 별도 앱이 설치될 수 있습니다. Google Play 프로텍트가 <b>이전 Android 버전용 앱</b>이라고 경고하면 무시하고 진행하지 마세요. 설치를 취소하고 브라우저 메뉴의 홈 화면 추가 방법을 이용하거나 브라우저를 업데이트한 뒤 다시 시도하세요.</div>':
+  '<div class="portal-install-warning">홈 화면 추가 방식은 브라우저마다 다릅니다. 설치나 추가 여부는 시스템 창에서 직접 확인해 주세요.</div>';
  sheet='<div class="sheet"><div class="inner">'+
-  '<h2 style="margin:0 0 9px;font-size:18px">홈 화면에 추가</h2>'+
-  '<p class="portal-sub">브라우저가 바로 설치창을 제공하면 버튼 한 번으로 열립니다. 현재 브라우저는 설치창이 준비되지 않아 아래 방법을 안내합니다.</p>'+
-  '<p style="white-space:pre-line;line-height:1.75;font-weight:650">'+esc(steps)+'</p>'+
-  '<p class="portal-small">처음 방문한 직후에는 브라우저 설치 조건이 아직 충족되지 않았을 수 있습니다. 잠시 사용한 후 재시도하거나 메뉴에서 추가하세요. 카카오톡 등 앱 내부에서 열었다면 외부 브라우저로 열어 주세요. 홈 화면 앱은 포털부터 시작합니다.</p>'+
-  '<button class="btn sm quiet" onclick="askNo()">안내 닫기</button></div></div>';
+  '<h2 style="margin:0 0 8px;font-size:18px">홈 화면에 추가</h2>'+warning+
+  '<p class="portal-sub">추가한 아이콘이 홈 화면에 보이지 않으면 휴대전화의 <b>앱 목록</b>에서 골프챌린지를 찾아 길게 눌러 홈 화면에 놓을 수 있습니다.</p>'+ 
+  '<div class="portal-install-steps">'+esc(steps)+'</div>'+ 
+  (PORTAL_INSTALL_PROMPT?'<button class="btn sm" onclick="portalLaunchInstall()">시스템 설치창 열기</button><div style="height:9px"></div>':'')+
+  '<button class="btn sm quiet" onclick="askNo()">확인 · 닫기</button></div></div>';
  render();
 }
+function portalInstallControl(){
+ // Standalone mode is only proof of the running context, not that a shortcut
+ // has actually been placed on the home screen. Avoid claiming that it has.
+ if(portalIsInstalled())return '<div class="portal-install-status" role="status" aria-label="설치형 앱으로 실행 중">✓ 앱으로 실행 중</div>';
+ return '<button class="btn sm quiet" onclick="portalInstall()">홈 화면에 추가</button>';
+}
+function portalLaunchInstall(){
+ if(!PORTAL_INSTALL_PROMPT){toast("브라우저 설치창이 준비되지 않았습니다. 메뉴에서 추가해 주세요.");return;}
+ var p=PORTAL_INSTALL_PROMPT;PORTAL_INSTALL_PROMPT=null;
+ sheet=null;render();
+ try{
+  var offer=p.prompt();
+  if(p.userChoice&&typeof p.userChoice.then==="function")p.userChoice.then(function(choice){
+   if(choice&&choice.outcome==="accepted")toast("설치가 진행됩니다. 앱 목록에도 표시될 수 있습니다.");
+   else toast("설치가 취소되었습니다.");
+  });
+  else if(offer&&typeof offer.catch==="function")offer.catch(function(){
+   toast("설치창을 열지 못했습니다. 브라우저 메뉴를 이용해 주세요.");
+  });
+ }catch(e){toast("설치창을 열지 못했습니다. 브라우저 메뉴를 이용해 주세요.");}
+}
 window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();PORTAL_INSTALL_PROMPT=e});
-window.addEventListener("appinstalled",function(){PORTAL_INSTALL_PROMPT=null;toast("홈 화면에 설치되었습니다.")});
+window.addEventListener("appinstalled",function(){PORTAL_INSTALL_PROMPT=null;toast("설치되었습니다. 홈 화면에 없다면 앱 목록에서 아이콘을 찾아 추가하세요.");render()});
 function scrPortal(){
  setDocTitle(APP_NAME);
  var selected=!!SUPPLY_CLUB_ID;
  var banner='<div class="portal-hero"><div class="portal-brand">'+
-  '<img class="portal-emblem" src="./golf-icon-192.png" width="60" height="60" alt="골프공과 깃발 엠블렘">'+
-  '<div class="portal-brand-copy"><h1>'+esc(APP_NAME)+'</h1><p>우리의 골프, 함께하는 기록</p></div></div></div>';
+  '<img class="portal-emblem" src="./golf-icon-192.png" width="78" height="78" alt="골프공과 깃발 엠블렘">'+
+  '<div class="portal-brand-copy"><h1><span class="portal-pre">우리끼리</span><span class="portal-focus">골프챌린지</span></h1><p>우리의 골프, 함께하는 기록</p></div></div></div>';
  var introduction='<div class="card"><p style="font-weight:650;margin:0 0 8px">초대인증키를 발급받으신 분에게만 입장이 허용됩니다.</p>'+
   '<p class="portal-small" style="margin:0">즐겁게 라운딩 하세요~</p></div>';
  var items=SUPPLY_STORED.length?SUPPLY_STORED.map(function(c){
@@ -1144,13 +1252,13 @@ function scrPortal(){
    '초대인증키가 없습니다. 경기위원장에게 회원용 초대주소를 받으십시오.')+'</p>'+
    '<div class="portal-entry-row"><button class="btn sm" onclick="portalEnter()"'+
    (PORTAL_ENTER_BUSY?' disabled':'')+'>'+(PORTAL_ENTER_BUSY?'인증 확인 중…':'내 모임으로<br>들어가기')+'</button>'+
-   '<button class="btn sm quiet" onclick="portalInstall()">홈 화면에 추가</button></div>'+
-   '<p style="margin:12px 0 0"><button class="chip" onclick="location.href=location.pathname">다른 모임 선택</button></p></div>':
+   portalInstallControl()+'</div>'+
+   '<p style="margin:12px 0 0"><button class="chip" onclick="portalChooseClub()">다른 모임 선택</button></p></div>':
   '<div class="card"><h2>어느 모임이신지요</h2>'+
    '<p class="portal-sub">가입한 모임을 선택하십시오. 초대주소로 처음 접속하시면 해당 모임이 자동 선택됩니다.</p>'+items+
    '<div style="height:12px"></div><div class="portal-entry-row">'+
    '<button class="btn sm quiet" onclick="supplyAskClub()">모임 식별번호 넣기</button>'+
-   '<button class="btn sm quiet" onclick="portalInstall()">홈 화면에 추가</button></div></div>';
+   portalInstallControl()+'</div></div>';
  return '<div class="screen">'+banner+'<div class="body">'+introduction+main+
   '<div class="card"><h2>모임을 처음 이용하시나요?</h2>'+ 
   '<p class="portal-sub">회원 초대주소는 해당 모임의 경기위원장에게 받으실 수 있습니다.</p>'+ 
@@ -2763,7 +2871,7 @@ if(!PORTAL_OPEN&&!SUPPLY_CLUB_PICK&&cloudOn()&&L.cloudReadKey)setTimeout(functio
 /* Fixed internal banner alternates; portal displays all three lines without animation. */
 (function(){
  var a=document.getElementById("vanStripWord");if(!a)return;
- var texts=["카드기 / 포스 / 키오스크 / 테이블오더","1899-4540"];
+ var texts=["카드기·포스·키오스크·테이블오더","1899-4540"];
  var i=0;setInterval(function(){i=1-i;a.textContent=texts[i]},4500);
 })();
 window.addEventListener("pagehide",function(){if(view.name==="play")recordTime()});
