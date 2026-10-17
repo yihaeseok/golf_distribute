@@ -417,7 +417,7 @@ body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(23p
 </a>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.11";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.13";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -1288,36 +1288,66 @@ function portalInstallOutcome(outcome){
   '<button class="btn sm" onclick="portalContinueWeb()">웹으로 계속하기</button></div></div>';
  render();
 }
+/* H1.9.13: The first click tries an actual browser-supported installation
+   action. An ordinary webpage cannot invoke Chrome/Samsung's menu directly. */
+function portalIsAndroidChrome(){
+ var ua=navigator.userAgent||"";
+ return /Android/i.test(ua)&&/Chrome\/\d+/i.test(ua)&&
+  !/(SamsungBrowser|EdgA|OPR|Firefox|FxiOS|KAKAOTALK|NAVER|Instagram|FBAN|FBAV|; ?wv[);]|\bwv\b)/i.test(ua);
+}
+function portalChromeIntentUrl(){
+ /* Android VIEW intents can open the *same page* in Chrome. They do not
+    bypass browser install policies or install without consent. */
+ try{
+  if(!/Android/i.test(navigator.userAgent||""))return "";
+  var url=new URL(location.href);
+  if(url.protocol!=="https:"&&url.protocol!=="http:")return "";
+  return "intent://"+url.host+url.pathname+url.search+
+   "#Intent;scheme="+url.protocol.slice(0,-1)+
+   ";action=android.intent.action.VIEW;package=com.android.chrome;end";
+ }catch(e){return "";}
+}
+function portalTryChromeOpen(){
+ var intent=portalChromeIntentUrl();
+ if(!intent)return false;
+ try{location.href=intent;return true;}catch(e){return false;}
+}
 function portalInstall(){
- // If the browser has supplied the native install event, prompt directly from
- // this click. Calling it synchronously preserves user activation.
- if(PORTAL_INSTALL_PROMPT && !portalIsInstalled()){
+ /* Native prompt must be invoked synchronously from the user's tap. */
+ if(PORTAL_INSTALL_PROMPT&&!portalIsInstalled()){
   portalLaunchInstall();return;
  }
  if(portalIsInstalled()){
   sheet='<div class="sheet"><div class="inner" role="dialog" aria-label="앱 실행 중">'+
    '<h2 style="margin:0 0 9px;font-size:18px">앱으로 실행 중</h2>'+
-   '<p class="portal-sub">지금 골프챌린지를 설치형 앱 화면으로 사용하고 있습니다. 모임을 선택해 이용하세요. 아이콘이 홈 화면에 없다면 앱 목록에서 길게 눌러 옮길 수 있습니다.</p>'+
-   '<button class="btn sm" onclick="portalContinueWeb()">내 모임 선택하기</button></div></div>';
+   '<p class="portal-sub">현재 설치형 앱으로 실행 중입니다. 홈 화면이나 앱 목록의 골프챌린지 아이콘을 이용하세요.</p>'+
+   '<button class="btn sm" onclick="portalContinueWeb()">계속하기</button></div></div>';
   render();return;
  }
  var ua=navigator.userAgent||"",isIos=/iPad|iPhone|iPod/.test(ua),isAndroid=/Android/i.test(ua);
+ var androidOtherBrowser=isAndroid&&!portalIsAndroidChrome();
+ if(androidOtherBrowser){
+  /* A launch attempt precedes manual steps. We keep the current screen as
+     fallback if Android declines the intent (e.g. Chrome not installed). */
+  sheet='<div class="sheet"><div class="inner" role="dialog" aria-label="크롬에서 앱 설치 시도">'+
+   '<h2 style="margin:0 0 9px;font-size:18px">크롬에서 설치 시도</h2>'+
+   '<p class="portal-sub">설치를 진행할 수 있도록 현재 모임 주소를 Chrome에서 열어 보겠습니다. Chrome이 열리면 메뉴(⋮)의 <b>앱 설치</b> 또는 <b>홈 화면에 추가</b>를 선택하세요.</p>'+
+   '<button class="btn sm" onclick="portalTryChromeOpen()">Chrome에서 다시 열기</button><div style="height:8px"></div>'+
+   '<p class="portal-install-steps">Chrome이 열리지 않으면 브라우저 메뉴의 홈 화면 추가 기능을 사용하세요. 설치가 끝날 때까지 기존 창은 유지하세요.</p>'+
+   '<button class="btn sm quiet" onclick="portalContinueWeb()">웹으로 계속하기</button></div></div>';
+  render();
+  portalTryChromeOpen();return;
+ }
  var steps=isIos?
-  "iPhone: Safari로 열기 → 공유 → 홈 화면에 추가 → 추가":
-  (isAndroid?(/SamsungBrowser/i.test(ua)?
-   "삼성 인터넷: 메뉴 → 현재 페이지 추가 → 홈 화면 → 추가":
-   "Chrome: 메뉴(⋮) → 앱 설치 또는 홈 화면에 추가 → 설치 / 추가"):
-   "브라우저 메뉴 또는 공유 메뉴에서 앱 설치·홈 화면 추가 항목을 이용하세요.");
- var warning=isAndroid?
-  '<div class="portal-install-warning"><b>설치 전 안내</b><br>휴대전화에서 설치 확인 화면이나 Google Play 프로텍트 경고가 표시될 수 있습니다. <b>안전하지 않다는 경고가 나오면 무시하고 강행하지 마세요.</b> 설치하지 않아도 웹에서 그대로 이용할 수 있습니다.</div>':
-  '<div class="portal-install-warning">설치 여부는 브라우저나 기기에 따라 다릅니다. 설치하지 않아도 웹에서 계속 이용하실 수 있습니다.</div>';
- sheet='<div class="sheet"><div class="inner" role="dialog" aria-label="앱 실행하기 안내">'+
-  '<h2 style="margin:0 0 9px;font-size:18px">앱으로 실행하기</h2>'+
-  '<p class="portal-sub">처음에는 앱을 설치하는 과정이 필요합니다. <b>설치가 완료되면 골프챌린지 아이콘을 눌러 실행</b>하세요.</p>'+warning+
-  (PORTAL_INSTALL_PROMPT?
-   '<button class="btn sm" onclick="portalLaunchInstall()">앱 설치하기</button><div style="height:9px"></div>':
-   '<p class="portal-sub">이 브라우저에서 자동 설치 요청을 사용할 수 없습니다. 이미 설치된 앱이 있으면 앱 목록에서 실행하고, 새로 설치하려면 아래 브라우저 메뉴를 이용하세요.</p>'+ 
-   '<div class="portal-install-steps">'+esc(steps)+'</div>')+
+  "iPhone: 브라우저 공유 메뉴 → 홈 화면에 추가 → 추가":
+  (isAndroid?
+   "Chrome: 우측 상단 메뉴(⋮) → 앱 설치 또는 홈 화면에 추가 → 설치 / 추가":
+   "브라우저 주소창의 설치 아이콘 또는 브라우저 메뉴에서 앱 설치를 선택하세요.");
+ sheet='<div class="sheet"><div class="inner" role="dialog" aria-label="앱 설치 안내">'+
+  '<h2 style="margin:0 0 9px;font-size:18px">앱 설치 시도 결과</h2>'+
+  '<p class="portal-sub">이 브라우저가 직접 설치창을 여는 기능을 제공하지 않아 설치 확인창을 호출할 수 없었습니다. 아래 브라우저 설치 메뉴를 이용해 주세요.</p>'+
+  '<div class="portal-install-steps">'+esc(steps)+'</div>'+
+  '<p class="portal-sub">앱 설치는 브라우저와 기기의 승인이 필요합니다. 설치하지 않아도 웹에서 이용할 수 있습니다.</p>'+
   '<button class="btn sm quiet" onclick="portalContinueWeb()">웹으로 계속하기</button></div></div>';
  render();
 }
@@ -1715,7 +1745,7 @@ function renderPayout(){
  }
  sheet='<div class="sheet" onclick="if(event.target===this)payClose()"><div class="inner">'+
   '<h2 style="margin:0 0 6px;font-size:16px">'+esc(g?g.name:"")+' · 순위별 회비와 상금</h2>'+
-  '<p class="note" style="margin:0 0 10px">저장을 누르시면 바로 반영됩니다. '+
+  '<p class="note" style="margin:0 0 10px">금액창에서 저장한 내용은 '+(view.name==="edit"?"라운드 수정저장":"라운드 만들기")+'을 누를 때 최종 반영됩니다. '+
   '비워 두신 등수는 결과에 나오지 않습니다. 공동 순위는 아래 등수 금액으로 계산하여 '+
   '차액이 모임에 쌓입니다. 회비로 상금 배정을 쓰시면 걷은 회비 전부가 '+
   '등수별 상금으로 자동으로 나뉩니다.</p>'+
@@ -1730,7 +1760,13 @@ function renderPayout(){
   '<button class="btn sm line" onclick="payClear()">모두 지우기</button></div>'+
   '<div style="height:8px"></div>'+
   '<button class="btn sm quiet" onclick="payClose()">닫기</button></div></div>';
- render()}
+ /* Keep the underlying form DOM intact, including participant picks, typed scores and unsaved game settings. */
+ var app=document.getElementById("app");
+ if(!app)return;
+ var prev=app.querySelector(".sheet");
+ if(prev)prev.remove();
+ app.insertAdjacentHTML("beforeend",sheet);
+}
 function payVal(i,k,v){var n=parseInt(v,10);
  if(!payEdit.rows[i])payEdit.rows[i]={fee:0,prize:0};
  payEdit.rows[i][k]=isNaN(n)||n<0?0:n}
@@ -1749,24 +1785,24 @@ function payPrev(){
   {fee:Number(found[j].fee)||0,prize:Number(found[j].prize)||0}:{fee:0,prize:0});
  renderPayout();toast("직전 설정을 불러왔습니다.")}
 function paySave(){
- /* 금액 창의 저장이 그 자리에서 라운드에 반영됩니다. */
+ /* H1.9.12: Draft payout is a form field until createRound()/saveRoundEdit() commits it. */
  var out=payEdit.rows.map(function(r){return{fee:Number(r.fee)||0,prize:Number(r.prize)||0}});
  while(out.length&&!out[out.length-1].fee&&!out[out.length-1].prize)out.pop();
  var type=payEdit.type,box=payBox(type);
- if(box)box.value=JSON.stringify(out);
- var r=view.rid?round(view.rid):null;
- if(r){
-  if(!r.games)r.games=[];
-  var hit=null;
-  r.games.forEach(function(g){if(g.type===type)hit=g});
-  if(!hit){hit={type:type,prize:0};if(type==="team"){hit.basis="net";hit.teamCount=2}r.games.push(hit)}
-  if(out.length)hit.payout=out;else delete hit.payout;
-  save();
+ if(box){
+  box.value=JSON.stringify(out);
+  var config=box.closest(".game-config"),button=config&&config.querySelector(".gc-actions .chip");
+  if(button)button.innerHTML="회비 상금"+(out.length?' <b>●</b>':'');
  }
- payEdit=null;sheet=null;render();
- toast(out.length?((GAMES[type]?GAMES[type].name:"")+" 순위별 금액 "+out.length+"개를 저장했습니다.")
-  :((GAMES[type]?GAMES[type].name:"")+" 금액을 지웠습니다."))}
-function payClose(){payEdit=null;sheet=null;render()}
+ payEdit=null;sheet=null;
+ var overlay=document.querySelector("#app > .sheet");if(overlay)overlay.remove();
+ toast(out.length?((GAMES[type]?GAMES[type].name:"")+" 회비·상금 "+out.length+"개를 입력했습니다. 마지막 저장에서 확정됩니다.")
+  :((GAMES[type]?GAMES[type].name:"")+" 회비·상금을 비웠습니다. 마지막 저장에서 확정됩니다."));
+}
+function payClose(){
+ payEdit=null;sheet=null;
+ var overlay=document.querySelector("#app > .sheet");if(overlay)overlay.remove();
+}
 function pickMain(el){
  var all=document.querySelectorAll(".gmain");
  if(el&&el.checked)for(var i=0;i<all.length;i++)if(all[i]!==el)all[i].checked=false;
@@ -1932,6 +1968,9 @@ function scrEdit(){
  '<label for="ep" id="epl">장소 이름</label><input type="text" id="ep" value="'+esc(r.place||"")+'">'+
  '<label for="ea" id="eal">주소</label><input type="text" id="ea" value="'+esc(r.address||"")+'">'+
  '<label for="ec">코스</label><input type="text" id="ec" value="'+esc(r.course||"")+'"></div>'+
+ '<div class="card"><h2>경기 종목</h2><p class="note">등록할 때와 같은 전체 종목입니다. 대회순위, 회비·상금, 거꾸로, 팀 점수 기준을 수정할 수 있습니다.</p>'+
+ '<div style="height:6px"></div>'+gameChecklist(sel)+
+ '<p class="note">신페리오와 다파상과 버디킹과 어니언킹은 홀별 타수가 있어야 계산됩니다.</p></div>'+
  '<div class="card"><h2>참가 여부와 팀 배정</h2>'+
  '<p class="note">참가에 체크하고 팀을 지정하면 팀 나누기 현황이 바뀝니다. 이 변경도 마지막에 함께 저장됩니다.</p>'+
  '<ul class="list">'+chk+'</ul>'+
