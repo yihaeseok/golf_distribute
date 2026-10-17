@@ -131,6 +131,14 @@ td.win{font-weight:700;color:var(--turf)}
 .hero .hcounts{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .hero .hversion{flex:none}
 .hero .hmain{flex:1;min-width:0}
+/* H1.9.6: icon + HOME as one vertical control, compact role right of club name. */
+.hero .hero-side{display:flex;flex-direction:column;align-items:center;justify-content:center;
+ flex:none;gap:5px;align-self:center}
+.hero .hero-side .portal-back{width:44px;min-height:27px;line-height:1.15;
+ font-size:10px;font-weight:750;padding:5px 3px;white-space:nowrap}
+.hero .hclubname{min-width:0;overflow-wrap:anywhere}
+.hero .hrole{font-size:8px;font-weight:700;padding:1px 4px;letter-spacing:-.015em}
+
 .hero .hline{font-size:clamp(10px,2.9vw,12px);opacity:.88;margin-top:3px;
  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.02em}
 .sig{flex:none;display:flex;flex-direction:column;align-items:center;gap:5px;
@@ -242,7 +250,7 @@ body.portal-active #app{padding-bottom:calc(108px + env(safe-area-inset-bottom,0
  gap:0;z-index:20;font-size:clamp(10px,3.1vw,14px);font-weight:760;
  line-height:1.3;box-shadow:0 -2px 8px rgba(0,0,0,.07)}
 #vanStripWord{text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
- letter-spacing:-.045em}
+ letter-spacing:-.014em}
 #vanStrip .vanPortalLines{display:none}
 body.portal-active #vanStrip{background:linear-gradient(110deg,#f4f0df 0%,#e8efdf 100%);
  min-height:97px;padding:6px 9px calc(7px + env(safe-area-inset-bottom,0px));
@@ -251,7 +259,7 @@ body.portal-active #vanStripWord{display:none}
 body.portal-active #vanStrip .vanPortalLines{display:flex;flex-direction:column;gap:3px;
  text-align:center;line-height:1.24;width:100%;min-width:0}
 .vanServiceLine{white-space:nowrap;font-size:clamp(10px,3vw,12px);
- color:#245d3f;font-weight:800;letter-spacing:-.065em;}
+ color:#245d3f;font-weight:800;letter-spacing:-.023em;}
 .vanDetailLine{font-size:clamp(10px,2.7vw,12px);color:#5b725a;font-weight:570}
 .vanContactLine{display:block;font-size:clamp(18px,5vw,23px);
  color:#155a36;font-weight:900;letter-spacing:0}
@@ -281,6 +289,12 @@ body.portal-active .card p:not(.portal-sub):not(.portal-small){font-size:14px;li
  gap:10px;text-align:left;border-bottom:1px solid var(--line);padding:10px 1px;
  font-size:14px;font-weight:650}
 .portal-list-btn:last-child{border-bottom:none}
+.portal-start{background:#26754b!important;color:#fff!important;display:flex;align-items:center;
+ justify-content:center;gap:8px;font-weight:800;letter-spacing:.065em}
+.portal-start .portal-go-lamp{display:inline-block;flex:none;width:9px;height:9px;
+ border-radius:50%;background:#bcf1c3;box-shadow:0 0 0 3px rgba(188,241,195,.16)}
+.portal-start:disabled{opacity:.65;cursor:wait}
+
 .portal-back{font-size:11px;background:rgba(255,255,255,.15);border-radius:8px;
  padding:6px 7px;color:white;flex:none;line-height:1.25}
 .portal-install-warning{background:var(--sand);padding:11px;border-radius:9px;
@@ -313,8 +327,9 @@ body.portal-active .card p:not(.portal-sub):not(.portal-small){font-size:14px;li
  .banner span{font-size:12px}
  .hero{padding:11px 10px;gap:8px}
  .hero .crest{width:38px;height:38px;font-size:22px}
+ .hero .hero-side .portal-back{width:40px;font-size:9.5px}
  .hero .hname{font-size:clamp(16px,4.7vw,18px);letter-spacing:-.035em;line-height:1.22;word-break:keep-all}
- .hero .hrole{font-size:9.5px}
+ .hero .hrole{font-size:8px}
  .sig{min-width:69px;padding:8px 9px}
  .sig .txt{font-size:10px}
  .home-nav{padding:8px 9px}
@@ -355,16 +370,16 @@ body.portal-active .card p:not(.portal-sub):not(.portal-small){font-size:14px;li
 <div id="app"></div>
 <a id="vanStrip" href="http://freshall.co.kr/" target="_blank" rel="noopener noreferrer"
    aria-label="프레시올 카드기 포스 키오스크 테이블오더 용지 상담 1899-4540 홈페이지 열기">
-  <span id="vanStripWord">카드기 / 포스 / 키오스크 / 테이블오더</span>
+  <span id="vanStripWord">카드기 · 포스 · 키오스크 · 테이블오더 · 용지</span>
   <span class="vanPortalLines" aria-hidden="true">
-    <span class="vanServiceLine">카드기·포스·키오스크·테이블오더·용지</span>
+    <span class="vanServiceLine">카드기 · 포스 · 키오스크 · 테이블오더 · 용지</span>
     <span class="vanDetailLine">매장 결제시스템 설치 · 임대 · 관리 상담</span>
     <span class="vanContactLine">1899-4540</span>
   </span>
 </a>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.4";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.6";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -390,7 +405,8 @@ var SUPPLY_CLUB_ID=SUPPLY_SLUG_RE.test(SUPPLY_PARAMS.get("club")||"")?SUPPLY_PAR
  :"";
 var SUPPLY_CLUB_PICK=!SUPPLY_CLUB_ID;
 /* H1.9.1: all visits begin in the portal. */
-var PORTAL_OPEN=true,PORTAL_ENTER_BUSY=false,PORTAL_INSTALL_PROMPT=null;
+var PORTAL_OPEN=true,PORTAL_ENTER_BUSY=false,PORTAL_INSTALL_PROMPT=null,PORTAL_INSTALL_DONE=false;
+var PORTAL_NEW_INVITE=false; // ephemeral, set only for a valid invite fragment in this page load
 var SUPPLY_CLUB_NAME=SUPPLY_CLUB_ID?((SUPPLY_PARAMS.get("name")||"").slice(0,60)||
  (function(){for(var i=0;i<SUPPLY_STORED.length;i++)if(SUPPLY_STORED[i].id===SUPPLY_CLUB_ID)return SUPPLY_STORED[i].name;return SUPPLY_CLUB_ID})())
  :APP_NAME;
@@ -439,6 +455,7 @@ function load(){
   var frag=new URLSearchParams(window.location.hash.slice(1));
   var memberKey=frag.get("memberKey");
   if(memberKey&&/^wgk_[a-f0-9]{128}$/.test(memberKey)){
+   PORTAL_NEW_INVITE=true;
    if(!L||typeof L!=="object")L=blankL();
    var srv=frag.get("server")||"";
    if(/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(srv))L.cloudUrl=srv;
@@ -1146,6 +1163,25 @@ function portalChooseClub(){
   !confirm("아직 서버에 올리지 않은 수정사항이 있습니다. 기록은 이 기기에 보관됩니다. 다른 모임 선택 화면으로 이동할까요?"))return;
  location.href=location.pathname;
 }
+/* H1.9.6: offer install once after successful invite authentication.
+   A nonblocking option only: declining leaves the club fully usable on web.
+   We never pop this before server verification or for already installed apps. */
+function portalInviteInstallOffer(){
+ if(!PORTAL_NEW_INVITE)return;
+ PORTAL_NEW_INVITE=false;
+ if(portalIsInstalled())return;
+ var seenKey="woorigolf.portal.install-offer."+SUPPLY_CLUB_ID;
+ try{
+  if(localStorage.getItem(seenKey)==="1")return;
+  localStorage.setItem(seenKey,"1");
+ }catch(e){}
+ sheet='<div class="sheet"><div class="inner" role="dialog" aria-label="골프챌린지 앱 이용 권장">'+
+  '<h2 style="margin:0 0 9px;font-size:18px">앱으로 더 편하게 이용하세요</h2>'+
+  '<p class="portal-sub">내 모임 인증이 확인되었습니다. 골프챌린지를 앱으로 설치하면 주소창 없는 화면으로 이용할 수 있습니다. 설치하지 않아도 기록을 볼 수 있습니다.</p>'+
+  '<button class="btn sm" onclick="portalInstall()">앱으로 실행하기</button><div style="height:8px"></div>'+
+  '<button class="btn sm quiet" onclick="portalContinueWeb()">웹으로 계속하기</button></div></div>';
+ render();
+}
 function portalEnter(){
  if(PORTAL_ENTER_BUSY)return;
  if(!SUPPLY_CLUB_ID){toast("먼저 내 모임을 선택하십시오.");return;}
@@ -1175,64 +1211,92 @@ function portalEnter(){
   if(res.serverVer)L.serverVer=res.serverVer;
   save(false);
   PORTAL_OPEN=false;go("home");
+  portalInviteInstallOffer();
  },function(e){PORTAL_ENTER_BUSY=false;render();toast("서버 연결 실패: "+e.message);});
 }
 function portalIsInstalled(){
  return !!((window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches)||
   window.navigator.standalone===true);
 }
+/* H1.9.6: PWA-first launch path. A website cannot forcibly open an already
+   installed Android PWA; installation is offered only with a real browser event. */
+function portalContinueWeb(){
+ sheet=null;render();
+}
+function portalInstallOutcome(outcome){
+ // An accepted install offer is not proof that an icon was added to Home.
+ if(outcome==="accepted"&&PORTAL_INSTALL_DONE)return;
+ var heading="앱 설치 안내",message="";
+ if(outcome==="installed"){
+  heading="앱 설치 완료";
+  message="골프챌린지가 설치되었습니다. <b>홈 화면이나 앱 목록의 골프챌린지 아이콘을 눌러 실행</b>하세요. 홈 화면에 없다면 앱 목록의 아이콘을 길게 눌러 옮길 수 있습니다.";
+ }else if(outcome==="accepted"){
+  heading="앱 설치 진행 중";
+  message="설치 요청이 접수되었습니다. 설치가 끝나면 <b>홈 화면 또는 앱 목록의 골프챌린지 아이콘으로 실행</b>하세요. 아이콘이 나타나지 않으면 설치 완료 여부를 확인해 주세요.";
+ }else if(outcome==="declined"){
+  heading="앱 설치를 진행하지 않았습니다";
+  message="설치하지 않으셔도 골프챌린지를 이용할 수 있습니다. <b>웹으로 계속하기</b>를 눌러 모임을 선택하세요.";
+ }else{
+  heading="설치창을 열 수 없습니다";
+  message="이 브라우저에서 앱 설치창을 바로 열 수 없습니다. 브라우저 메뉴에서 추가하거나 <b>웹으로 계속하기</b>를 선택하세요.";
+ }
+ sheet='<div class="sheet"><div class="inner" role="dialog" aria-label="'+heading+'">'+
+  '<h2 style="margin:0 0 9px;font-size:18px">'+heading+'</h2>'+
+  '<p class="portal-sub">'+message+'</p>'+
+  '<button class="btn sm" onclick="portalContinueWeb()">웹으로 계속하기</button></div></div>';
+ render();
+}
 function portalInstall(){
- // A user must be informed about Play Protect warnings BEFORE choosing a native install.
- // The native prompt (if offered) is only launched by another explicit tap.
+ // Clicking '앱으로 실행하기' begins the install-or-web decision, not a forced launch.
  if(portalIsInstalled()){
-  sheet='<div class="sheet"><div class="inner">'+
-   '<h2 style="margin:0 0 8px;font-size:18px">홈 화면 바로가기</h2>'+
-   '<p class="portal-sub">이미 설치한 앱에서 실행 중입니다. 아이콘이 홈 화면에 없다면 휴대전화 앱 목록에서 <b>골프챌린지</b>를 찾아 길게 누른 뒤 홈 화면에 추가하세요.</p>'+
-   '<button class="btn sm quiet" onclick="askNo()">닫기</button></div></div>';
+  sheet='<div class="sheet"><div class="inner" role="dialog" aria-label="앱 실행 중">'+
+   '<h2 style="margin:0 0 9px;font-size:18px">앱으로 실행 중</h2>'+
+   '<p class="portal-sub">지금 골프챌린지를 설치형 앱 화면으로 사용하고 있습니다. 모임을 선택해 이용하세요. 아이콘이 홈 화면에 없다면 앱 목록에서 길게 눌러 옮길 수 있습니다.</p>'+
+   '<button class="btn sm" onclick="portalContinueWeb()">내 모임 선택하기</button></div></div>';
   render();return;
  }
  var ua=navigator.userAgent||"",isIos=/iPad|iPhone|iPod/.test(ua),isAndroid=/Android/i.test(ua);
  var steps=isIos?
-  "Safari에서 열기 → 공유(□↑) → 홈 화면에 추가 → 추가":
+  "iPhone: Safari로 열기 → 공유 → 홈 화면에 추가 → 추가":
   (isAndroid?(/SamsungBrowser/i.test(ua)?
-    "삼성 인터넷: 메뉴(≡) → 현재 페이지 추가 → 홈 화면 → 추가":
-    "Chrome: 메뉴(⋮) → 홈 화면에 추가 / 앱 설치 → 추가 또는 설치"):
-    "브라우저의 메뉴(⋮) 또는 공유 메뉴 → 홈 화면에 추가를 누르세요.");
+   "삼성 인터넷: 메뉴 → 현재 페이지 추가 → 홈 화면 → 추가":
+   "Chrome: 메뉴(⋮) → 앱 설치 또는 홈 화면에 추가 → 설치 / 추가"):
+   "브라우저 메뉴 또는 공유 메뉴에서 앱 설치·홈 화면 추가 항목을 이용하세요.");
  var warning=isAndroid?
-  '<div class="portal-install-warning"><b>안드로이드 설치 전 안내</b><br>'+ 
-  '브라우저에 따라 일반 바로가기 대신 별도 앱이 설치될 수 있습니다. Google Play 프로텍트가 <b>이전 Android 버전용 앱</b>이라고 경고하면 무시하고 진행하지 마세요. 설치를 취소하고 브라우저 메뉴의 홈 화면 추가 방법을 이용하거나 브라우저를 업데이트한 뒤 다시 시도하세요.</div>':
-  '<div class="portal-install-warning">홈 화면 추가 방식은 브라우저마다 다릅니다. 설치나 추가 여부는 시스템 창에서 직접 확인해 주세요.</div>';
- sheet='<div class="sheet"><div class="inner">'+
-  '<h2 style="margin:0 0 8px;font-size:18px">홈 화면에 추가</h2>'+warning+
-  '<p class="portal-sub">추가한 아이콘이 홈 화면에 보이지 않으면 휴대전화의 <b>앱 목록</b>에서 골프챌린지를 찾아 길게 눌러 홈 화면에 놓을 수 있습니다.</p>'+ 
-  '<div class="portal-install-steps">'+esc(steps)+'</div>'+ 
-  (PORTAL_INSTALL_PROMPT?'<button class="btn sm" onclick="portalLaunchInstall()">시스템 설치창 열기</button><div style="height:9px"></div>':'')+
-  '<button class="btn sm quiet" onclick="askNo()">확인 · 닫기</button></div></div>';
+  '<div class="portal-install-warning"><b>설치 전 안내</b><br>휴대전화에서 설치 확인 화면이나 Google Play 프로텍트 경고가 표시될 수 있습니다. <b>안전하지 않다는 경고가 나오면 무시하고 강행하지 마세요.</b> 설치하지 않아도 웹에서 그대로 이용할 수 있습니다.</div>':
+  '<div class="portal-install-warning">설치 여부는 브라우저나 기기에 따라 다릅니다. 설치하지 않아도 웹에서 계속 이용하실 수 있습니다.</div>';
+ sheet='<div class="sheet"><div class="inner" role="dialog" aria-label="앱 실행하기 안내">'+
+  '<h2 style="margin:0 0 9px;font-size:18px">앱으로 실행하기</h2>'+
+  '<p class="portal-sub">처음에는 앱을 설치하는 과정이 필요합니다. <b>설치가 완료되면 골프챌린지 아이콘을 눌러 실행</b>하세요.</p>'+warning+
+  (PORTAL_INSTALL_PROMPT?
+   '<button class="btn sm" onclick="portalLaunchInstall()">앱 설치하기</button><div style="height:9px"></div>':
+   '<p class="portal-sub">이 브라우저에서는 설치창을 바로 표시할 수 없습니다. 이미 앱이 있다면 앱 목록에서 실행하거나 아래 방법을 이용하세요.</p>'+ 
+   '<div class="portal-install-steps">'+esc(steps)+'</div>')+
+  '<button class="btn sm quiet" onclick="portalContinueWeb()">웹으로 계속하기</button></div></div>';
  render();
 }
 function portalInstallControl(){
- // Standalone mode is only proof of the running context, not that a shortcut
- // has actually been placed on the home screen. Avoid claiming that it has.
+ // Standalone only identifies the current window; browser mode cannot reliably
+ // detect or directly launch a separately installed app on this device.
  if(portalIsInstalled())return '<div class="portal-install-status" role="status" aria-label="설치형 앱으로 실행 중">✓ 앱으로 실행 중</div>';
- return '<button class="btn sm quiet" onclick="portalInstall()">홈 화면에 추가</button>';
+ return '<button class="btn sm quiet" onclick="portalInstall()">앱으로 실행하기</button>';
 }
 function portalLaunchInstall(){
- if(!PORTAL_INSTALL_PROMPT){toast("브라우저 설치창이 준비되지 않았습니다. 메뉴에서 추가해 주세요.");return;}
+ if(!PORTAL_INSTALL_PROMPT){portalInstallOutcome("unavailable");return;}
  var p=PORTAL_INSTALL_PROMPT;PORTAL_INSTALL_PROMPT=null;
  sheet=null;render();
  try{
-  var offer=p.prompt();
+  var request=p.prompt();
   if(p.userChoice&&typeof p.userChoice.then==="function")p.userChoice.then(function(choice){
-   if(choice&&choice.outcome==="accepted")toast("설치가 진행됩니다. 앱 목록에도 표시될 수 있습니다.");
-   else toast("설치가 취소되었습니다.");
-  });
-  else if(offer&&typeof offer.catch==="function")offer.catch(function(){
-   toast("설치창을 열지 못했습니다. 브라우저 메뉴를 이용해 주세요.");
-  });
- }catch(e){toast("설치창을 열지 못했습니다. 브라우저 메뉴를 이용해 주세요.");}
+   portalInstallOutcome(choice&&choice.outcome==="accepted"?"accepted":"declined");
+  }).catch(function(){portalInstallOutcome("unavailable")});
+  if(request&&typeof request.catch==="function")request.catch(function(){portalInstallOutcome("unavailable")});
+ }catch(e){portalInstallOutcome("unavailable");}
 }
 window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();PORTAL_INSTALL_PROMPT=e});
-window.addEventListener("appinstalled",function(){PORTAL_INSTALL_PROMPT=null;toast("설치되었습니다. 홈 화면에 없다면 앱 목록에서 아이콘을 찾아 추가하세요.");render()});
+window.addEventListener("appinstalled",function(){
+ PORTAL_INSTALL_PROMPT=null;PORTAL_INSTALL_DONE=true;portalInstallOutcome("installed");
+});
 function scrPortal(){
  setDocTitle(APP_NAME);
  var selected=!!SUPPLY_CLUB_ID;
@@ -1241,28 +1305,23 @@ function scrPortal(){
   '<div class="portal-brand-copy"><h1><span class="portal-pre">우리끼리</span><span class="portal-focus">골프챌린지</span></h1><p>우리의 골프, 함께하는 기록</p></div></div></div>';
  var introduction='<div class="card"><p style="font-weight:650;margin:0 0 8px">초대인증키를 발급받으신 분에게만 입장이 허용됩니다.</p>'+
   '<p class="portal-small" style="margin:0">즐겁게 라운딩 하세요~</p></div>';
+ var invitationHint='가입한 모임이 안보이면 경기위원장에게 접속주소로 초대를 받으세요';
  var items=SUPPLY_STORED.length?SUPPLY_STORED.map(function(c){
   return '<button class="portal-list-btn" onclick="supplyGoClub(\''+c.id+'\')">'+
    '<span>'+esc(c.name)+'</span><span aria-hidden="true">›</span></button>';}).join(""):
-  '<p class="portal-sub">이 기기에 등록된 모임이 없습니다. 경기위원장에게 받은 초대주소로 접속해 주세요.</p>';
+  '<p class="portal-sub">'+invitationHint+'</p>';
  var main=selected?
   '<div class="card"><h2>'+esc(portalClubName())+'</h2>'+
-   '<p class="portal-sub">'+(L&&cloudOn()&&L.cloudReadKey?
-   '초대인증 정보가 등록되어 있습니다. 입장할 때 서버에서 유효성을 확인합니다.':
-   '초대인증키가 없습니다. 경기위원장에게 회원용 초대주소를 받으십시오.')+'</p>'+
-   '<div class="portal-entry-row"><button class="btn sm" onclick="portalEnter()"'+
-   (PORTAL_ENTER_BUSY?' disabled':'')+'>'+(PORTAL_ENTER_BUSY?'인증 확인 중…':'내 모임으로<br>들어가기')+'</button>'+
+   '<div class="portal-entry-row"><button class="btn sm portal-start" onclick="portalEnter()"'+
+   (PORTAL_ENTER_BUSY?' disabled':'')+'>'+(PORTAL_ENTER_BUSY?'인증 확인 중…':'<span class="portal-go-lamp" aria-hidden="true"></span>START')+'</button>'+
    portalInstallControl()+'</div>'+
    '<p style="margin:12px 0 0"><button class="chip" onclick="portalChooseClub()">다른 모임 선택</button></p></div>':
-  '<div class="card"><h2>어느 모임이신지요</h2>'+
-   '<p class="portal-sub">가입한 모임을 선택하십시오. 초대주소로 처음 접속하시면 해당 모임이 자동 선택됩니다.</p>'+items+
+  '<div class="card"><h2>어느 모임이신지요</h2>'+items+
+   (SUPPLY_STORED.length?'<p class="portal-sub" style="margin-top:10px">'+invitationHint+'</p>':'')+
    '<div style="height:12px"></div><div class="portal-entry-row">'+
    '<button class="btn sm quiet" onclick="supplyAskClub()">모임 식별번호 넣기</button>'+
    portalInstallControl()+'</div></div>';
- return '<div class="screen">'+banner+'<div class="body">'+introduction+main+
-  '<div class="card"><h2>모임을 처음 이용하시나요?</h2>'+ 
-  '<p class="portal-sub">회원 초대주소는 해당 모임의 경기위원장에게 받으실 수 있습니다.</p>'+ 
-  '<p class="portal-small">새로운 골프모임 신청과 통합 관리 기능은 추후 관리자 포털에 연결될 예정입니다.</p></div></div></div>';
+ return '<div class="screen">'+banner+'<div class="body">'+introduction+main+'</div></div>';
 }
 function render(){
  document.body.classList.toggle("portal-active",!!PORTAL_OPEN);
@@ -1333,12 +1392,12 @@ function scrHome(){
     머리띠 아래에 올리기 띠가 나타납니다. 회원 모드에는 띠가 없습니다. */
  var sigNew=!!L.cloudNew, sigDirty=!!L.dirty;
  return '<div class="screen">'+
- '<div class="hero"><div class="crest">\u26f3</div><div class="hmain">'+
- '<div class="hname">'+esc(S.room.name)+
+ '<div class="hero"><div class="hero-side"><div class="crest">\u26f3</div>'+
+ '<button class="portal-back" onclick="portalReturn()">홈</button></div><div class="hmain">'+
+ '<div class="hname"><span class="hclubname">'+esc(S.room.name)+'</span>'+
  '<span class="hrole">'+(host?"경기위원장":"회원")+'</span></div>'+
  '<div class="hline">회원 '+S.members.length+'명 · 라운드 '+S.rounds.length+'회</div>'+
  '<div class="hline">'+APP_NAME+' H'+APP_VER+'</div></div>'+
- '<button class="portal-back" onclick="portalReturn()">포털</button>'+
  (cloudOn()?'<button class="sig" onclick="pullCloud()" aria-label="최신 기록 받기">'+
   '<div class="lamps"><span class="lamp'+(sigNew?" on":"")+'"></span></div>'+
   '<span class="txt">받기<br>'+(sigNew?"새 기록":"최신")+'</span></button>':'')+
@@ -2871,7 +2930,7 @@ if(!PORTAL_OPEN&&!SUPPLY_CLUB_PICK&&cloudOn()&&L.cloudReadKey)setTimeout(functio
 /* Fixed internal banner alternates; portal displays all three lines without animation. */
 (function(){
  var a=document.getElementById("vanStripWord");if(!a)return;
- var texts=["카드기·포스·키오스크·테이블오더","1899-4540"];
+ var texts=["카드기 · 포스 · 키오스크 · 테이블오더 · 용지","설치 · 임대 · 관리상담  1899-4540"];
  var i=0;setInterval(function(){i=1-i;a.textContent=texts[i]},4500);
 })();
 window.addEventListener("pagehide",function(){if(view.name==="play")recordTime()});
