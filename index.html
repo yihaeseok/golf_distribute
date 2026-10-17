@@ -39,13 +39,14 @@ body{margin:0;background:var(--bg);color:var(--ink);
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
 .card h2{font-size:15px;margin:0 0 10px;font-weight:650}
 p.note{color:var(--muted);font-size:13px;margin:6px 0 0}
-label{display:block;font-size:13px;color:var(--muted);margin:10px 0 5px}
+label{display:block;font-size:12.5px;color:var(--muted);margin:9px 0 5px}
 input[type=text],input[type=number],input[type=date],input[type=time],input[type=password],textarea,select{
- width:100%;padding:11px 12px;font:inherit;color:var(--ink);background:var(--bg);
+ width:100%;padding:9px 10px;font-size:15px;line-height:1.35;color:var(--ink);background:var(--bg);
  border:1px solid var(--line);border-radius:9px}
+input::placeholder,textarea::placeholder{font-size:.92em;color:#8a988f}
 /* 모바일 기본 날짜·시간 선택기가 카드 너비를 밀어내지 않도록 제한합니다. */
-input[type=date],input[type=time]{display:block;width:100%;max-width:100%;min-width:0;font-size:16px}
-textarea{min-height:110px;font-size:13px;line-height:1.45;resize:vertical}
+input[type=date],input[type=time]{display:block;width:100%;max-width:100%;min-width:0;font-size:15px}
+textarea{min-height:96px;font-size:13px;line-height:1.45;resize:vertical}
 input:focus-visible,textarea:focus-visible,button:focus-visible,select:focus-visible{
  outline:3px solid var(--turf-mid);outline-offset:2px}
 button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -119,30 +120,32 @@ td.win{font-weight:700;color:var(--turf)}
 .gm input[type=number]{width:88px}
 .teambox{display:flex;gap:10px}
 .teambox>div{flex:1;background:var(--sand);border-radius:10px;padding:10px}
-.hero{display:flex;align-items:center;gap:10px;padding:14px 12px;
+.hero{display:flex;align-items:flex-start;gap:9px;padding:12px 11px 11px;
  background:var(--turf);color:var(--card)}
 .hero .crest{width:42px;height:42px;border-radius:50%;background:var(--card);color:var(--turf);
  display:flex;align-items:center;justify-content:center;font-size:24px;flex:none}
-.hero .hname{font-size:clamp(22px,4.3vw,28px);font-weight:800;letter-spacing:-.035em;line-height:1.23;
- display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.hero .hrole{font-size:10px;font-weight:650;padding:2px 6px;border-radius:999px;white-space:nowrap;line-height:1.35;
- background:var(--card);color:var(--turf);flex:none}
+.hero .hname{font-size:clamp(20px,4.05vw,26px);font-weight:800;letter-spacing:-.037em;line-height:1.15;
+ display:block;min-width:0}
+.hero .hrole{font-size:7px;font-weight:700;padding:1px 4px;border-radius:999px;white-space:nowrap;line-height:1.2;
+ background:var(--card);color:var(--turf);flex:none;letter-spacing:-.01em}
 .hero .hsub{display:flex;align-items:center;gap:4px;min-width:0;font-size:clamp(10px,2.9vw,12px);opacity:.85;margin-top:3px;white-space:nowrap;letter-spacing:-.02em}
 .hero .hcounts{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .hero .hversion{flex:none}
-.hero .hmain{flex:1;min-width:0}
+.hero .hmain{flex:1;min-width:0;padding-top:1px}
+.hero .hmeta{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;margin-top:3px}
+.hero .hmeta .hline{margin-top:0;flex:1;min-width:0}
 /* H1.9.8: prominent house-shaped home control; retain portalReturn() behavior. */
-.hero .hero-side{display:flex;flex-direction:column;align-items:center;justify-content:center;
- flex:none;gap:5px;align-self:center}
-.hero .hero-side .portal-back{width:54px;height:55px;min-height:55px;
+.hero .hero-side{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+ flex:none;gap:5px;align-self:flex-start}
+.hero .hero-side .portal-back{width:52px;height:53px;min-height:53px;
  display:flex;align-items:center;justify-content:center;
  border:1px solid rgba(255,255,255,.32);border-radius:11px;
  padding:8px;color:#fff}
-.hero .hero-side .portal-back svg{width:34px;height:34px;display:block;flex:none}
+.hero .hero-side .portal-back svg{width:32px;height:32px;display:block;flex:none}
 .hero .hclubname{min-width:0;overflow-wrap:anywhere;word-break:keep-all}
 .hero .hrole{font-size:8px;font-weight:700;padding:1px 4px;letter-spacing:-.015em}
 
-.hero .hline{font-size:clamp(10px,2.9vw,12px);opacity:.88;margin-top:3px;
+.hero .hline{font-size:clamp(9px,2.75vw,11.5px);opacity:.88;margin-top:2px;
  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.02em}
 .sig{flex:none;display:flex;flex-direction:column;align-items:center;gap:5px;
  background:rgba(255,255,255,.14);border-radius:12px;padding:9px 11px;min-width:76px}
@@ -223,9 +226,13 @@ tr.gold td:first-child{color:var(--turf)}
 /* 라운딩 수정에서 선택하지 않은 회원의 점수 행은 표시하지 않습니다. */
 [data-edit-score-row][hidden],[data-edit-gross-row][hidden]{display:none!important}
 /* 홈 메뉴 네 칸을 작은 휴대전화에서도 한 줄로 고정합니다. */
-.home-nav{gap:5px;padding:9px 10px}
-.home-nav .chip{flex:1;min-width:0;text-align:center;padding:8px 2px;
- font-size:clamp(10px,2.8vw,13px);font-weight:600;letter-spacing:-.035em}
+.home-nav{gap:4px;padding:8px 9px}
+.home-nav .chip{flex:1;min-width:0;text-align:center;padding:7px 1px;
+ font-size:clamp(9.5px,2.55vw,12px);font-weight:600;letter-spacing:-.04em;min-height:34px}
+.home-nav .chip.recv{flex:0 0 54px;padding:6px 1px;font-size:10px;line-height:1.12;display:flex;align-items:center;justify-content:center;gap:3px;flex-direction:column}
+.home-nav .chip.recv .lamp{width:8px;height:8px;border-radius:50%;background:rgba(20,83,45,.22)}
+.home-nav .chip.recv .lamp.on{background:#23a45a;box-shadow:0 0 0 2px rgba(35,164,90,.18)}
+.home-nav .chip.recv .recvtxt{display:block}
 .reverse-label{color:var(--ink);font-weight:650}
 /* 첫 화면의 라운드 요약은 종목 수가 많아도 최대 두 줄만 표시합니다. */
 .round-summary{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;
@@ -328,16 +335,16 @@ body.portal-active .card p:not(.portal-sub):not(.portal-small){font-size:14px;li
  .item .mt{font-size:12px}
  .empty{font-size:13px;padding:23px 8px}
  .banner span{font-size:12px}
- .hero{padding:11px 10px;gap:8px}
- .hero .crest{width:38px;height:38px;font-size:22px}
- .hero .hero-side .portal-back{width:50px;height:55px;min-height:55px;padding:7px}
-  .hero .hero-side .portal-back svg{width:33px;height:33px}
- .hero .hname{font-size:clamp(20px,5.7vw,25px);letter-spacing:-.035em;line-height:1.24;word-break:keep-all}
- .hero .hrole{font-size:8px}
+ .hero{padding:10px 9px 10px;gap:7px}
+ .hero .crest{width:36px;height:36px;font-size:21px}
+ .hero .hero-side .portal-back{width:48px;height:50px;min-height:50px;padding:6px}
+  .hero .hero-side .portal-back svg{width:30px;height:30px}
+ .hero .hname{font-size:clamp(18px,5.15vw,23px);letter-spacing:-.04em;line-height:1.12;word-break:keep-all}
+ .hero .hrole{font-size:7px}
  .sig{min-width:69px;padding:8px 9px}
  .sig .txt{font-size:10px}
- .home-nav{padding:8px 9px}
- .home-nav .chip{font-size:clamp(10px,2.7vw,12px);min-height:38px}
+ .home-nav{padding:7px 8px}
+ .home-nav .chip{font-size:clamp(9px,2.5vw,11px);min-height:34px}
  .round-meta{font-size:11px}
  .rules-intro,.rule-desc{font-size:12.5px}
  .portal-hero{padding:14px 12px}
@@ -358,7 +365,7 @@ body.portal-active .card p:not(.portal-sub):not(.portal-small){font-size:14px;li
  .screen,.card,.portal-hero{-webkit-text-size-adjust:100%;text-size-adjust:100%}
  /* Never shrink editing hit targets to match display-only typography. */
  input[type=text],input[type=number],input[type=date],input[type=time],
- input[type=password],textarea,select{font-size:16px;min-height:44px}
+ input[type=password],textarea,select{font-size:15px;min-height:40px}
  .keys .key{min-height:32px;font-size:14px}
  .pm .mbtn{width:56px;height:48px;font-size:24px}
  .pm .val{height:48px;font-size:21px}
@@ -391,7 +398,7 @@ body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(23p
 </a>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.8";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.9";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -1414,20 +1421,20 @@ function scrHome(){
  return '<div class="screen">'+
  '<div class="hero"><div class="hero-side"><div class="crest">\u26f3</div>'+
  '<button class="portal-back" onclick="portalReturn()" title="시작 화면으로 돌아가기" aria-label="홈으로 이동"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 10 9-7 9 7"/><path d="M5.5 9.5V21h13V9.5"/><path d="M9.5 21v-7h5v7"/></svg></button></div><div class="hmain">'+
- '<div class="hname"><span class="hclubname">'+esc(S.room.name)+'</span>'+
- '<span class="hrole">'+(host?"경기위원장":"회원")+'</span></div>'+
+ '<div class="hname"><span class="hclubname">'+esc(S.room.name)+'</span></div>'+
  '<div class="hline">회원 '+S.members.length+'명 · 라운드 '+S.rounds.length+'회</div>'+
- '<div class="hline">'+APP_NAME+' H'+APP_VER+'</div></div>'+
- (cloudOn()?'<button class="sig" onclick="pullCloud()" aria-label="최신 기록 받기">'+
-  '<div class="lamps"><span class="lamp'+(sigNew?" on":"")+'"></span></div>'+
-  '<span class="txt">받기<br>'+(sigNew?"새 기록":"최신")+'</span></button>':'')+
+ '<div class="hmeta"><div class="hline">'+APP_NAME+' H'+APP_VER+'</div>'+
+ '<span class="hrole">'+(host?"경기위원장":"회원")+'</span></div></div>'+
  '</div>'+
 
  '<div class="bar home-nav" aria-label="주요 메뉴">'+
  '<button class="chip" onclick="go(\'year\')">연간 집계</button>'+
  '<button class="chip" onclick="go(\'stats\')">누적 기록</button>'+
  '<button class="chip" onclick="go(\'rules\')">룰보기</button>'+
- '<button class="chip" onclick="go(\'data\')">설정</button></div>'+
+ '<button class="chip" onclick="go(\'data\')">설정</button>'+
+ (cloudOn()?'<button class="chip recv" onclick="pullCloud()" aria-label="최신 기록 받기">'+
+  '<span class="lamp'+(sigNew?" on":"")+'"></span><span class="recvtxt">받기'+(sigNew?'<br>새':'<br>최신')+'</span></button>':'')+
+ '</div>'+
  '<div class="body">'+
  '<div class="card"><h2>회원현황</h2><p class="note">'+
  (S.members.length?esc(byHcp(S.members).map(function(m){return m.name+" "+curHcp(m.id)}).join(" · ")):"아직 없습니다.")+'</p>'+
@@ -1779,15 +1786,15 @@ function readGames(){
 
 /* ---- 새 라운드 ---- */
 function scrNewRound(){
- var opts=playerPicker(null);
+ var opts=playerPicker(null);setTimeout(function(){syncVenueField('r')},0);
  return '<div class="screen"><div class="bar"><button class="chip" onclick="go(\'home\')">뒤로</button><h1>새 라운드</h1></div>'+
  '<div class="body">'+
  '<div class="card"><label for="rd">날짜</label><input type="date" id="rd" value="'+today()+'">'+
  '<label for="rt">티오프 시간 (선택)</label><input type="time" id="rt">'+
- '<label for="rv">구분</label><select id="rv"><option value="">정하지 않음</option>'+
+ '<label for="rv">구분</label><select id="rv" onchange="syncVenueField(\'r\')"><option value="">정하지 않음</option>'+
  '<option value="screen">스크린</option><option value="field">필드</option></select>'+
- '<label for="rp">골프장 · 매장</label><input type="text" id="rp" placeholder="예: 골프존 ○○점">'+
- '<label for="rc">코스</label><input type="text" id="rc" placeholder="예: 동코스">'+
+ '<label for="rp" id="rpl">장소 이름</label><input type="text" id="rp" placeholder="예: 골프존 ○○점">'+
+ '<label for="ra" id="ral">주소</label><input type="text" id="ra" placeholder="예: 주소를 입력해 주세요">'+
  '<label for="rh">홀 수</label><select id="rh"><option value="18">18홀</option><option value="9">9홀</option></select>'+
  '<label for="rg">조 수</label><select id="rg"><option value="1">나누지 않음</option><option value="2">2조</option>'+
  '<option value="3">3조</option><option value="4">4조</option></select>'+
@@ -1818,6 +1825,7 @@ function createRound(){
  var r={id:uid(),date:document.getElementById("rd").value||today(),teeTime:tee,
   venue:document.getElementById("rv").value,
   place:document.getElementById("rp").value.trim(),
+  address:document.getElementById("ra").value.trim(),
   course:document.getElementById("rc").value.trim(),
   holeCount:hc,pars:pars,players:ps,
   groupCount:gc,groupOf:groupOf,scores:{},grossOnly:{},times:{},games:games,teams:pk.teams,perio:null,
@@ -1863,7 +1871,7 @@ function savePast(){
 
 /* ---- 라운드 수정: 화면에서 먼저 편집하고, 수정저장 한 번에 확정 ---- */
 function scrEdit(){
- var r=round(view.rid);if(!r)return scrHome();
+ var r=round(view.rid);if(!r)return scrHome();setTimeout(function(){syncVenueField('e')},0);
  var sel={};roundGames(r).forEach(function(g){sel[g.type]=g});
  var chk=playerPicker(r);
  var head='<tr><th>이름</th>'+r.pars.map(function(p,i){
@@ -1898,16 +1906,14 @@ function scrEdit(){
  (r.teeTime?' '+esc(r.teeTime):'')+(placeLabel(r)?' · '+esc(placeLabel(r)):'')+'</div></h1></div>'+
  '<div class="body">'+
  '<p class="note" style="margin:0 0 10px">변경사항은 아래 수정저장을 누를 때 한꺼번에 저장됩니다. 뒤로 가면 저장되지 않은 내용은 사라집니다.</p>'+
- '<div class="card"><label for="ed">날짜</label><input type="date" id="ed" value="'+esc(r.date)+'">'+
+  '<div class="card"><label for="ed">날짜</label><input type="date" id="ed" value="'+esc(r.date)+'">'+
  '<label for="et">티오프 시간 (선택)</label><input type="time" id="et" value="'+esc(r.teeTime||'')+'">'+
- '<label for="ev">구분</label><select id="ev"><option value=""'+(r.venue?"":" selected")+'>정하지 않음</option>'+
+ '<label for="ev">구분</label><select id="ev" onchange="syncVenueField(\'e\')"><option value=""'+(r.venue?"":" selected")+'>정하지 않음</option>'+
  '<option value="screen"'+(r.venue==="screen"?" selected":"")+'>스크린</option>'+
  '<option value="field"'+(r.venue==="field"?" selected":"")+'>필드</option></select>'+
- '<label for="ep">골프장 · 매장</label><input type="text" id="ep" value="'+esc(r.place||"")+'">'+
+ '<label for="ep" id="epl">장소 이름</label><input type="text" id="ep" value="'+esc(r.place||"")+'">'+
+ '<label for="ea" id="eal">주소</label><input type="text" id="ea" value="'+esc(r.address||"")+'">'+
  '<label for="ec">코스</label><input type="text" id="ec" value="'+esc(r.course||"")+'"></div>'+
- '<div class="card"><h2>경기 종목과 팀 나누기</h2>'+
- '<p class="note">참가자에게 팀을 배정하면 팀전이 자동으로 선택됩니다. 팀 점수 기준은 핸디 적용으로 시작하며 필요할 때 바꿀 수 있습니다.</p>'+
- gameChecklist(sel)+'</div>'+
  '<div class="card"><h2>참가 여부와 팀 배정</h2>'+
  '<p class="note">참가에 체크하고 팀을 지정하면 팀 나누기 현황이 바뀝니다. 이 변경도 마지막에 함께 저장됩니다.</p>'+
  '<ul class="list">'+chk+'</ul>'+
@@ -1958,6 +1964,7 @@ function saveRoundEdit(rid){
  draft.date=document.getElementById("ed").value||r.date;
  draft.teeTime=tee;
  draft.place=document.getElementById("ep").value.trim();
+ draft.address=document.getElementById("ea").value.trim();
  draft.venue=document.getElementById("ev").value;
  draft.course=document.getElementById("ec").value.trim();
  /* 회원목록에서 이미 삭제한 사람의 옛 라운드 기록은 보존합니다. */
@@ -2108,7 +2115,21 @@ function setStatus(mid,st){var r=round(view.rid),par=parOf(r,view.hole)||4,c=cel
  save();closeSheet()}
 
 /* H1.9.1: external maps/calendar are opened on client, no extra Script calls. */
-function golfPlaceQuery(r){return String((r&&r.place)||"").trim()}
+/* H1.9.9: venue-aware labels keep screen venues and field venues readable. */
+function venuePlaceLabel(v){return v==="screen"?"매장 이름":(v==="field"?"골프장 이름":"장소 이름")}
+function venuePlacePlaceholder(v){return v==="screen"?"예: 골프존 ○○점":(v==="field"?"예: 남서울CC":"예: 남서울CC · 골프존 ○○점")}
+function venueAddressLabel(v){return v==="screen"?"스크린매장주소":(v==="field"?"필드주소":"주소")}
+function venueAddressPlaceholder(v){return v==="screen"?"예: 서울시 강남구 ○○로 12":(v==="field"?"예: 경기도 성남시 ○○구 ○○로 88":"예: 주소를 입력해 주세요")}
+function syncVenueField(kind){
+ var vid=kind+"v",pid=kind+"p",aid=kind+"a",plid=kind+"pl",alid=kind+"al";
+ var sel=document.getElementById(vid),p=document.getElementById(pid),a=document.getElementById(aid),pl=document.getElementById(plid),al=document.getElementById(alid);
+ var v=sel&&sel.value||"";
+ if(pl)pl.textContent=venuePlaceLabel(v);
+ if(p)p.placeholder=venuePlacePlaceholder(v);
+ if(al)al.textContent=venueAddressLabel(v);
+ if(a)a.placeholder=venueAddressPlaceholder(v);
+}
+function golfPlaceQuery(r){return String((r&&((r.address||"").trim()||(r.place||""))||"")).trim()}
 function golfExternal(url){window.open(url,"_blank","noopener,noreferrer")}
 function golfMap(rid,provider){
  var r=round(rid),q=golfPlaceQuery(r);
@@ -2127,23 +2148,22 @@ function golfCalendar(rid){
  function kst(d){var x=new Date(d.getTime()+9*3600000);
   return x.getUTCFullYear()+p2(x.getUTCMonth()+1)+p2(x.getUTCDate())+"T"+
    p2(x.getUTCHours())+p2(x.getUTCMinutes())+"00";}
- var place=golfPlaceQuery(r),title=(S.room.name||APP_NAME)+" · "+(place||"골프 라운딩");
+ var place=(r&&r.place||"").trim(),address=(r&&r.address||"").trim(),where=golfPlaceQuery(r),title=(S.room.name||APP_NAME)+" · "+((place||where)||"골프 라운딩");
  var desc="모임: "+(S.room.name||"")+"\n라운딩: "+r.date+" "+r.teeTime+
-  "\n구분: "+venueLabel(r)+"\n장소: "+(place||"미정")+
+  "\n구분: "+venueLabel(r)+"\n장소: "+(place||"미정")+(address?"\n주소: "+address:"")+
   "\n코스: "+(r.course||"미정")+"\n참가: "+r.players.map(mname).join(", ")+
   "\n골프챌린지: "+location.origin+location.pathname+"?club="+encodeURIComponent(SUPPLY_CLUB_ID);
  var url="https://calendar.google.com/calendar/render?action=TEMPLATE"+
   "&text="+encodeURIComponent(title)+"&dates="+kst(start)+"/"+kst(end)+
-  "&ctz=Asia%2FSeoul&location="+encodeURIComponent(place)+"&details="+encodeURIComponent(desc);
+  "&ctz=Asia%2FSeoul&location="+encodeURIComponent(where||place)+"&details="+encodeURIComponent(desc);
  golfExternal(url);
 }
 function golfLinks(r){
- if(!r||!r.place&&!r.teeTime)return "";
- return '<div class="card"><h2>지도 · 길찾기 · 일정</h2>'+
+ if(!r||!r.place&&!r.address&&!r.teeTime)return "";
+ return '<div class="card"><h2>지도 · 일정</h2>'+
   '<div class="row2"><button class="btn sm quiet" onclick="golfMap(\''+r.id+'\',\'naver\')">네이버지도</button>'+
-  '<button class="btn sm quiet" onclick="golfMap(\''+r.id+'\',\'google\')">구글 길찾기</button></div>'+
-  '<div style="height:8px"></div><button class="btn sm line" onclick="golfCalendar(\''+r.id+'\')">구글 캘린더에 추가</button>'+
-  '<p class="portal-small">구글 캘린더에는 날짜·시간·장소·코스·참가자 정보가 미리 입력됩니다. 회원이 직접 저장합니다.</p></div>';
+  '<button class="btn sm quiet" onclick="golfCalendar(\''+r.id+'\')">구글 캘린더</button></div>'+
+  '<p class="portal-small">구글 캘린더에는 날짜·시간·장소·주소·코스·참가자 정보가 미리 입력됩니다. 회원이 직접 저장합니다.</p></div>';
 }
 /* ---- 결과 ---- */
 /* 종목 카드 아래에 붙는 순위별 회비·상금 표 */
