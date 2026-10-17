@@ -360,6 +360,14 @@ body.portal-active .card p:not(.portal-sub):not(.portal-small){font-size:14px;li
  .pm .val{height:48px;font-size:21px}
 }
 @media(max-width:345px){.portal-emblem{width:69px;height:69px}}
+/* H1.9.7: emphasize the active club; do not expose the technical slug. */
+.portal-club-identity{background:linear-gradient(110deg,#e7f1e9,#f4f6ee);border:1px solid #bed8c3;
+ border-left:4px solid #24734a;border-radius:10px;padding:12px 13px;margin:0 0 13px}
+.portal-club-caption{font-size:11px;color:#4e7460;font-weight:700;letter-spacing:.02em}
+body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(19px,5.45vw,25px);
+ color:#123f2c;font-weight:850;letter-spacing:-.045em;line-height:1.28;margin:3px 0 0;
+ overflow-wrap:anywhere;word-break:keep-all}
+@media(max-width:345px){body.portal-active .portal-club-identity h2.portal-club-name{font-size:18px}}
 .portal-install-status{display:flex;align-items:center;justify-content:center;
  background:var(--sand);color:var(--turf-mid);font-weight:750;border-radius:9px;
  min-height:44px;padding:10px 5px;line-height:1.25;text-align:center;
@@ -368,7 +376,7 @@ body.portal-active .card p:not(.portal-sub):not(.portal-small){font-size:14px;li
 </head>
 <body>
 <div id="app"></div>
-<a id="vanStrip" href="http://freshall.co.kr/" target="_blank" rel="noopener noreferrer"
+<a id="vanStrip" href="https://freshall.co.kr/" target="_blank" rel="noopener noreferrer external"
    aria-label="프레시올 카드기 포스 키오스크 테이블오더 용지 상담 1899-4540 홈페이지 열기">
   <span id="vanStripWord">카드기 · 포스 · 키오스크 · 테이블오더 · 용지</span>
   <span class="vanPortalLines" aria-hidden="true">
@@ -379,7 +387,7 @@ body.portal-active .card p:not(.portal-sub):not(.portal-small){font-size:14px;li
 </a>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.6";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.7";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -417,11 +425,15 @@ function supplyGoClub(id){
     !confirm("이 모임에는 아직 서버에 올리지 않은 수정사항이 있습니다. 기록은 이 기기에 보관되지만, 모임을 바꾸기 전에 올리기를 권합니다. 다른 모임으로 이동할까요?"))return;
  location.href=location.pathname+"?club="+encodeURIComponent(id);
 }
-function supplyAskClub(){
- var v=(prompt("접속하실 모임 식별번호를 넣어 주십시오. 초대주소를 받으셨다면 그 주소로 들어오시는 편이 확실합니다.","")||"").trim();
- if(!v)return;
- if(!SUPPLY_SLUG_RE.test(v)){alert("모임 식별번호 형식이 올바르지 않습니다.");return}
- supplyGoClub(v);
+/* H1.9.7: club provisioning is not yet enabled in this member-only server.
+   Show an honest entry point until the separate administration module exists. */
+function portalNewClub(){
+ sheet='<div class="sheet"><div class="inner" role="dialog" aria-label="모임 만들기 안내">'+
+  '<h2 style="margin:0 0 9px;font-size:18px">모임 만들기</h2>'+
+  '<p class="portal-sub">새 모임 신청과 발급 기능을 준비하고 있습니다. 현재 화면에서는 모임을 생성하거나 신청서를 접수하지 않습니다.</p>'+
+  '<p class="portal-sub">기존 모임 회원이라면 경기위원장에게 초대주소를 받아 접속해 주세요.</p>'+
+  '<button class="btn sm" onclick="portalContinueWeb()">확인</button></div></div>';
+ render();
 }
 var DEFAULT_CLOUD=""; // 경기위원장이 최초 1회 설정, 회원은 초대 링크로 자동 설정
 /* 기존 경오마스터즈의 localStorage와 다른 이름을 사용합니다. */
@@ -1247,7 +1259,11 @@ function portalInstallOutcome(outcome){
  render();
 }
 function portalInstall(){
- // Clicking '앱으로 실행하기' begins the install-or-web decision, not a forced launch.
+ // If the browser has supplied the native install event, prompt directly from
+ // this click. Calling it synchronously preserves user activation.
+ if(PORTAL_INSTALL_PROMPT && !portalIsInstalled()){
+  portalLaunchInstall();return;
+ }
  if(portalIsInstalled()){
   sheet='<div class="sheet"><div class="inner" role="dialog" aria-label="앱 실행 중">'+
    '<h2 style="margin:0 0 9px;font-size:18px">앱으로 실행 중</h2>'+
@@ -1270,7 +1286,7 @@ function portalInstall(){
   '<p class="portal-sub">처음에는 앱을 설치하는 과정이 필요합니다. <b>설치가 완료되면 골프챌린지 아이콘을 눌러 실행</b>하세요.</p>'+warning+
   (PORTAL_INSTALL_PROMPT?
    '<button class="btn sm" onclick="portalLaunchInstall()">앱 설치하기</button><div style="height:9px"></div>':
-   '<p class="portal-sub">이 브라우저에서는 설치창을 바로 표시할 수 없습니다. 이미 앱이 있다면 앱 목록에서 실행하거나 아래 방법을 이용하세요.</p>'+ 
+   '<p class="portal-sub">이 브라우저에서 자동 설치 요청을 사용할 수 없습니다. 이미 설치된 앱이 있으면 앱 목록에서 실행하고, 새로 설치하려면 아래 브라우저 메뉴를 이용하세요.</p>'+ 
    '<div class="portal-install-steps">'+esc(steps)+'</div>')+
   '<button class="btn sm quiet" onclick="portalContinueWeb()">웹으로 계속하기</button></div></div>';
  render();
@@ -1311,7 +1327,7 @@ function scrPortal(){
    '<span>'+esc(c.name)+'</span><span aria-hidden="true">›</span></button>';}).join(""):
   '<p class="portal-sub">'+invitationHint+'</p>';
  var main=selected?
-  '<div class="card"><h2>'+esc(portalClubName())+'</h2>'+
+  '<div class="card"><div class="portal-club-identity"><div class="portal-club-caption">선택한 모임</div><h2 class="portal-club-name">'+esc(portalClubName())+'</h2></div>'+
    '<div class="portal-entry-row"><button class="btn sm portal-start" onclick="portalEnter()"'+
    (PORTAL_ENTER_BUSY?' disabled':'')+'>'+(PORTAL_ENTER_BUSY?'인증 확인 중…':'<span class="portal-go-lamp" aria-hidden="true"></span>START')+'</button>'+
    portalInstallControl()+'</div>'+
@@ -1319,7 +1335,7 @@ function scrPortal(){
   '<div class="card"><h2>어느 모임이신지요</h2>'+items+
    (SUPPLY_STORED.length?'<p class="portal-sub" style="margin-top:10px">'+invitationHint+'</p>':'')+
    '<div style="height:12px"></div><div class="portal-entry-row">'+
-   '<button class="btn sm quiet" onclick="supplyAskClub()">모임 식별번호 넣기</button>'+
+   '<button class="btn sm quiet" onclick="portalNewClub()">모임 만들기</button>'+
    portalInstallControl()+'</div></div>';
  return '<div class="screen">'+banner+'<div class="body">'+introduction+main+'</div></div>';
 }
