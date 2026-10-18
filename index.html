@@ -417,7 +417,7 @@ body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(23p
 </a>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.13";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.14";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -445,6 +445,10 @@ var SUPPLY_CLUB_PICK=!SUPPLY_CLUB_ID;
 /* H1.9.1: all visits begin in the portal. */
 var PORTAL_OPEN=true,PORTAL_ENTER_BUSY=false,PORTAL_INSTALL_PROMPT=null,PORTAL_INSTALL_DONE=false;
 var PORTAL_NEW_INVITE=false; // ephemeral, set only for a valid invite fragment in this page load
+/* H1.9.14: START consumes an already verified portal preload. Never store an
+   authenticated snapshot beyond this page session; never skip server verification. */
+var PORTAL_PREP={promise:null,ready:null,verifiedAt:0,error:""};
+var PORTAL_PREP_TTL=90000;
 var SUPPLY_CLUB_NAME=SUPPLY_CLUB_ID?((SUPPLY_PARAMS.get("name")||"").slice(0,60)||
  (function(){for(var i=0;i<SUPPLY_STORED.length;i++)if(SUPPLY_STORED[i].id===SUPPLY_CLUB_ID)return SUPPLY_STORED[i].name;return SUPPLY_CLUB_ID})())
  :APP_NAME;
@@ -1205,6 +1209,64 @@ function portalChooseClub(){
   !confirm("아직 서버에 올리지 않은 수정사항이 있습니다. 기록은 이 기기에 보관됩니다. 다른 모임 선택 화면으로 이동할까요?"))return;
  location.href=location.pathname;
 }
+/* H1.9.14: begin the exact START RPC while the visitor reads portal notices.
+   A single pending promise is reused; only server-verified, club-matched data
+   can allow entry. Editing/synchronization conflict rules remain in portalEnter. */
+function portalPrepare(force){
+ if(!SUPPLY_CLUB_ID||!L||!cloudOn()||!L.cloudReadKey)
+  return Promise.reject(new Error("모임 초대주소와 인증정보가 필요합니다."));
+ if(!force&&PORTAL_PREP.ready&&Date.now()-PORTAL_PREP.verifiedAt<PORTAL_PREP_TTL)
+  return Promise.resolve(PORTAL_PREP.ready);
+ if(PORTAL_PREP.promise)return PORTAL_PREP.promise;
+ var expectedClub=SUPPLY_CLUB_ID,expectedKey=L.cloudReadKey,expectedServer=L.cloudUrl;
+ var promise=cloudRpc("latest",expectedKey).then(function(res){
+  if(expectedClub!==SUPPLY_CLUB_ID||expectedKey!==L.cloudReadKey||expectedServer!==L.cloudUrl)
+   throw new Error("인증정보가 변경되었습니다. 다시 확인해 주세요.");
+  if(!res||!res.ok||!res.data)throw new Error(res&&res.error||"초대인증키를 확인해 주세요.");
+  var latest;try{latest=JSON.parse(res.data)}catch(e){throw new Error("서버 기록을 읽지 못했습니다.");}
+  if(res.clubId!==expectedClub||!validClubData(latest))
+   throw new Error("선택한 모임과 초대인증키가 일치하지 않습니다.");
+  PORTAL_PREP.ready={res:res,latest:latest};
+  PORTAL_PREP.verifiedAt=Date.now();PORTAL_PREP.error="";
+  return PORTAL_PREP.ready;
+ },function(e){throw e;}).catch(function(e){
+  PORTAL_PREP.ready=null;PORTAL_PREP.error=e&&e.message||"서버 연결 실패";
+  throw e;
+ }).finally(function(){
+  PORTAL_PREP.promise=null;
+  if(PORTAL_OPEN&&!PORTAL_ENTER_BUSY)render();
+ });
+ PORTAL_PREP.promise=promise;
+ return promise;
+}
+function portalPrepareSoon(){
+ if(SUPPLY_CLUB_ID&&L&&cloudOn()&&L.cloudReadKey)
+  portalPrepare(false).catch(function(){/* START reports failed verification. */});
+}
+/* A user-triggered handoff works even before verified Android App Links or a
+   package installer are available. The receiver validates all invite fields. */
+function portalNativeOpen(){
+ if(!SUPPLY_CLUB_ID||!L||!cloudOn()||!/^wgk_[a-f0-9]{128}$/.test(L.cloudReadKey||"")){
+  toast("먼저 초대주소로 모임을 인증해 주세요.");return;
+ }
+ var invite="golfchallenge://invite?club="+encodeURIComponent(SUPPLY_CLUB_ID)+
+  "#server="+encodeURIComponent(L.cloudUrl)+"&memberKey="+encodeURIComponent(L.cloudReadKey);
+ /* Android only. Clicking explicitly authorizes leaving the browser. */
+ location.href=invite;
+}
+function portalNativeOpenControl(){
+ if(portalIsInstalled()||!/Android/i.test(navigator.userAgent||"")||
+    !SUPPLY_CLUB_ID||!L||!cloudOn()||!L.cloudReadKey)return "";
+ return '<div style="margin-top:10px"><button class="btn sm line" onclick="portalNativeOpen()">설치된 안드로이드 앱으로 이어가기</button>'+
+  '<p class="portal-small" style="margin:5px 0 0">이미 APK를 설치하신 분은 앱으로 초대정보를 전달할 수 있습니다. 설치하지 않았다면 웹으로 이용하세요.</p></div>';
+}
+function portalPrepStatus(){
+ if(!L||!cloudOn()||!L.cloudReadKey)return "";
+ var message=PORTAL_ENTER_BUSY?"모임 화면 준비 중…":
+  (PORTAL_PREP.ready&&Date.now()-PORTAL_PREP.verifiedAt<PORTAL_PREP_TTL?
+   "✓ 입장 준비 완료":PORTAL_PREP.error?"인증 확인이 지연됩니다. START를 누르면 다시 확인합니다.":"서버 인증과 최신 기록을 미리 확인하고 있습니다…");
+ return '<p class="portal-small" role="status" style="margin:7px 0 0">'+esc(message)+'</p>';
+}
 /* H1.9.6: offer install once after successful invite authentication.
    A nonblocking option only: declining leaves the club fully usable on web.
    We never pop this before server verification or for already installed apps. */
@@ -1231,15 +1293,10 @@ function portalEnter(){
   alert("초대인증키를 발급받으신 분에게만 입장이 허용됩니다.\n경기위원장에게 초대주소를 받아 접속해 주세요.");return;
  }
  PORTAL_ENTER_BUSY=true;render();
- cloudRpc("latest",L.cloudReadKey).then(function(res){
+ portalPrepare(false).then(function(prepared){
+  var res=prepared.res;
   PORTAL_ENTER_BUSY=false;
-  if(!res||!res.ok||!res.data){
-   render();alert("인증을 확인하지 못했습니다.\n"+(res&&res.error||"초대인증키를 확인해 주세요."));return;
-  }
-  var latest;try{latest=JSON.parse(res.data)}catch(e){render();toast("서버 기록을 읽지 못했습니다.");return;}
-  if(res.clubId!==SUPPLY_CLUB_ID||!validClubData(latest)){
-   render();alert("선택한 모임과 초대인증키가 일치하지 않습니다.");return;
-  }
+  var latest=prepared.latest;
   if(L.dirty){
    // Do not destroy changes awaiting upload from host device.
    L.cloudNew=L.lastName!==res.version;
@@ -1254,11 +1311,11 @@ function portalEnter(){
   save(false);
   PORTAL_OPEN=false;go("home");
   portalInviteInstallOffer();
- },function(e){PORTAL_ENTER_BUSY=false;render();toast("서버 연결 실패: "+e.message);});
+ },function(e){PORTAL_ENTER_BUSY=false;render();toast("서버 인증 실패: "+e.message);});
 }
 function portalIsInstalled(){
  return !!((window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches)||
-  window.navigator.standalone===true);
+  window.navigator.standalone===true||/WGKAndroidApp\//.test(navigator.userAgent||""));
 }
 /* H1.9.6: PWA-first launch path. A website cannot forcibly open an already
    installed Android PWA; installation is offered only with a real browser event. */
@@ -1390,7 +1447,7 @@ function scrPortal(){
   '<div class="card"><div class="portal-club-identity"><div class="portal-club-caption">선택한 모임</div><h2 class="portal-club-name">'+esc(portalClubName())+'</h2></div>'+
    '<div class="portal-entry-row"><button class="btn sm portal-start" onclick="portalEnter()"'+
    (PORTAL_ENTER_BUSY?' disabled':'')+'>'+(PORTAL_ENTER_BUSY?'인증 확인 중…':'<span class="portal-go-lamp" aria-hidden="true"></span>START')+'</button>'+
-   portalInstallControl()+'</div>'+
+   portalInstallControl()+'</div>'+portalPrepStatus()+portalNativeOpenControl()+
    '<p style="margin:12px 0 0"><button class="chip" onclick="portalChooseClub()">다른 모임 선택</button></p></div>':
   '<div class="card"><h2>어느 모임이신지요</h2>'+items+
    (SUPPLY_STORED.length?'<p class="portal-sub" style="margin-top:10px">'+invitationHint+'</p>':'')+
@@ -3011,6 +3068,8 @@ function restoreBackup(){
 
 /* ---- 공급본 시작: 초기 화면은 서버에 등록된 빈 모임 기준 ---- */
 load();
+/* Start verification before painting the portal. It remains nonblocking. */
+portalPrepareSoon();
 /* v1.3.1 홈 화면에 추가할 때 쓰이는 이름을 모임 이름으로 맞춥니다. */
 try{if(S&&S.room&&S.room.name)setDocTitle(S.room.name)}catch(e){}
 render();
