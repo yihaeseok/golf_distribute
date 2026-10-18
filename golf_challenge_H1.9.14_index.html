@@ -1,0 +1,3098 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>우리끼리 골프챌린지</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="골프챌린지" id="iosTitle">
+<meta name="theme-color" content="#14532d">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="./golf-icon-192.png">
+<link rel="apple-touch-icon" href="./golf-icon-192.png">
+<style>
+:root{--bg:#f6f4ee;--card:#fff;--sand:#ece5d6;--turf:#14532d;--turf-mid:#2a7a51;
+ --ink:#16211b;--muted:#657a6f;--line:#ddd7c8;--clay:#a8491c;--shade:rgba(20,40,30,.22);
+ box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);
+ padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+ --bg:#101712;--card:#19221c;--sand:#232e26;--turf:#8fd3ab;--turf-mid:#6bbd8e;
+ --ink:#e8efe9;--muted:#95a89d;--line:#2d3a32;--clay:#e59a6b;--shade:rgba(0,0,0,.5)}}
+:root[data-theme="dark"]{--bg:#101712;--card:#19221c;--sand:#232e26;--turf:#8fd3ab;
+ --turf-mid:#6bbd8e;--ink:#e8efe9;--muted:#95a89d;--line:#2d3a32;--clay:#e59a6b;--shade:rgba(0,0,0,.5)}
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);
+ font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;
+ font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%;font-variant-numeric:tabular-nums}
+#app{min-height:100%;display:flex;flex-direction:column}
+.screen{flex:1;display:flex;flex-direction:column;min-height:0}
+.bar{display:flex;align-items:center;gap:8px;padding:12px 14px;background:var(--card);
+ border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.bar h1{font-size:17px;margin:0;font-weight:650;flex:1;min-width:0;overflow:hidden;
+ text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.01em}
+.bar .sub{font-size:12px;color:var(--muted);font-weight:400}
+.body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px}
+.foot{padding:10px 14px 14px;background:var(--card);border-top:1px solid var(--line)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.card h2{font-size:15px;margin:0 0 10px;font-weight:650}
+p.note{color:var(--muted);font-size:13px;margin:6px 0 0}
+label{display:block;font-size:12.5px;color:var(--muted);margin:9px 0 5px}
+input[type=text],input[type=number],input[type=date],input[type=time],input[type=password],textarea,select{
+ width:100%;padding:9px 10px;font-size:15px;line-height:1.35;color:var(--ink);background:var(--bg);
+ border:1px solid var(--line);border-radius:9px}
+input::placeholder,textarea::placeholder{font-size:.92em;color:#8a988f}
+/* 모바일 기본 날짜·시간 선택기가 카드 너비를 밀어내지 않도록 제한합니다. */
+input[type=date],input[type=time]{display:block;width:100%;max-width:100%;min-width:0;font-size:15px}
+textarea{min-height:96px;font-size:13px;line-height:1.45;resize:vertical}
+input:focus-visible,textarea:focus-visible,button:focus-visible,select:focus-visible{
+ outline:3px solid var(--turf-mid);outline-offset:2px}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.btn{display:block;width:100%;padding:15px;border-radius:11px;background:var(--turf);
+ color:var(--card);font-weight:650;font-size:17px;text-align:center}
+.btn.quiet{background:var(--sand);color:var(--ink);font-weight:550}
+.btn.line{background:transparent;border:1px solid var(--line);color:var(--ink);font-weight:550}
+.btn.sm{padding:11px;font-size:15px;border-radius:9px}
+.row2{display:flex;gap:8px}.row2>*{flex:1}
+.chip{padding:7px 11px;border-radius:999px;background:var(--sand);font-size:13px;font-weight:550;white-space:nowrap}
+.chip.on{background:var(--turf);color:var(--card)}
+.list{list-style:none;margin:0;padding:0}
+.item{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:none}
+.item .nm{flex:1;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .mt{color:var(--muted);font-size:13px}
+.empty{text-align:center;color:var(--muted);padding:28px 10px;font-size:14px}
+.banner{background:var(--turf);color:var(--card);padding:13px 14px;display:flex;align-items:center;gap:10px}
+.banner span{flex:1;font-size:14px;font-weight:550}
+.banner button{background:var(--card);color:var(--turf);padding:8px 13px;border-radius:999px;font-size:13px;font-weight:650}
+.holehead{display:flex;align-items:baseline;gap:12px;padding:14px 14px 8px}
+.holenum{font-size:44px;font-weight:700;line-height:1;letter-spacing:-.03em}
+.holepar{font-size:15px;color:var(--muted);font-weight:600}
+.strip{display:flex;gap:3px;padding:0 14px 10px}
+.seg{flex:1;height:7px;border-radius:2px;background:var(--sand);border:none;padding:0}
+.seg.part{background:var(--clay)}.seg.done{background:var(--turf-mid)}
+.seg.cur{box-shadow:0 0 0 2px var(--turf)}
+.plr{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin-bottom:7px}
+.plr .top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.plr .nm{font-weight:650;font-size:15px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plr .hc{font-size:12px;color:var(--muted)}
+.plr .st{font-size:12px;color:var(--clay);font-weight:600}
+.keys{display:grid;grid-template-columns:repeat(auto-fit,minmax(28px,1fr));gap:4px}
+.keys .key{min-height:28px;height:auto;padding:4px 5px;font-size:14px;border-radius:7px;
+ white-space:nowrap;overflow:visible}
+.key{height:46px;border-radius:9px;background:var(--sand);font-size:17px;font-weight:650;
+ display:flex;align-items:center;justify-content:center}
+.key.on{background:var(--turf);color:var(--card)}
+.key.more{font-size:15px;color:var(--muted)}
+.pm{display:flex;align-items:center;gap:8px}
+.pm .mbtn{width:56px;height:48px;border-radius:9px;background:var(--sand);font-size:24px;font-weight:650;
+ display:flex;align-items:center;justify-content:center}
+.pm .val{flex:1;height:48px;border-radius:9px;background:var(--turf);color:var(--card);
+ display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:700}
+.pm .val.pending{background:var(--sand);color:var(--muted)}
+.sheet{position:fixed;inset:0;background:var(--shade);display:flex;align-items:flex-end;z-index:30}
+.sheet .inner{width:100%;background:var(--card);border-radius:16px 16px 0 0;padding:16px;
+ padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));max-height:85vh;overflow-y:auto}
+.grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-bottom:12px}
+.grid5 .key{height:46px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.grid3 .key{height:44px;font-size:14px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(26px + env(safe-area-inset-bottom,0px));
+ background:var(--ink);color:var(--bg);padding:11px 18px;border-radius:999px;font-size:14px;z-index:60;max-width:88%}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:8px 6px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-weight:600;color:var(--muted);font-size:12px}
+td.win{font-weight:700;color:var(--turf)}
+.hx th,.hx td{padding:7px 9px;font-size:13px}
+.hx td.u{color:var(--clay)}
+.hx th.hid{color:var(--clay);font-weight:700}
+.ed input{width:50px;padding:7px 2px;text-align:center;font-size:14px}
+.paytbl input{width:108px;padding:9px 8px;text-align:right;font-size:15px}
+.paytbl td,.paytbl th{padding:6px 5px}
+.paytbl td:first-child{min-width:52px;font-weight:600}
+.gm{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--line)}
+.gm:last-child{border-bottom:none}
+.gm .nm{flex:1;font-weight:600}
+.gm input[type=number]{width:88px}
+.teambox{display:flex;gap:10px}
+.teambox>div{flex:1;background:var(--sand);border-radius:10px;padding:10px}
+.hero{display:flex;align-items:flex-start;gap:9px;padding:12px 11px 11px;
+ background:var(--turf);color:var(--card)}
+.hero .crest{width:42px;height:42px;border-radius:50%;background:var(--card);color:var(--turf);
+ display:flex;align-items:center;justify-content:center;font-size:24px;flex:none}
+.hero .hname{font-size:clamp(20px,4.05vw,26px);font-weight:800;letter-spacing:-.037em;line-height:1.15;
+ display:block;min-width:0}
+.hero .hrole{font-size:7px;font-weight:700;padding:1px 4px;border-radius:999px;white-space:nowrap;line-height:1.2;
+ background:var(--card);color:var(--turf);flex:none;letter-spacing:-.01em}
+.hero .hsub{display:flex;align-items:center;gap:4px;min-width:0;font-size:clamp(10px,2.9vw,12px);opacity:.85;margin-top:3px;white-space:nowrap;letter-spacing:-.02em}
+.hero .hcounts{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.hero .hversion{flex:none}
+.hero .hmain{flex:1;min-width:0;padding-top:1px}
+.hero .hmeta{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;margin-top:3px}
+.hero .hmeta .hline{margin-top:0;flex:1;min-width:0}
+/* H1.9.8: prominent house-shaped home control; retain portalReturn() behavior. */
+.hero .hero-side{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+ flex:none;gap:5px;align-self:flex-start}
+.hero .hero-side .portal-back{width:52px;height:53px;min-height:53px;
+ display:flex;align-items:center;justify-content:center;
+ border:1px solid rgba(255,255,255,.32);border-radius:11px;
+ padding:8px;color:#fff}
+.hero .hero-side .portal-back svg{width:32px;height:32px;display:block;flex:none}
+.hero .hclubname{min-width:0;overflow-wrap:anywhere;word-break:keep-all}
+.hero .hrole{font-size:8px;font-weight:700;padding:1px 4px;letter-spacing:-.015em}
+
+.hero .hline{font-size:clamp(9px,2.75vw,11.5px);opacity:.88;margin-top:2px;
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.02em}
+.sig{flex:none;display:flex;flex-direction:column;align-items:center;gap:5px;
+ background:rgba(255,255,255,.14);border-radius:12px;padding:9px 11px;min-width:76px}
+.sig .lamp{width:17px;height:17px;border-radius:50%;background:rgba(255,255,255,.26);
+ box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)}
+.sig .lamp.on{background:#5fe08a;box-shadow:0 0 0 3px rgba(95,224,138,.3)}
+.sig .lamp.red{background:#ff7a5c;box-shadow:0 0 0 3px rgba(255,122,92,.3)}
+.sig .lamps{display:flex;gap:7px}
+.card.maincard{border:2px solid var(--turf)}
+.maintag{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;
+ border-radius:5px;background:var(--turf);color:var(--card);vertical-align:2px}
+.reftag{display:inline-block;font-size:11px;font-weight:600;padding:2px 7px;
+ border-radius:5px;background:var(--sand);color:var(--muted);vertical-align:2px}
+.btn.alertbtn{background:var(--clay);color:#fff;
+ display:flex;align-items:center;justify-content:center;gap:8px}
+.btn.alertbtn .lamp{width:11px;height:11px;border-radius:50%;background:#fff;flex:none;
+ box-shadow:0 0 0 3px rgba(255,255,255,.32)}
+@media (prefers-reduced-motion:no-preference){
+ .btn.alertbtn .lamp{animation:blink 1.4s ease-in-out infinite}
+ @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}}
+.toTop{position:fixed;right:14px;bottom:calc(16px + env(safe-area-inset-bottom,0px));
+ width:44px;height:44px;border-radius:50%;background:var(--turf);color:var(--card);
+ display:flex;align-items:center;justify-content:center;font-size:20px;z-index:25;
+ box-shadow:0 4px 14px var(--shade);opacity:.92}
+.sig .txt{font-size:11px;font-weight:650;line-height:1.2;text-align:center}
+.round-line{white-space:normal;word-break:keep-all;line-height:1.45;margin-top:2px}
+/* v1.4.0 라운드 결과를 열 때 첫 종목 우승자에게 터지는 폭죽 */
+.fw{position:fixed;inset:0;pointer-events:none;z-index:70;overflow:hidden}
+.fw i{position:absolute;top:-28px;width:10px;height:16px;border-radius:2px;opacity:0;
+ animation:fwFall 7s cubic-bezier(.25,.6,.4,1) forwards}
+@keyframes fwFall{
+ 0%{opacity:0;transform:translateY(-10px) rotate(0deg) scale(.6)}
+ 8%{opacity:1}
+ 100%{opacity:0;transform:translateY(105vh) rotate(900deg) scale(1)}}
+.fw .burst{position:absolute;left:50%;top:26%;transform:translate(-50%,-50%);
+ font-size:58px;opacity:0;animation:fwPop 5.5s ease-out forwards}
+@keyframes fwPop{
+ 0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}
+ 10%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}
+ 24%{opacity:1;transform:translate(-50%,-50%) scale(1)}
+ 80%{opacity:1;transform:translate(-50%,-52%) scale(1)}
+ 100%{opacity:0;transform:translate(-50%,-62%) scale(1.05)}}
+.fw .who{position:absolute;left:50%;top:38%;transform:translateX(-50%);
+ background:var(--turf);color:var(--card);padding:9px 18px;border-radius:999px;
+ font-size:15px;font-weight:700;opacity:0;max-width:86vw;text-align:center;
+ white-space:normal;word-break:keep-all;line-height:1.4;
+ animation:fwWho 7s ease-out forwards;box-shadow:0 6px 20px var(--shade)}
+@keyframes fwWho{
+ 0%{opacity:0;transform:translateX(-50%) translateY(10px)}
+ 8%{opacity:1;transform:translateX(-50%) translateY(0)}
+ 88%{opacity:1;transform:translateX(-50%) translateY(0)}
+ 100%{opacity:0;transform:translateX(-50%) translateY(-8px)}}
+@media (prefers-reduced-motion:reduce){
+ .fw i{display:none}
+ .fw .burst,.fw .who{animation-duration:.01s}}
+.ribbon{background:var(--clay);color:#fff;padding:3px 9px;border-radius:999px;
+ font-size:11.5px;font-weight:700;flex:none}
+.ribbon.done{background:var(--turf-mid)}
+.pop{font-size:16px}
+tr.gold td{background:var(--turf-soft,rgba(42,122,81,.12));font-weight:700}
+tr.gold td:first-child{color:var(--turf)}
+.star{font-size:17px}
+.mk{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;
+ padding:0 3px;font-weight:650;line-height:1}
+.mk.bogey{border:1.5px solid var(--ink);border-radius:3px}
+.mk.dbl{border:1.5px solid var(--ink);border-radius:3px;box-shadow:0 0 0 3px var(--card),0 0 0 4.5px var(--ink)}
+.mk.birdie{border:1.5px solid var(--turf);border-radius:50%;color:var(--turf)}
+.mk.eagle{border:1.5px solid var(--turf);border-radius:50%;color:var(--turf);
+ box-shadow:0 0 0 3px var(--card),0 0 0 4.5px var(--turf)}
+.mk.onion{background:var(--clay);color:#fff;border-radius:4px}
+.parpick{display:flex;gap:6px;align-items:center;padding:0 14px 10px}
+.parpick .lb{font-size:13px;color:var(--muted);flex:none}
+.parpick button{flex:1;height:40px;border-radius:9px;background:var(--sand);font-weight:650;font-size:15px}
+.parpick button.on{background:var(--turf);color:var(--card)}
+@media (prefers-reduced-motion:no-preference){
+ .toast{animation:pop .18s ease-out}@keyframes pop{from{opacity:0;transform:translateX(-50%) translateY(6px)}}}
+
+/* 라운딩 수정에서 선택하지 않은 회원의 점수 행은 표시하지 않습니다. */
+[data-edit-score-row][hidden],[data-edit-gross-row][hidden]{display:none!important}
+/* 홈 메뉴 네 칸을 작은 휴대전화에서도 한 줄로 고정합니다. */
+.home-nav{gap:4px;padding:8px 9px}
+.home-nav .chip{flex:1;min-width:0;text-align:center;padding:7px 1px;
+ font-size:clamp(9.5px,2.55vw,12px);font-weight:600;letter-spacing:-.04em;min-height:34px}
+.home-nav .chip.recv{flex:0 0 54px;padding:6px 1px;font-size:10px;line-height:1.12;display:flex;align-items:center;justify-content:center;gap:3px;flex-direction:column}
+.home-nav .chip.recv .lamp{width:8px;height:8px;border-radius:50%;background:rgba(20,83,45,.22)}
+.home-nav .chip.recv .lamp.on{background:#23a45a;box-shadow:0 0 0 2px rgba(35,164,90,.18)}
+.home-nav .chip.recv .recvtxt{display:block}
+.reverse-label{color:var(--ink);font-weight:650}
+/* 첫 화면의 라운드 요약은 종목 수가 많아도 최대 두 줄만 표시합니다. */
+.round-summary{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;
+ line-clamp:2;max-height:3.1em;line-height:1.55;overflow:hidden;overflow-wrap:anywhere}
+/* 첫 화면에서 날짜·시각·장소를 한 줄에 몰아넣어 시각이 잘리는 문제를 방지합니다. */
+.round-meta{display:flex;align-items:center;flex-wrap:wrap;gap:2px 8px;min-width:0;
+ color:var(--muted);font-size:12px;line-height:1.5;margin-top:2px}
+.round-meta .round-tee{flex:none;font-weight:650;white-space:nowrap;color:var(--ink)}
+.round-meta .round-place{flex:1 1 100px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 라운드 상세 머리행에서도 시간은 아래 줄에 표시하여 가려지지 않게 합니다. */
+.bar h1.round-head{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.25}
+.bar h1.round-head .sub{margin-top:2px;white-space:normal;overflow-wrap:anywhere;line-height:1.4}
+.round-head .round-tee{white-space:nowrap;font-weight:600}
+.rules-intro{font-size:14px;line-height:1.6;margin:0}
+.rule-desc{font-size:14px;line-height:1.65;margin:0}
+.rule-desc+.rule-desc{margin-top:7px}
+/* H1.9.2: a compact golf emblem + two distinct ad presentations. */
+/* H1.9.3: portal-only scale, balanced golf mark, clearer ad strip. */
+#app{padding-bottom:calc(46px + env(safe-area-inset-bottom,0px))}
+body.portal-active #app{padding-bottom:calc(108px + env(safe-area-inset-bottom,0px))}
+#vanStrip{position:fixed;inset:auto 0 0 0;min-height:42px;
+ padding:7px 10px calc(7px + env(safe-area-inset-bottom,0px));
+ background:#eff0df;color:#16472f;text-decoration:none;
+ border-top:1px solid #cacbb6;display:flex;align-items:center;justify-content:center;
+ gap:0;z-index:20;font-size:clamp(10px,3.1vw,14px);font-weight:760;
+ line-height:1.3;box-shadow:0 -2px 8px rgba(0,0,0,.07)}
+#vanStripWord{text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+ letter-spacing:-.014em}
+#vanStrip .vanPortalLines{display:none}
+body.portal-active #vanStrip{background:linear-gradient(110deg,#f4f0df 0%,#e8efdf 100%);
+ min-height:97px;padding:6px 9px calc(7px + env(safe-area-inset-bottom,0px));
+ border-top:2px solid #baa969}
+body.portal-active #vanStripWord{display:none}
+body.portal-active #vanStrip .vanPortalLines{display:flex;flex-direction:column;gap:3px;
+ text-align:center;line-height:1.24;width:100%;min-width:0}
+.vanServiceLine{white-space:nowrap;font-size:clamp(10px,3vw,12px);
+ color:#245d3f;font-weight:800;letter-spacing:-.023em;}
+.vanDetailLine{font-size:clamp(10px,2.7vw,12px);color:#5b725a;font-weight:570}
+.vanContactLine{display:block;font-size:clamp(18px,5vw,23px);
+ color:#155a36;font-weight:900;letter-spacing:0}
+.toTop{bottom:calc(59px + env(safe-area-inset-bottom,0px))}
+.toast{bottom:calc(70px + env(safe-area-inset-bottom,0px))}
+.portal-hero{background:linear-gradient(132deg,#10442d,#176446 72%,#246b47);color:#fff;
+ padding:16px 14px 16px;border-bottom:3px solid #c4ae69}
+.portal-brand{display:flex;align-items:center;gap:11px;min-width:0}
+.portal-emblem{display:block;flex:none;width:78px;height:78px;border-radius:18px;
+ background:#0e422e;box-shadow:0 3px 13px rgba(0,0,0,.23);object-fit:cover}
+.portal-brand-copy{flex:1;min-width:0}
+.portal-hero h1{font-size:clamp(20px,5.65vw,25px);letter-spacing:-.045em;
+ line-height:1.12;margin:0 0 5px;word-break:keep-all}
+.portal-hero h1 .portal-pre{display:block;font-size:.72em;font-weight:700;opacity:.87;
+ line-height:1.3;letter-spacing:-.03em}
+.portal-hero h1 .portal-focus{display:block;font-size:1.1em;font-weight:850;white-space:nowrap;letter-spacing:-.05em}
+.portal-hero p{margin:0;font-size:11px;opacity:.91;letter-spacing:-.02em}
+body.portal-active .body{padding:12px}
+body.portal-active .card{padding:12px;margin-bottom:11px}
+body.portal-active .card h2{font-size:14px;margin-bottom:7px}
+body.portal-active .card p:not(.portal-sub):not(.portal-small){font-size:14px;line-height:1.5}
+.portal-sub{font-size:12px;color:var(--muted);margin:7px 0 10px;line-height:1.54}
+.portal-small{font-size:11px;color:var(--muted);line-height:1.55}
+.portal-entry-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:7px}
+.portal-entry-row button{padding:11px 5px;font-size:clamp(12px,3.3vw,14px);word-break:keep-all;line-height:1.32}
+.portal-list-btn{display:flex;width:100%;align-items:center;justify-content:space-between;
+ gap:10px;text-align:left;border-bottom:1px solid var(--line);padding:10px 1px;
+ font-size:14px;font-weight:650}
+.portal-list-btn:last-child{border-bottom:none}
+.portal-start{background:#26754b!important;color:#fff!important;display:flex;align-items:center;
+ justify-content:center;gap:8px;font-weight:800;letter-spacing:.065em}
+.portal-start .portal-go-lamp{display:inline-block;flex:none;width:9px;height:9px;
+ border-radius:50%;background:#bcf1c3;box-shadow:0 0 0 3px rgba(188,241,195,.16)}
+.portal-start:disabled{opacity:.65;cursor:wait}
+
+.portal-back{font-size:11px;background:rgba(255,255,255,.15);border-radius:8px;
+ padding:6px 7px;color:white;flex:none;line-height:1.25}
+.portal-install-warning{background:var(--sand);padding:11px;border-radius:9px;
+ font-size:13px;line-height:1.55;margin:10px 0}
+.portal-install-steps{background:var(--bg);padding:11px;border-radius:9px;
+ font-size:13px;line-height:1.7;white-space:pre-line;margin:10px 0}
+@media(max-width:345px){.portal-emblem{width:69px;height:69px}.portal-brand{gap:8px}
+ .portal-hero h1{font-size:19px}.portal-hero p{font-size:10px}
+ .vanServiceLine{font-size:9px}}
+
+/* H1.9.4: installed-PWA-first mobile typography. Keep score-entry buttons
+   and native form controls large enough for safe touch/input. Same rules also
+   apply to the phone browser so the two presentations remain consistent. */
+@media(max-width:600px){
+ body{font-size:14.5px;line-height:1.47}
+ .bar{padding:10px 12px}
+ .bar h1{font-size:15px}
+ .bar .sub{font-size:11px}
+ .body{padding:12px}
+ .card{padding:12px;margin-bottom:10px}
+ .card h2{font-size:14px;margin-bottom:8px}
+ p.note{font-size:12px}
+ label{font-size:12px}
+ .btn{font-size:15px;min-height:44px;padding:11px 12px}
+ .btn.sm{font-size:13.5px;min-height:42px;padding:10px}
+ .chip{font-size:12px;min-height:36px}
+ .item{padding:10px 0}
+ .item .mt{font-size:12px}
+ .empty{font-size:13px;padding:23px 8px}
+ .banner span{font-size:12px}
+ .hero{padding:10px 9px 10px;gap:7px}
+ .hero .crest{width:36px;height:36px;font-size:21px}
+ .hero .hero-side .portal-back{width:48px;height:50px;min-height:50px;padding:6px}
+  .hero .hero-side .portal-back svg{width:30px;height:30px}
+ .hero .hname{font-size:clamp(18px,5.15vw,23px);letter-spacing:-.04em;line-height:1.12;word-break:keep-all}
+ .hero .hrole{font-size:7px}
+ .sig{min-width:69px;padding:8px 9px}
+ .sig .txt{font-size:10px}
+ .home-nav{padding:7px 8px}
+ .home-nav .chip{font-size:clamp(9px,2.5vw,11px);min-height:34px}
+ .round-meta{font-size:11px}
+ .rules-intro,.rule-desc{font-size:12.5px}
+ .portal-hero{padding:14px 12px}
+ .portal-emblem{width:76px;height:76px}
+ .portal-brand{gap:10px}
+ .portal-hero h1{font-size:clamp(18px,5.05vw,23px)}
+ .portal-hero p{font-size:10px}
+ body.portal-active .body{padding:10px}
+ body.portal-active .card{padding:11px;margin-bottom:10px}
+ body.portal-active .card h2{font-size:13px}
+ body.portal-active .card p:not(.portal-sub):not(.portal-small){font-size:13px;line-height:1.46}
+ .portal-sub{font-size:11px}
+ .portal-small{font-size:10px}
+ .portal-list-btn{font-size:13px;min-height:42px}
+ .portal-entry-row button{font-size:clamp(11px,3.1vw,13px);min-height:44px}
+ .portal-install-status{font-size:12px}
+ /* Prevent Android native font boosting from making fixed-size headers huge. */
+ .screen,.card,.portal-hero{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+ /* Never shrink editing hit targets to match display-only typography. */
+ input[type=text],input[type=number],input[type=date],input[type=time],
+ input[type=password],textarea,select{font-size:15px;min-height:40px}
+ .keys .key{min-height:32px;font-size:14px}
+ .pm .mbtn{width:56px;height:48px;font-size:24px}
+ .pm .val{height:48px;font-size:21px}
+}
+@media(max-width:345px){.portal-emblem{width:69px;height:69px}}
+/* H1.9.7: emphasize the active club; do not expose the technical slug. */
+.portal-club-identity{background:linear-gradient(110deg,#e7f1e9,#f4f6ee);border:1px solid #bed8c3;
+ border-left:4px solid #24734a;border-radius:10px;padding:12px 13px;margin:0 0 13px}
+.portal-club-caption{font-size:11px;color:#4e7460;font-weight:700;letter-spacing:.02em}
+body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(23px,6.35vw,30px);
+ color:#123f2c;font-weight:850;letter-spacing:-.045em;line-height:1.28;margin:3px 0 0;
+ overflow-wrap:anywhere;word-break:keep-all}
+@media(max-width:345px){body.portal-active .portal-club-identity h2.portal-club-name{font-size:22px}}
+.portal-install-status{display:flex;align-items:center;justify-content:center;
+ background:var(--sand);color:var(--turf-mid);font-weight:750;border-radius:9px;
+ min-height:44px;padding:10px 5px;line-height:1.25;text-align:center;
+ border:1px solid var(--line);gap:5px}
+
+/* H1.9.11: game setup only. Keep ordinary .gm rows untouched. */
+.gm.game-config{display:block;padding:9px 0;border-bottom:1px solid var(--line)}
+.gm.game-config .gc-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.gm.game-config .gc-name{min-width:0;font-size:15px;line-height:1.25;font-weight:700}
+.gm.game-config .gc-main{display:inline-flex;align-items:center;gap:5px;flex:none;white-space:nowrap;margin:0;font-size:12px;line-height:1.3;color:var(--muted)}
+.gm.game-config .gc-desc{margin-top:3px;color:var(--muted);font-size:12px;line-height:1.4;word-break:keep-all}
+.gm.game-config .gc-actions{display:flex;align-items:center;gap:12px;flex-wrap:nowrap;margin-top:7px;min-width:0}
+.gm.game-config .gc-actions .chip{padding:6px 12px;min-height:32px;font-size:12px;flex:none}
+.gm.game-config .gc-reverse{display:inline-flex;align-items:center;gap:5px;margin:0;flex:none;white-space:nowrap;font-size:12px;line-height:1.3;color:var(--ink);font-weight:650}
+.gm.game-config .gc-main input,.gm.game-config .gc-reverse input{width:17px;height:17px;min-width:17px;min-height:17px;margin:0;flex:none}
+.gm.team-detail{padding-left:12px;align-items:center;gap:8px}
+.gm.team-detail .nm{min-width:0}
+@media(max-width:345px){
+ .gm.game-config .gc-name{font-size:14px}
+ .gm.game-config .gc-actions{gap:7px}
+ .gm.game-config .gc-main,.gm.game-config .gc-reverse{font-size:11px}
+ .gm.game-config .gc-actions .chip{padding:6px 9px;font-size:11px}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<a id="vanStrip" href="https://m.cafe.naver.com/seojininfo.cafe" target="_blank" rel="noopener noreferrer external"
+   aria-label="프레시올 카드기 포스 키오스크 테이블오더 용지 상담 1899-4540 네이버 카페 열기">
+  <span id="vanStripWord">카드기 · 포스 · 키오스크 · 테이블오더 · 용지</span>
+  <span class="vanPortalLines" aria-hidden="true">
+    <span class="vanServiceLine">카드기 · 포스 · 키오스크 · 테이블오더 · 용지</span>
+    <span class="vanDetailLine">매장 결제시스템 설치 · 임대 · 관리 상담</span>
+    <span class="vanContactLine">1899-4540</span>
+  </span>
+</a>
+<script>
+"use strict";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.14";
+/* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
+var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
+var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
+/* v1.2.0: 모임 식별번호가 없을 때 특정 모임으로 자동 연결하지 않습니다.
+   다만 이 기기에 이미 저장된 모임이 하나뿐이면 기존 즐겨찾기 호환을 위해 그 모임으로 들어갑니다. */
+function supplyStoredClubs(){
+ var out=[];
+ try{
+  for(var i=0;i<localStorage.length;i++){
+   var k=localStorage.key(i),m=k&&k.match(/^woorigolf\.supply\.([a-z][a-z0-9-]{2,59})\.data$/);
+   if(!m)continue;
+   var name=m[1];
+   try{var d=JSON.parse(localStorage.getItem(k));
+    if(d&&d.room&&d.room.clubId===m[1]&&typeof d.room.name==="string"&&d.room.name)name=d.room.name}catch(e){}
+   out.push({id:m[1],name:name});
+  }
+ }catch(e){}
+ out.sort(function(a,b){return a.id<b.id?-1:1});
+ return out;
+}
+var SUPPLY_STORED=supplyStoredClubs();
+var SUPPLY_CLUB_ID=SUPPLY_SLUG_RE.test(SUPPLY_PARAMS.get("club")||"")?SUPPLY_PARAMS.get("club")
+ :"";
+var SUPPLY_CLUB_PICK=!SUPPLY_CLUB_ID;
+/* H1.9.1: all visits begin in the portal. */
+var PORTAL_OPEN=true,PORTAL_ENTER_BUSY=false,PORTAL_INSTALL_PROMPT=null,PORTAL_INSTALL_DONE=false;
+var PORTAL_NEW_INVITE=false; // ephemeral, set only for a valid invite fragment in this page load
+/* H1.9.14: START consumes an already verified portal preload. Never store an
+   authenticated snapshot beyond this page session; never skip server verification. */
+var PORTAL_PREP={promise:null,ready:null,verifiedAt:0,error:""};
+var PORTAL_PREP_TTL=90000;
+var SUPPLY_CLUB_NAME=SUPPLY_CLUB_ID?((SUPPLY_PARAMS.get("name")||"").slice(0,60)||
+ (function(){for(var i=0;i<SUPPLY_STORED.length;i++)if(SUPPLY_STORED[i].id===SUPPLY_CLUB_ID)return SUPPLY_STORED[i].name;return SUPPLY_CLUB_ID})())
+ :APP_NAME;
+function supplyGoClub(id){
+ if(!SUPPLY_SLUG_RE.test(id))return;
+ // Leave local edits untouched; warn before switching the active club.
+ if(L&&L.dirty&&SUPPLY_CLUB_ID&&id!==SUPPLY_CLUB_ID&&
+    !confirm("이 모임에는 아직 서버에 올리지 않은 수정사항이 있습니다. 기록은 이 기기에 보관되지만, 모임을 바꾸기 전에 올리기를 권합니다. 다른 모임으로 이동할까요?"))return;
+ location.href=location.pathname+"?club="+encodeURIComponent(id);
+}
+/* H1.9.7: club provisioning is not yet enabled in this member-only server.
+   Show an honest entry point until the separate administration module exists. */
+function portalNewClub(){
+ sheet='<div class="sheet"><div class="inner" role="dialog" aria-label="모임 만들기 안내">'+
+  '<h2 style="margin:0 0 9px;font-size:18px">모임 만들기</h2>'+
+  '<p class="portal-sub">새 모임 신청과 발급 기능을 준비하고 있습니다. 현재 화면에서는 모임을 생성하거나 신청서를 접수하지 않습니다.</p>'+
+  '<p class="portal-sub">기존 모임 회원이라면 경기위원장에게 초대주소를 받아 접속해 주세요.</p>'+
+  '<button class="btn sm" onclick="portalContinueWeb()">확인</button></div></div>';
+ render();
+}
+var DEFAULT_CLOUD=""; // 경기위원장이 최초 1회 설정, 회원은 초대 링크로 자동 설정
+/* 기존 경오마스터즈의 localStorage와 다른 이름을 사용합니다. */
+var DKEY="woorigolf.supply."+(SUPPLY_CLUB_ID||"__none__")+".data";
+var LKEY="woorigolf.supply."+(SUPPLY_CLUB_ID||"__none__")+".local";
+var S=null,L=null,view={name:"home"},sheet=null,tTimer=null,scan=null,busy=false;
+// 경기위원장 인증 토큰은 장기 저장하지 않고 브라우저 탭 세션에만 저장합니다.
+var HOST_SESSION_STORAGE_KEY="woorigolf.supply."+(SUPPLY_CLUB_ID||"__none__")+".hostSession";
+var hostSession="";
+function forgetHostSession(){hostSession="";try{sessionStorage.removeItem(HOST_SESSION_STORAGE_KEY)}catch(e){}}
+function rememberHostSession(token){hostSession=token;try{sessionStorage.setItem(HOST_SESSION_STORAGE_KEY,token)}catch(e){}}
+function hostSessionActive(){return L&&L.mode==="host"&&!!hostSession}
+function rejectHostSession(message){forgetHostSession();L.mode="member";save(false);render();toast(message||"경기위원장 인증이 만료되었습니다. 다시 인증하십시오.")}
+function isHostExpiredResult(res){return !!(res&&/경기위원장 인증이 (만료|변경)/.test(res.error||""))}
+
+function uid(){return Math.random().toString(36).slice(2,10)}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){
+ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function blankS(){return{schemaVersion:4,room:{id:"pending",clubId:SUPPLY_CLUB_ID,name:SUPPLY_CLUB_NAME,createdAt:null},members:[],rounds:[],hcpWindow:5,updatedAt:null}}
+function validClubData(d){return !!(d&&d.schemaVersion===4&&d.room&&d.room.clubId===SUPPLY_CLUB_ID&&typeof d.room.name==="string"&&d.room.name.length>0&&Array.isArray(d.members)&&Array.isArray(d.rounds))}
+function blankL(){return{mode:"member",cloudNew:false,serverVer:"",inputMode:"numbers",myGroup:{},cloudUrl:"",cloudReadKey:"",dirty:false,
+ lastSaved:null,lastSync:null,lastName:"",seeded:false}}
+function load(){
+ try{var a=localStorage.getItem(DKEY);S=a?JSON.parse(a):blankS()}catch(e){S=blankS()}
+ try{var b=localStorage.getItem(LKEY);L=b?JSON.parse(b):blankL()}catch(e){L=blankL()}
+ if(!validClubData(S)) S=blankS();
+ else SUPPLY_CLUB_NAME=S.room.name;
+ // 초대 링크의 비밀 키는 서버 쪽 요청 URL이 아니라 브라우저 URL 조각에서 읽습니다.
+ // 최초 저장 후 주소 표시줄에서 제거하되, 복사·공유시 직접 다시 붙여야 합니다.
+ try{
+  var frag=new URLSearchParams(window.location.hash.slice(1));
+  var memberKey=frag.get("memberKey");
+  if(memberKey&&/^wgk_[a-f0-9]{128}$/.test(memberKey)){
+   PORTAL_NEW_INVITE=true;
+   if(!L||typeof L!=="object")L=blankL();
+   var srv=frag.get("server")||"";
+   if(/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(srv))L.cloudUrl=srv;
+   L.cloudReadKey=memberKey;
+   try{localStorage.setItem(LKEY,JSON.stringify(L))}catch(e){}
+   history.replaceState(null,"",window.location.pathname+window.location.search);
+  }
+ }catch(e){}
+ if(!S.members)S.members=[];if(!S.rounds)S.rounds=[];
+ if(!S.hcpWindow)S.hcpWindow=5;
+ if(!L||typeof L!=="object")L=blankL();
+ if(!L.myGroup)L.myGroup={};if(!L.mode)L.mode="member";if(!L.inputMode)L.inputMode="numbers";
+ if(!L.cloudReadKey)L.cloudReadKey="";if(typeof L.dirty!=="boolean")L.dirty=false;
+ // v1.1.0에서 브라우저에 보관했던 쓰기 키는 삭제합니다.
+ if(Object.prototype.hasOwnProperty.call(L,"cloudPw"))delete L.cloudPw;
+ try{hostSession=sessionStorage.getItem(HOST_SESSION_STORAGE_KEY)||""}catch(e){hostSession=""}
+ // 기존 쓰기 키만으로는 경기위원장으로 머물 수 없습니다.
+ if(L.mode==="host"&&!hostSession)L.mode="member";
+ try{localStorage.setItem(LKEY,JSON.stringify(L))}catch(e){}
+ if(!L.cloudUrl || !/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(L.cloudUrl))L.cloudUrl=DEFAULT_CLOUD;
+
+ S.members.forEach(function(m){if(typeof m.hcpManual!=="number")m.hcpManual=(typeof m.hcp==="number"?m.hcp:0)});
+ S.rounds.forEach(function(r){if(!r.grossOnly)r.grossOnly={};if(!r.scores)r.scores={};
+  if(!r.times)r.times={};if(!r.games)r.games=[];if(!r.teams)r.teams={}});
+}
+function save(stamp){
+ if(stamp!==false){S.updatedAt=new Date().toISOString();L.dirty=true;}
+ L.lastSaved=new Date().toISOString();
+ try{localStorage.setItem(DKEY,JSON.stringify(S));localStorage.setItem(LKEY,JSON.stringify(L))}
+ catch(e){toast("저장하지 못했습니다. 저장 공간을 확인해 주세요.")}
+}
+var tEl=null;
+function toast(m){
+ if(tEl){tEl.remove();tEl=null}
+ clearTimeout(tTimer);
+ var el=document.createElement("div");el.className="toast";el.textContent=m;
+ document.body.appendChild(el);tEl=el;
+ tTimer=setTimeout(function(){if(tEl===el){el.remove();tEl=null}},3200)}
+var askCb=null;
+function ask(msg,yes,label){
+ askCb=yes;
+ sheet='<div class="sheet"><div class="inner">'+
+  '<p style="white-space:pre-line;margin:0 0 14px;font-size:15px">'+esc(msg)+'</p>'+
+  '<button class="btn sm" onclick="askYes()">'+esc(label||"예, 진행합니다")+'</button>'+
+  '<div style="height:8px"></div>'+
+  '<button class="btn sm quiet" onclick="askNo()">취소</button></div></div>';
+ render()}
+function askYes(){var f=askCb;askCb=null;sheet=null;render();if(f)f()}
+function askNo(){askCb=null;sheet=null;render()}
+function go(n,p){view=Object.assign({name:n},p||{});sheet=null;render();window.scrollTo(0,0)}
+function p2(n){return n<10?"0"+n:""+n}
+function fmt(iso){if(!iso)return "없음";var d=new Date(iso);
+ return d.getFullYear()+"."+p2(d.getMonth()+1)+"."+p2(d.getDate())+" "+p2(d.getHours())+":"+p2(d.getMinutes())}
+function today(){var d=new Date();return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate())}
+/* 시작 시각은 기존 라운드의 날짜 정렬이나 홀별 입력시간(times)과 독립입니다. */
+function teeTimeValid(v){return !v||/^([01]\d|2[0-3]):[0-5]\d$/.test(v)}
+function teeTimeLabel(r){return r.teeTime?' · 티오프 '+r.teeTime:''}
+function won(n){return (n||0).toLocaleString("ko-KR")+"원"}
+function sgn(n){return (n>0?"+":"")+n}
+
+var DEFAULT_PARS=[4,4,3,5,4,4,3,4,5,4,3,4,5,4,4,3,5,4];
+var STATUS={ok:"",pickup:"픽업",concede:"컨시드",retire:"기권",absent:"미참가"};
+var GAMES={
+ net:{name:"핸디 적용",desc:"실제 타수에서 그날 핸디를 뺀 값이 적은 사람",asc:true,need:"gross",unit:"타"},
+ gross:{name:"스크래치",desc:"실제 타수가 적은 사람",asc:true,need:"gross",unit:"타"},
+ improve:{name:"개선상",desc:"직전 참가 라운드보다 많이 줄인 사람",asc:false,need:"gross",unit:"타"},
+ perio:{name:"신페리오",desc:"프로그램이 뽑은 열두 홀로 그날 핸디를 만들어 뺀 값",asc:true,need:"hole",unit:"타"},
+ dapa:{name:"다파상",desc:"파 이상을 친 홀이 많은 사람",asc:false,need:"hole",unit:"홀"},
+ birdie:{name:"버디킹",desc:"버디 이상을 친 홀이 많은 사람",asc:false,need:"hole",unit:"홀"},
+ onion:{name:"어니언킹",desc:"양파를 친 홀이 많은 사람",asc:false,need:"hole",unit:"홀"},
+ team:{name:"팀전",desc:"팀으로 나누어 개인 점수를 합산",asc:true,need:"gross",unit:""}
+};
+var GAME_ORDER=["net","gross","improve","perio","dapa","birdie","onion","team"];
+
+function round(id){for(var i=0;i<S.rounds.length;i++)if(S.rounds[i].id===id)return S.rounds[i];return null}
+function member(id){for(var i=0;i<S.members.length;i++)if(S.members[i].id===id)return S.members[i];return null}
+function mname(id){var m=member(id);return m?m.name:"(알 수 없음)"}
+/* v1.3.0 닉네임 */
+function mnick(id){var m=member(id);return (m&&m.nick)||""}
+/* v1.3.1 닉네임은 회원현황과 스코어카드 화면에서만 보입니다.
+   경기 화면과 결과표에는 본명만 나옵니다. */
+function mfull(id){var m=member(id);if(!m)return "(알 수 없음)";
+ return m.nick?(m.name+" ("+m.nick+")"):m.name}
+function mshort(id){var m=member(id);return m?m.name:"?"}
+function cell(r,mid,h){return (r.scores[mid]&&r.scores[mid][h])||null}
+function setCell(r,mid,h,v){if(!r.scores[mid])r.scores[mid]={};if(v===null)delete r.scores[mid][h];else r.scores[mid][h]=v}
+function parOf(r,h){var v=r.pars[h-1];return (typeof v==="number"&&v>=3)?v:0}
+function parSum(r){var s=0;for(var i=0;i<r.holeCount;i++)s+=(r.pars[i]||4);return s}
+function parsReady(r){for(var h=1;h<=r.holeCount;h++)if(!parOf(r,h))return false;return true}
+function holeFilled(r,mid){var n=0;for(var h=1;h<=r.holeCount;h++){var c=cell(r,mid,h);
+ if(c&&typeof c.s==="number")n++}return n}
+function hasHoles(r,mid){return holeFilled(r,mid)===r.holeCount}
+function grossOf(r,mid){
+ if(hasHoles(r,mid)){var t=0;for(var h=1;h<=r.holeCount;h++)t+=cell(r,mid,h).s;return t}
+ if(r.grossOnly&&typeof r.grossOnly[mid]==="number")return r.grossOnly[mid];
+ return null}
+function partialOf(r,mid){
+ var t=0,n=0;for(var h=1;h<=r.holeCount;h++){var c=cell(r,mid,h);
+  if(c&&typeof c.s==="number"){t+=c.s;n++}}
+ if(n)return{sum:t,n:n};
+ if(r.grossOnly&&typeof r.grossOnly[mid]==="number")return{sum:r.grossOnly[mid],n:r.holeCount};
+ return{sum:0,n:0}}
+/* v1.2.0 차수 정렬 기준: 날짜 → 티오프 시간 → 등록시각 → 식별번호.
+   티오프가 없는 과거 기록은 빈 값으로 비교되므로 같은 날에 시간이 적힌 기록보다 앞에 섭니다.
+   날짜가 모두 다른 기존 자료에서는 순서가 바뀌지 않습니다. */
+function venueLabel(r){return r&&r.venue==="screen"?"스크린":(r&&r.venue==="field"?"필드":"")}
+function placeLabel(r){
+ var a=[];if(r.place)a.push(r.place);if(r.course)a.push(r.course);
+ var v=venueLabel(r);if(v)a.push(v);
+ return a.join(" · ")}
+function roundKey(r){
+ return [(r.date||""),(r.teeTime||""),(r.createdAt||""),(r.id||"")].join("\u0001")}
+function sortedRounds(){return S.rounds.slice().sort(function(a,b){
+ var x=roundKey(a),y=roundKey(b);return x<y?-1:(x>y?1:0)})}
+/* v1.2.0: 핸디·개선상·자동 팀 배정의 선행 경기는 '날짜'만으로 가립니다.
+   같은 날 오전·오후 라운드는 서로를 선행으로 보지 않으므로 그날 모든 경기가 같은 핸디를 씁니다.
+   다음 날부터는 전날의 모든 경기가 반영됩니다. 차수 정렬과는 별개의 기준입니다. */
+function priorOf(mid,date,id){
+ return sortedRounds().filter(function(r){
+  if(r.id===id)return false;
+  if((r.date||"")>=date)return false;
+  return r.players.indexOf(mid)>=0&&grossOf(r,mid)!=null})}
+function hcpAt(mid,date,id){
+ var pr=priorOf(mid,date,id),m=member(mid);
+ if(!pr.length)return (m&&typeof m.hcpManual==="number")?m.hcpManual:0;
+ var ds=pr.map(function(r){return grossOf(r,mid)-parSum(r)});
+ if(pr.length===1)return Math.round(ds[0]);
+ var w=ds.slice(-(S.hcpWindow||5));
+ return Math.round(w.reduce(function(a,b){return a+b},0)/w.length)}
+function curHcp(mid){return hcpAt(mid,"9999-12-31",null)}
+function roundHcp(r,mid){return hcpAt(mid,r.date,r.id)}
+function improveOf(r,mid){
+ var pr=priorOf(mid,r.date,r.id);if(!pr.length)return null;
+ var g=grossOf(r,mid);if(g==null)return null;
+ var last=pr[pr.length-1];
+ return (grossOf(last,mid)-parSum(last))-(g-parSum(r))}
+/* ===== v1.7.0 기록 항목 =====
+   홀별 타수가 있어야 셉니다. 최종 타수만 넣은 라운드에서는 라베만 나옵니다.
+   아우디는 네 홀 연속 파 이상, 올림픽은 다섯 홀 연속 파 이상입니다.
+   다섯 홀이 이어지면 올림픽만 세고 아우디로 거듭 세지 않습니다.
+   버디나 이글이 끼어도 파 이상이므로 연속이 이어집니다. */
+function holeDiffs(r,mid){
+ var out=[];
+ for(var h=1;h<=r.holeCount;h++){
+  var c=cell(r,mid,h),par=parOf(r,h);
+  if(!par||!c||typeof c.s!=="number"){out.push(null);continue}
+  out.push(c.s-par)}
+ return out}
+/* 파 이상(0 이하)이 이어지는 구간 길이들을 돌려줍니다. */
+function parRuns(r,mid){
+ var d=holeDiffs(r,mid),runs=[],cur=0;
+ for(var i=0;i<d.length;i++){
+  if(d[i]!=null&&d[i]<=0){cur++}
+  else{if(cur)runs.push(cur);cur=0}}
+ if(cur)runs.push(cur);
+ return runs}
+function countAudi(r,mid){
+ var n=0;parRuns(r,mid).forEach(function(L){if(L===4)n++});return n}
+function countOlympic(r,mid){
+ var n=0;parRuns(r,mid).forEach(function(L){if(L>=5)n++});return n}
+/* 사이클버디: 파3·파4·파5에서 각각 한 번 이상 버디 */
+function cycleBirdie(r,mid){
+ var got={};
+ for(var h=1;h<=r.holeCount;h++){
+  var c=cell(r,mid,h),par=parOf(r,h);
+  if(!par||!c||typeof c.s!=="number")continue;
+  if(c.s<=par-1)got[par]=true}
+ return (got[3]&&got[4]&&got[5])?1:0}
+function countEagle(r,mid){
+ var n=0;
+ for(var h=1;h<=r.holeCount;h++){var c=cell(r,mid,h),par=parOf(r,h);
+  if(par&&c&&typeof c.s==="number"&&c.s<=par-2)n++}
+ return n}
+function countAce(r,mid){
+ var n=0;
+ for(var h=1;h<=r.holeCount;h++){var c=cell(r,mid,h);
+  if(c&&c.s===1)n++}
+ return n}
+function allPar(r,mid){
+ if(!hasHoles(r,mid))return 0;
+ var d=holeDiffs(r,mid);
+ for(var i=0;i<d.length;i++)if(d[i]!==0)return 0;
+ return 1}
+/* 그 라운드에서 가장 먼저 나온 버디의 주인. 홀 번호가 빠른 쪽입니다. */
+function firstBirdie(r){
+ for(var h=1;h<=r.holeCount;h++){
+  var par=parOf(r,h);if(!par)continue;
+  var who=[];
+  r.players.forEach(function(mid){var c=cell(r,mid,h);
+   if(c&&typeof c.s==="number"&&c.s<=par-1)who.push(mid)});
+  if(who.length)return{hole:h,mids:who}}
+ return null}
+/* 라베: 그 사람의 기록 가운데 가장 낮은 파 대비 타수. 그 라운드에서 경신했는지 봅니다. */
+function isPersonalBest(r,mid){
+ var g=grossOf(r,mid);if(g==null)return false;
+ var cur=g-parSum(r),best=null;
+ priorOf(mid,r.date,r.id).forEach(function(pr){
+  var v=grossOf(pr,mid);if(v==null)return;
+  var d=v-parSum(pr);if(best===null||d<best)best=d});
+ return best!==null&&cur<best}
+function countType(r,mid,type){
+ var n=0;
+ for(var h=1;h<=r.holeCount;h++){var c=cell(r,mid,h),par=parOf(r,h);
+  if(!par)continue;
+  if(!c||typeof c.s!=="number")continue;
+  if(type==="dapa"&&c.s<=par)n++;
+  if(type==="birdie"&&c.s<=par-1)n++;
+  if(type==="onion"&&c.s>=par*2)n++}
+ return n}
+function perioHcp(r,mid){
+ if(!r.perio||!r.perio.length||!hasHoles(r,mid))return null;
+ var s=0;r.perio.forEach(function(h){s+=cell(r,mid,h).s});
+ return Math.round(((s*1.5-parSum(r))*0.8)*10)/10}
+function drawPerio(r){
+ var a=[];for(var h=1;h<=r.holeCount;h++)a.push(h);
+ for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}
+ var n=Math.min(12,Math.max(4,Math.round(r.holeCount*2/3)));
+ r.perio=a.slice(0,n).sort(function(x,y){return x-y});
+ return r.perio}
+function rankBy(list,asc){
+ var a=list.slice().sort(function(x,y){return asc?x.v-y.v:y.v-x.v});
+ var rank=0,prev=null,n=0,c={};
+ a.forEach(function(x){n++;if(prev===null||x.v!==prev){rank=n;prev=x.v}x.rank=rank});
+ a.forEach(function(x){c[x.rank]=(c[x.rank]||0)+1});
+ a.forEach(function(x){x.tie=c[x.rank]>1});
+ return a}
+function gameRows(r,type,rev){
+ var g=GAMES[type],out=[];
+ r.players.forEach(function(mid){
+  var m=member(mid)||{name:"(알 수 없음)"},v=null,ex={};
+  if(type==="gross"){v=grossOf(r,mid)}
+  else if(type==="net"){var gr=grossOf(r,mid);if(gr!=null){ex.hcp=roundHcp(r,mid);ex.gross=gr;v=gr-ex.hcp}}
+  else if(type==="improve"){v=improveOf(r,mid);if(v!=null)ex.gross=grossOf(r,mid)}
+  else if(type==="perio"){var gp=grossOf(r,mid),ph=perioHcp(r,mid);
+   if(gp!=null&&ph!=null){ex.hcp=ph;ex.gross=gp;v=Math.round((gp-ph)*10)/10}}
+  else {if(!hasHoles(r,mid))return;v=countType(r,mid,type)}
+  if(v==null)return;
+  out.push(Object.assign({mid:mid,name:mname(mid),v:v},ex))});
+ return rankBy(out,rev?!g.asc:g.asc)}
+var TEAM_KEYS=["A","B","C","D"];
+function basisVal(r,mid,type){
+ if(type==="gross")return grossOf(r,mid);
+ if(type==="net"){var g=grossOf(r,mid);return g==null?null:g-roundHcp(r,mid)}
+ if(type==="improve")return improveOf(r,mid);
+ if(type==="perio"){var g2=grossOf(r,mid),ph=perioHcp(r,mid);
+  return (g2==null||ph==null)?null:Math.round((g2-ph)*10)/10}
+ if(!hasHoles(r,mid))return null;
+ return countType(r,mid,type)}
+function basisName(t){return (GAMES[t]&&GAMES[t].name)||"핸디 적용"}
+function basisUnit(t){return (GAMES[t]&&GAMES[t].unit)||""}
+function teamsOf(r){
+ var g={};
+ r.players.forEach(function(mid){var t=r.teams&&r.teams[mid];
+  if(t&&TEAM_KEYS.indexOf(t)>=0)(g[t]=g[t]||[]).push(mid)});
+ return g}
+function teamCountOf(r){
+ var g=roundGames(r).filter(function(x){return x.type==="team"})[0];
+ return (g&&g.teamCount)||2}
+/* 자동 편성: 개선상은 직전 두 번의 파 대비 성적 개선폭으로 균형을 맞춥니다.
+   당일의 아직 확정되지 않은 성적은 사용하지 않습니다. 지난 기록이 부족하면 중립값 0입니다. */
+function autoTeamValue(r,mid,basis){
+ if(basis!=="improve")return r&&r.date?hcpAt(mid,r.date,r.id||null):curHcp(mid);
+ var pr=priorOf(mid,(r&&r.date)||"9999-12-31",(r&&r.id)||null);
+ if(pr.length<2)return 0;
+ var a=pr[pr.length-2],b=pr[pr.length-1];
+ return (grossOf(a,mid)-parSum(a))-(grossOf(b,mid)-parSum(b));
+}
+function teamAutoBasis(){var el=document.getElementById("tbasis");return el&&el.value==="improve"?"improve":"net"}
+function autoTeamBasisLabel(basis){return basis==="improve"?"개선상":"핸디"}
+function teamAutoHint(){
+ var btn=document.getElementById("autoTeamButton");if(btn)btn.textContent=autoTeamBasisLabel(teamAutoBasis())+"로 자동 배정";
+}
+function autoTeams(r,n,basis){
+ n=n||teamCountOf(r);if(n<2)n=2;if(n>4)n=4;
+ var ps=r.players.slice();
+ if(ps.length<n){r.teams={};ps.forEach(function(mid,i){r.teams[mid]=TEAM_KEYS[i%n]});return r.teams}
+ var H={};ps.forEach(function(mid){H[mid]=autoTeamValue(r,mid,basis||"net")});
+ var big=Math.ceil(ps.length/n),small=Math.floor(ps.length/n);
+ var rest=ps.length%n;
+ var cap=[];for(var i=0;i<n;i++)cap.push(i<rest?big:small);
+ /* 핸디가 큰 사람부터, 자리가 남은 팀 중 합이 가장 작은 곳에 넣는다 */
+ var order=ps.slice().sort(function(x,y){return H[y]-H[x]});
+ var bucket=[];for(var j=0;j<n;j++)bucket.push([]);
+ order.forEach(function(mid){
+  var best=-1,bv=Infinity;
+  for(var k=0;k<n;k++){
+   if(bucket[k].length>=cap[k])continue;
+   var sum=0;bucket[k].forEach(function(x){sum+=H[x]});
+   if(sum<bv-0.00001||(Math.abs(sum-bv)<0.00001&&(best<0||bucket[k].length<bucket[best].length))){bv=sum;best=k}}
+  if(best<0)best=0;
+  bucket[best].push(mid)});
+ function sums(){return bucket.map(function(b){var t=0;b.forEach(function(x){t+=H[x]});return t})}
+ function spread(){var v=sums();return Math.max.apply(null,v)-Math.min.apply(null,v)}
+ /* 두 사람씩 맞바꿔 보며 더 고르게 만든다 */
+ for(var pass=0;pass<60;pass++){
+  var cur=spread(),done=true;
+  for(var a1=0;a1<n&&done;a1++)for(var b1=a1+1;b1<n&&done;b1++)
+   for(var x1=0;x1<bucket[a1].length&&done;x1++)for(var y1=0;y1<bucket[b1].length&&done;y1++){
+    var t1=bucket[a1][x1],t2=bucket[b1][y1];
+    bucket[a1][x1]=t2;bucket[b1][y1]=t1;
+    if(spread()<cur-0.0001){done=false}
+    else{bucket[a1][x1]=t1;bucket[b1][y1]=t2}}
+  if(done)break}
+ r.teams={};
+ bucket.forEach(function(b,k){b.forEach(function(mid){r.teams[mid]=TEAM_KEYS[k]})});
+ return r.teams}
+function teamResult(r,g){
+ var basis=g.basis||"net";
+ if(!GAMES[basis]||basis==="team")basis="net";
+ var asc=g.rev?!GAMES[basis].asc:GAMES[basis].asc;
+ function val(mid){return basisVal(r,mid,basis)}
+ var grp=teamsOf(r);
+ var sides=TEAM_KEYS.filter(function(k){return grp[k]&&grp[k].length}).map(function(k){
+  return{key:k,rows:grp[k].map(function(mid){
+   return{mid:mid,name:mname(mid),hcp:curHcp(mid),rh:roundHcp(r,mid),
+    gross:grossOf(r,mid),v:val(mid)}})
+   .filter(function(x){return x.v!=null})}})
+  .filter(function(s){return s.rows.length});
+ if(sides.length<2)return null;
+ var mx=0;sides.forEach(function(s){if(s.rows.length>mx)mx=s.rows.length});
+ sides.forEach(function(s){
+  s.rows.forEach(function(x){x.mult=1});
+  var d=mx-s.rows.length;if(d<=0)return;
+  var byH=s.rows.slice().sort(function(x,y){return x.hcp-y.hcp});
+  var m0=Math.floor((byH.length-1)/2);
+  for(var k=0;k<d;k++){
+   var idx=m0+(k%2===0?Math.ceil(k/2):-Math.ceil(k/2));
+   if(idx<0)idx=0;if(idx>=byH.length)idx=byH.length-1;
+   byH[idx].mult=(byH[idx].mult||1)+1}});
+ sides.forEach(function(s){var t=0;
+  s.rows.forEach(function(x){t+=x.v*(x.mult||1)});
+  s.total=Math.round(t*10)/10});
+ var rk={};
+ rankBy(sides.map(function(s){return{key:s.key,v:s.total}}),asc).forEach(function(x){rk[x.key]=x});
+ sides.forEach(function(s){s.rank=rk[s.key].rank;s.tie=rk[s.key].tie});
+ sides.sort(function(a,b){return a.rank!==b.rank?a.rank-b.rank:(a.key<b.key?-1:1)});
+ return{sides:sides,asc:asc,basis:basis}}
+function markHtml(sc,par){
+ if(typeof sc!=="number")return "-";
+ if(!par)return '<span class="mk">'+sc+'</span>';
+ var d=sc-par,cls="";
+ if(sc>=par*2)cls="onion";
+ else if(d>=2)cls="dbl";
+ else if(d===1)cls="bogey";
+ else if(d===-1)cls="birdie";
+ else if(d<=-2)cls="eagle";
+ return '<span class="mk '+cls+'">'+sc+'</span>'}
+/* 결과에 보일 종목입니다. 팀전은 팀을 배정하셨을 때만 나옵니다.
+   무작위로 조를 짜는 것은 뜻이 없기 때문입니다. */
+function visibleGames(r){
+ var has=Object.keys(teamsOf(r)).length>0;
+ return roundGames(r).filter(function(g){return g.type!=="team"||has})}
+/* 보이는 순서는 대회순위종목 → 금액이 걸린 종목 → 나머지입니다. */
+function orderedGames(r){
+ return visibleGames(r).slice().sort(function(a,b){
+  var am=a.main?0:1, bm=b.main?0:1;
+  if(am!==bm)return am-bm;
+  var ap=payoutOf(a).length?0:1, bp=payoutOf(b).length?0:1;
+  if(ap!==bp)return ap-bp;
+  return 0})}
+/* 체크된 것만 대회순위입니다. 체크가 없으면 모두 참고순위입니다. */
+function isMainGame(r,g){return !!g.main}
+/* 한 종목의 순위별 정산 결과.
+   반환: [{mid,name,rank,tie,fee,prize,net}], 그리고 모임 적립금 */
+function gamePayout(r,g){
+ var pay=payoutOf(g);if(!pay.length)return null;
+ var out=[];
+ if(g.type==="team"){
+  var tr=teamResult(r,g);if(!tr)return null;
+  var cnt={};tr.sides.forEach(function(s){cnt[s.rank]=(cnt[s.rank]||0)+1});
+  tr.sides.forEach(function(s){
+   var row=payFor(pay,s.rank,cnt[s.rank]);
+   if(!row)return;
+   s.rows.forEach(function(x){
+    out.push({mid:x.mid,name:x.name,rank:s.rank,tie:cnt[s.rank]>1,team:s.key,
+     fee:row.fee,prize:row.prize,net:row.prize-row.fee})})});
+ }else{
+  var rows=gameRows(r,g.type,g.rev);if(!rows.length)return null;
+  var c2={};rows.forEach(function(x){c2[x.rank]=(c2[x.rank]||0)+1});
+  rows.forEach(function(x){
+   var row=payFor(pay,x.rank,c2[x.rank]);
+   if(!row)return;
+   out.push({mid:x.mid,name:x.name,rank:x.rank,tie:x.tie,
+    fee:row.fee,prize:row.prize,net:row.prize-row.fee})});
+ }
+ if(!out.length)return null;
+ var sumFee=0,sumPrize=0;
+ out.forEach(function(x){sumFee+=x.fee;sumPrize+=x.prize});
+ return{rows:out,fee:sumFee,prize:sumPrize,pot:sumFee-sumPrize}}
+/* 라운드 전체의 사람별 손익 (금액이 걸린 모든 종목 합) */
+function roundMoney(r){
+ var map={};
+ roundGames(r).forEach(function(g){
+  var p=gamePayout(r,g);if(!p)return;
+  p.rows.forEach(function(x){
+   if(!map[x.mid])map[x.mid]={mid:x.mid,fee:0,prize:0,net:0};
+   map[x.mid].fee+=x.fee;map[x.mid].prize+=x.prize;map[x.mid].net+=x.net})});
+ return map}
+/* v1.8.0 저장된 내용과 상관없이 모든 종목을 늘 돌려줍니다.
+   저장된 것에서는 대회순위, 거꾸로, 순위별 금액, 팀 설정만 가져옵니다.
+   그래서 예전에 만든 라운드를 열어도 빠져 있던 종목이 참고순위로 함께 나옵니다. */
+function roundGames(r){
+ var saved={};
+ (r&&r.games||[]).forEach(function(g){if(g&&g.type)saved[g.type]=g});
+ return GAME_ORDER.map(function(t){
+  var g=saved[t];
+  if(!g){g={type:t,prize:0};if(t==="team"){g.basis="net";g.teamCount=2}}
+  else if(t==="team"){if(!g.basis)g.basis="net";if(!g.teamCount)g.teamCount=2}
+  return g})}
+/* Start + 5h inclusive: only after five full hours show result.
+   Old records without a valid tee time keep the existing date-based rule. */
+function isPlanned(r){
+ var date=r&&r.date||"", tee=r&&r.teeTime||"";
+ if(/^\d{4}-\d{2}-\d{2}$/.test(date)&&/^([01]\d|2[0-3]):[0-5]\d$/.test(tee)){
+  var st=Date.parse(date+"T"+tee+":00+09:00");
+  if(Number.isFinite(st))return Date.now()<st+5*60*60*1000;
+ }
+ return date>today();
+}
+/* v1.7.2 첫 화면 목록에는 대회순위 종목의 우승자만 한 줄로 보입니다.
+   대회순위가 정해지지 않은 라운드는 맨 앞 종목 하나만 보입니다. */
+function roundSummary(r){
+ var out=[];
+ var gl=roundGames(r).filter(function(g){return g.main});
+ if(!gl.length)gl=roundGames(r).slice(0,1);
+ gl.forEach(function(g){
+  var G=GAMES[g.type];if(!G)return;
+  if(g.type==="team"){
+   var tr=teamResult(r,g);if(!tr)return;
+   var w=tr.sides.filter(function(s){return s.rank===1});
+   if(w.length){
+    var grp=teamsOf(r);
+    out.push("팀전 "+w.map(function(s){
+     /* 우승팀에 배정된 참가자 전원을 함께 표시합니다. */
+     var names=(grp[s.key]||[]).map(function(mid){return mname(mid)});
+     return s.key+"팀"+(names.length?"("+names.join("·")+")":"")
+    }).join("·"))}
+   return}
+  var rows=gameRows(r,g.type,g.rev);if(!rows.length)return;
+  var w2=rows.filter(function(x){return x.rank===1});
+  if(w2.length)out.push(G.name+" "+w2.map(function(x){return x.name}).join("·"))});
+ return out.join(" · ")}
+function roundNo(r){var rs=sortedRounds();
+ for(var i=0;i<rs.length;i++)if(rs[i].id===r.id)return i+1;return rs.length}
+function byHcp(list){return list.slice().sort(function(a,b){
+ var d=curHcp(a.id)-curHcp(b.id);return d!==0?d:(a.name<b.name?-1:1)})}
+function hcpFromList(ds,manual){
+ if(!ds.length)return manual||0;
+ if(ds.length===1)return Math.round(ds[0]);
+ var w=ds.slice(-(S.hcpWindow||5));
+ return Math.round(w.reduce(function(a,b){return a+b},0)/w.length)}
+/** uptoId까지(포함) 누적. null이면 전체 */
+function cumStats(uptoId){
+ var rs=sortedRounds(),cut=rs.length;
+ if(uptoId){for(var i=0;i<rs.length;i++)if(rs[i].id===uptoId){cut=i+1;break}}
+ var use=rs.slice(0,cut);
+ return S.members.map(function(m){
+  var ds=[],n=0;
+  use.forEach(function(r){
+   if(r.players.indexOf(m.id)<0)return;
+   n++;var v=grossOf(r,m.id);if(v!=null)ds.push(v-parSum(r))});
+  var W=S.hcpWindow||5,l=ds.slice(-W);
+  return{m:m,played:n,n:ds.length,
+   avg:ds.length?ds.reduce(function(a,b){return a+b},0)/ds.length:null,
+   avgL:l.length?l.reduce(function(a,b){return a+b},0)/l.length:null,
+   best:ds.length?Math.min.apply(null,ds):null,
+   hcp:hcpFromList(ds,m.hcpManual)}})
+  .sort(function(a,b){var d=a.hcp-b.hcp;return d!==0?d:(a.m.name<b.m.name?-1:1)})}
+function cumTable(uptoId,title,note){
+ var rows=cumStats(uptoId).filter(function(x){return x.played>0});
+ if(!rows.length)return '<div class="card"><h2>'+title+'</h2><div class="empty">아직 기록이 없습니다.</div></div>';
+ return '<div class="card"><h2>'+title+'</h2><div class="scroll"><table>'+
+  '<thead><tr><th>이름</th><th>핸디</th><th>참가</th><th>전체평균</th><th>최근'+(S.hcpWindow||5)+'</th><th>최저</th></tr></thead><tbody>'+
+  rows.map(function(x){return '<tr><td>'+esc(x.m.name)+'</td><td>'+x.hcp+'</td><td>'+x.played+'</td>'+
+   '<td>'+(x.avg==null?"-":sgn(Math.round(x.avg*10)/10))+'</td>'+
+   '<td>'+(x.avgL==null?"-":sgn(Math.round(x.avgL*10)/10))+'</td>'+
+   '<td>'+(x.best==null?"-":sgn(x.best))+'</td></tr>'}).join("")+
+  '</tbody></table></div>'+(note?'<p class="note">'+note+'</p>':'')+'</div>'}
+
+/* ===== 공급용 창구: 숨은 폼과 iframe을 통한 요청/응답 =====
+ * Google Apps Script ContentService의 브라우저 CORS 제약을 피하기 위해
+ * 인증정보를 GET/JSONP로 전달하지 않고 HTTPS POST 본문으로만 전달합니다.
+ * 회신은 Google HtmlService의 postMessage를 nonce로 검증합니다.
+ */
+function cloudOn(){return /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(L.cloudUrl||"")}
+function cloudRpc(action, token, extra){
+ return new Promise(function(resolve,reject){
+  if(!cloudOn()){reject(new Error("설정에서 공급용 서버 주소를 먼저 등록하십시오."));return}
+  var frame=document.createElement("iframe");
+  var nonce="wgk"+Array.from(crypto.getRandomValues(new Uint8Array(16)),function(n){return n.toString(16).padStart(2,"0")}).join("");
+  frame.name=nonce; frame.style.display="none";frame.setAttribute("aria-hidden","true");
+  var form=document.createElement("form");form.method="POST";form.action=L.cloudUrl;
+  form.target=nonce;form.style.display="none";form.acceptCharset="UTF-8";
+  var request=Object.assign({action:action,clubId:SUPPLY_CLUB_ID,token:token||""},extra||{});
+  function add(name,value){var x=document.createElement("input");x.type="hidden";x.name=name;x.value=value;form.appendChild(x)}
+  add("payload",JSON.stringify(request));add("rid",nonce);
+  add("origin",location.origin);
+  var done=false;
+  var timer=setTimeout(function(){finish(new Error("서버 응답이 없습니다. 배포 권한과 인터넷 연결을 확인하십시오."))},35000);
+  function onMsg(ev){
+   var d=ev.data;
+   if(!d||d.__wgkSupplyRpc!==true||d.rid!==nonce)return;
+   // 비밀키로 인증하므로 회신도 반드시 Google Apps Script 호스트에서만 수락합니다.
+   if(!/^https:\/\/([a-z0-9-]+\.)?(googleusercontent\.com|google\.com)$/.test(ev.origin))return;
+   finish(null,d.response);
+  }
+  function finish(err,result){
+   if(done)return;done=true;clearTimeout(timer);window.removeEventListener("message",onMsg);
+   form.remove();frame.remove();if(err)reject(err);else resolve(result);
+  }
+  window.addEventListener("message",onMsg);
+  document.body.appendChild(frame);document.body.appendChild(form);
+  try{form.submit()}catch(e){finish(e)}
+ })
+}
+function cloudTest(){
+ if(!cloudOn()){toast("서버 주소를 등록해 주세요.");return}
+ var box=document.getElementById("cbox");if(box)box.textContent="연결 확인 중…";
+ cloudRpc("status",L.cloudReadKey).then(function(res){
+  if(res&&res.ok&&res.clubName)SUPPLY_CLUB_NAME=res.clubName;
+  if(box)box.textContent=res&&res.ok?"연결 정상 · "+SUPPLY_CLUB_NAME+" · "+res.version:"연결 실패 · "+(res&&res.error||"인증정보 확인 필요");
+ },function(e){if(box)box.textContent="연결 실패 · "+e.message})
+}
+/* v1.2.1 신호등
+   초록: 서버에 새 기록이 있음 (받을 것이 있음)
+   빨강: 이 기기에 아직 올리지 않은 수정이 있음
+   눌러서 받으면 초록이 꺼집니다. 꺼져 있어도 눌러 다시 확인하실 수 있습니다. */
+/* 화면과 서버의 앞 두 자리가 다르면 짝이 어긋난 것으로 봅니다.
+   끝자리는 고치기만 한 판이라 섞여 있어도 보통 문제가 없습니다. */
+function verMismatch(){
+ if(!L.serverVer)return false;
+ var a=String(APP_VER).split("."),b=String(L.serverVer).split(".");
+ return a[0]!==b[0]||a[1]!==b[1];
+}
+/* 라운드 결과를 열 때, 첫 종목의 1등에게 폭죽을 터뜨립니다.
+   같은 라운드를 다시 그릴 때는 터지지 않고, 화면을 새로 열 때만 터집니다. */
+var fwShown="";
+function firstWinnerLabel(r){
+ var gl=orderedGames(r);
+ var g=gl[0];if(!g)return "";
+ if(g.type==="team"){
+  var tr=teamResult(r,g);if(!tr)return "";
+  var w=tr.sides.filter(function(s){return s.rank===1});
+  if(!w.length)return "";
+  return "팀전 "+w.map(function(s){
+   return s.key+"팀 "+s.rows.map(function(x){return x.name}).join("·")}).join(" / ")+" 우승";
+ }
+ var rows=gameRows(r,g.type,g.rev);if(!rows.length)return "";
+ var w2=rows.filter(function(x){return x.rank===1});
+ if(!w2.length)return "";
+ var G=GAMES[g.type];
+ return (G?G.name:"")+" "+w2.map(function(x){return x.name}).join(", ")+" 우승";
+}
+/* v1.5.0 긴 화면에서 맨 아래로 한 번에 내려가는 단추.
+   더 내릴 곳이 없으면 맨 위로 올라가는 모양으로 바뀝니다. */
+/* v1.7.1 화면에 따라 안쪽 영역이 스크롤되기도 하고 페이지 전체가
+   스크롤되기도 합니다. 실제로 움직이는 쪽을 찾아 씁니다. */
+function scroller(){
+ var b=document.querySelector(".body");
+ if(b&&b.scrollHeight-b.clientHeight>40)return b;
+ var d=document.scrollingElement||document.documentElement;
+ if(d&&d.scrollHeight-d.clientHeight>40)return d;
+ return b||d}
+function scrollInfo(){
+ var el=scroller();
+ if(!el)return null;
+ var isDoc=(el===document.scrollingElement||el===document.documentElement||el===document.body);
+ var top=isDoc?(window.pageYOffset||el.scrollTop||0):el.scrollTop;
+ var view=isDoc?(window.innerHeight||el.clientHeight):el.clientHeight;
+ return{el:el,isDoc:isDoc,top:top,view:view,full:el.scrollHeight}}
+function scrollEnd(){
+ var s=scrollInfo();if(!s)return;
+ var atEnd=(s.full-s.top-s.view)<=24;
+ var to=atEnd?0:s.full;
+ try{
+  if(s.isDoc)window.scrollTo({top:to,behavior:"smooth"});
+  else s.el.scrollTo({top:to,behavior:"smooth"});
+ }catch(e){if(s.isDoc)window.scrollTo(0,to);else s.el.scrollTop=to}
+ setTimeout(syncToEnd,150);setTimeout(syncToEnd,600);
+}
+function syncToEnd(){
+ var btn=document.getElementById("toEnd");if(!btn)return;
+ var s=scrollInfo();
+ if(!s||s.full-s.view<140){btn.style.display="none";return}
+ btn.style.display="flex";
+ var atEnd=(s.full-s.top-s.view)<=24;
+ btn.textContent=atEnd?"\u2191":"\u2193";
+ btn.setAttribute("aria-label",atEnd?"맨 위로":"맨 아래로");
+ if(s.el&&!s.el.__toEndBound&&typeof s.el.addEventListener==="function"){s.el.__toEndBound=true;
+  s.el.addEventListener("scroll",function(){syncToEnd()},{passive:true})}
+ if(!window.__toEndBound){window.__toEndBound=true;
+  window.addEventListener("scroll",function(){syncToEnd()},{passive:true});
+  window.addEventListener("resize",function(){syncToEnd()},{passive:true})}
+}
+function fireworks(label){
+ try{
+  var old=document.getElementById("fwBox");if(old)old.remove();
+  var box=document.createElement("div");
+  box.className="fw";box.id="fwBox";
+  var cols=["#f2c14e","#5fe08a","#ff7a5c","#7ab8ff","#e5a0ff","#ffffff"];
+  var html='<div class="burst">\ud83c\udf89</div>';
+  if(label)html+='<div class="who">\ud83c\udf1f '+esc(label)+'</div>';
+  for(var i=0;i<90;i++){
+   var left=Math.round(Math.random()*100);
+   var delay=(Math.random()*2.6).toFixed(2);
+   var dur=(5+Math.random()*3.5).toFixed(2);
+   var c=cols[i%cols.length];
+   html+='<i style="left:'+left+'%;background:'+c+';animation-delay:'+delay+'s;animation-duration:'+dur+'s"></i>';
+  }
+  box.innerHTML=html;
+  document.body.appendChild(box);
+  setTimeout(function(){if(box&&box.parentNode)box.remove()},10500);
+ }catch(e){}}
+/* 조용히 서버를 살펴 새 기록이 있는지만 확인합니다. 받지는 않습니다. */
+function peekCloud(){
+ if(!cloudOn()||!L.cloudReadKey)return;
+ cloudRpc("status",L.cloudReadKey).then(function(res){
+  if(!res||!res.ok||!res.version)return;
+  if(res.serverVer)L.serverVer=res.serverVer;
+  var isNew=(L.lastName!==res.version);
+  if(isNew!==!!L.cloudNew||res.serverVer){L.cloudNew=isNew;save(false);
+   if(view.name==="home")render()}
+ },function(){});
+}
+function pullCloud(silent){
+ if(!cloudOn()){if(!silent)toast("설정에 서버 주소를 넣어 주십시오.");return}
+ var key=L.cloudReadKey;
+ if(!key){if(!silent){toast("설정에서 회원용 접근 키를 입력해 주세요.");go("data")}return}
+ if(busy)return;busy=true;if(!silent)toast("최신 기록을 확인하고 있습니다…");
+ cloudRpc("latest",key).then(function(res){busy=false;
+  if(!res||!res.ok){if(!silent)toast("받기 실패: "+(res&&res.error||"인증 오류"));return}
+  if(!res.version)return;
+  if(res.serverVer)L.serverVer=res.serverVer;
+  /* v1.5.0 눌러서 받으실 때는 최신이어도 서버 것으로 다시 받아옵니다.
+     잘못 고치셨을 때 서버 기록으로 되돌리는 길이 됩니다.
+     자동 확인(silent)일 때만 같은 판본이면 건너뜁니다. */
+  if(silent&&L.lastName===res.version&&S.room&&S.room.id!=="pending"){
+   L.cloudNew=false;save(false);render();return}
+  var inc;try{inc=JSON.parse(res.data)}catch(e){toast("기록 파일을 읽지 못했습니다.");return}
+  if(!validClubData(inc)){toast("다른 모임의 기록은 받아올 수 없습니다.");return}
+  function apply(){S=inc;SUPPLY_CLUB_NAME=inc.room.name;try{setDocTitle(inc.room.name)}catch(e){}L.lastName=res.version;L.lastSync=new Date().toISOString();L.dirty=false;L.cloudNew=false;if(res.serverVer)L.serverVer=res.serverVer;save(false);go("home");if(!silent)toast("최신 기록을 받았습니다.")}
+  if(S.room.id==="pending"&&!L.dirty){apply();return}
+  if(L.dirty){ask("이 기기에 아직 서버에 올리지 않은 수정사항이 있습니다. 최신 서버 기록을 받으면 그 수정사항이 사라집니다. 계속할까요?",apply,"받기");return}
+  if(silent){apply();return}
+  var same=(L.lastName===res.version);
+  ask(same?"이미 최신 기록입니다. 서버 기록을 다시 받아 이 기기의 내용을 서버와 똑같이 맞출까요?"
+   :"서버의 최신 기록을 받으면 이 기기에 저장된 기록이 바뀝니다. 계속할까요?",apply,"받기");
+ },function(e){busy=false;if(!silent)toast("연결 오류: "+e.message)})
+}
+function pushCloud(){
+ if(!hostSessionActive()){toast("경기위원장 암호 인증이 필요합니다.");return}
+ if(!L.lastName||S.room.id==="pending"){toast("먼저 서버의 최신 기록을 받으십시오.");return}
+ ask("현재 모임 기록을 서버에 올리시겠습니까? 기존 기록은 백업으로 보존됩니다.",doPush,"올리기")
+}
+function doPush(){
+ if(busy)return;
+ if(!validClubData(S)||!L.lastName){toast("모임 초기 연결이 완료되지 않았습니다.");return}
+ busy=true;toast("서버에 저장하는 중입니다…");
+ var copy=JSON.parse(JSON.stringify(S));copy.updatedAt=new Date().toISOString();
+ cloudRpc("publish",L.cloudReadKey,{hostSession:hostSession,baseVersion:L.lastName,data:JSON.stringify(copy)}).then(function(res){busy=false;
+  if(res&&res.ok){S.updatedAt=copy.updatedAt;L.lastName=res.version;L.lastSync=new Date().toISOString();L.dirty=false;L.cloudNew=false;if(res.serverVer)L.serverVer=res.serverVer;save(false);render();toast("서버 저장이 완료되었습니다.")}
+  else if(res&&res.conflict)toast("다른 기기에서 최신 기록을 올렸습니다. 백업 후 새 기록을 확인하십시오.");
+  else if(isHostExpiredResult(res))rejectHostSession(res.error);
+  else toast("저장 실패: "+(res&&res.error||"알 수 없는 오류"))
+ },function(e){busy=false;toast("서버 응답 오류: "+e.message)})
+}
+/* v1.2.0: 초대주소는 브라우저 주소를 복사하지 않고 서버가 확인해 준 모임 식별번호로 만듭니다.
+   주소표시줄에 club이 없더라도 받는 분이 엉뚱한 모임으로 들어가지 않습니다. */
+function supplyMemberInvite(){
+ if(!L.cloudReadKey||!cloudOn()){toast("서버 주소와 회원용 접근 키를 등록해 주십시오.");return}
+ if(busy)return;busy=true;toast("서버에서 모임 식별번호를 확인하고 있습니다…");
+ cloudRpc("status",L.cloudReadKey).then(function(res){busy=false;
+  if(!res||!res.ok||!res.clubId){toast("모임 확인 실패: "+((res&&res.error)||"인증정보를 확인하십시오."));return}
+  if(res.clubId!==SUPPLY_CLUB_ID){toast("서버가 알려준 모임과 이 화면의 모임이 다릅니다. 최신 기록을 다시 받아 주십시오.");return}
+  var url=location.origin+location.pathname+"?club="+encodeURIComponent(res.clubId)+
+   "#server="+encodeURIComponent(L.cloudUrl)+"&memberKey="+encodeURIComponent(L.cloudReadKey);
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+   navigator.clipboard.writeText(url).then(function(){toast("회원용 초대주소를 복사했습니다. 비공개로 공유하십시오.")},
+    function(){prompt("회원용 초대주소",url)})}
+  else prompt("회원용 초대주소",url);
+ },function(e){busy=false;toast("서버 확인 실패: "+e.message)})
+}
+/* ===== 렌더 ===== */
+/* H1.9.1: shared entrance for both bare domain and club invite URLs. */
+function portalClubName(){
+ if(!SUPPLY_CLUB_ID)return "";
+ if(S&&S.room&&S.room.id!=="pending"&&S.room.name)return S.room.name;
+ for(var i=0;i<SUPPLY_STORED.length;i++)if(SUPPLY_STORED[i].id===SUPPLY_CLUB_ID)return SUPPLY_STORED[i].name;
+ return SUPPLY_CLUB_NAME;
+}
+function portalReturn(){
+ if(view.name==="play")recordTime();
+ function showPortal(){
+  sheet=null;PORTAL_OPEN=true;view={name:"home"};
+  setDocTitle(APP_NAME);render();window.scrollTo(0,0);
+ }
+ if(L&&L.dirty){
+  ask("서버에 올리지 않은 수정사항이 있습니다. 포털로 돌아가도 이 기기의 기록은 보존됩니다. 다른 모임으로 이동하기 전에 서버에 올리는 것을 권합니다. 포털로 돌아가시겠습니까?",showPortal,"포털로 이동");
+  return;
+ }
+ showPortal();
+}
+function portalChooseClub(){
+ if(L&&L.dirty&&
+  !confirm("아직 서버에 올리지 않은 수정사항이 있습니다. 기록은 이 기기에 보관됩니다. 다른 모임 선택 화면으로 이동할까요?"))return;
+ location.href=location.pathname;
+}
+/* H1.9.14: begin the exact START RPC while the visitor reads portal notices.
+   A single pending promise is reused; only server-verified, club-matched data
+   can allow entry. Editing/synchronization conflict rules remain in portalEnter. */
+function portalPrepare(force){
+ if(!SUPPLY_CLUB_ID||!L||!cloudOn()||!L.cloudReadKey)
+  return Promise.reject(new Error("모임 초대주소와 인증정보가 필요합니다."));
+ if(!force&&PORTAL_PREP.ready&&Date.now()-PORTAL_PREP.verifiedAt<PORTAL_PREP_TTL)
+  return Promise.resolve(PORTAL_PREP.ready);
+ if(PORTAL_PREP.promise)return PORTAL_PREP.promise;
+ var expectedClub=SUPPLY_CLUB_ID,expectedKey=L.cloudReadKey,expectedServer=L.cloudUrl;
+ var promise=cloudRpc("latest",expectedKey).then(function(res){
+  if(expectedClub!==SUPPLY_CLUB_ID||expectedKey!==L.cloudReadKey||expectedServer!==L.cloudUrl)
+   throw new Error("인증정보가 변경되었습니다. 다시 확인해 주세요.");
+  if(!res||!res.ok||!res.data)throw new Error(res&&res.error||"초대인증키를 확인해 주세요.");
+  var latest;try{latest=JSON.parse(res.data)}catch(e){throw new Error("서버 기록을 읽지 못했습니다.");}
+  if(res.clubId!==expectedClub||!validClubData(latest))
+   throw new Error("선택한 모임과 초대인증키가 일치하지 않습니다.");
+  PORTAL_PREP.ready={res:res,latest:latest};
+  PORTAL_PREP.verifiedAt=Date.now();PORTAL_PREP.error="";
+  return PORTAL_PREP.ready;
+ },function(e){throw e;}).catch(function(e){
+  PORTAL_PREP.ready=null;PORTAL_PREP.error=e&&e.message||"서버 연결 실패";
+  throw e;
+ }).finally(function(){
+  PORTAL_PREP.promise=null;
+  if(PORTAL_OPEN&&!PORTAL_ENTER_BUSY)render();
+ });
+ PORTAL_PREP.promise=promise;
+ return promise;
+}
+function portalPrepareSoon(){
+ if(SUPPLY_CLUB_ID&&L&&cloudOn()&&L.cloudReadKey)
+  portalPrepare(false).catch(function(){/* START reports failed verification. */});
+}
+/* A user-triggered handoff works even before verified Android App Links or a
+   package installer are available. The receiver validates all invite fields. */
+function portalNativeOpen(){
+ if(!SUPPLY_CLUB_ID||!L||!cloudOn()||!/^wgk_[a-f0-9]{128}$/.test(L.cloudReadKey||"")){
+  toast("먼저 초대주소로 모임을 인증해 주세요.");return;
+ }
+ var invite="golfchallenge://invite?club="+encodeURIComponent(SUPPLY_CLUB_ID)+
+  "#server="+encodeURIComponent(L.cloudUrl)+"&memberKey="+encodeURIComponent(L.cloudReadKey);
+ /* Android only. Clicking explicitly authorizes leaving the browser. */
+ location.href=invite;
+}
+function portalNativeOpenControl(){
+ if(portalIsInstalled()||!/Android/i.test(navigator.userAgent||"")||
+    !SUPPLY_CLUB_ID||!L||!cloudOn()||!L.cloudReadKey)return "";
+ return '<div style="margin-top:10px"><button class="btn sm line" onclick="portalNativeOpen()">설치된 안드로이드 앱으로 이어가기</button>'+
+  '<p class="portal-small" style="margin:5px 0 0">이미 APK를 설치하신 분은 앱으로 초대정보를 전달할 수 있습니다. 설치하지 않았다면 웹으로 이용하세요.</p></div>';
+}
+function portalPrepStatus(){
+ if(!L||!cloudOn()||!L.cloudReadKey)return "";
+ var message=PORTAL_ENTER_BUSY?"모임 화면 준비 중…":
+  (PORTAL_PREP.ready&&Date.now()-PORTAL_PREP.verifiedAt<PORTAL_PREP_TTL?
+   "✓ 입장 준비 완료":PORTAL_PREP.error?"인증 확인이 지연됩니다. START를 누르면 다시 확인합니다.":"서버 인증과 최신 기록을 미리 확인하고 있습니다…");
+ return '<p class="portal-small" role="status" style="margin:7px 0 0">'+esc(message)+'</p>';
+}
+/* H1.9.6: offer install once after successful invite authentication.
+   A nonblocking option only: declining leaves the club fully usable on web.
+   We never pop this before server verification or for already installed apps. */
+function portalInviteInstallOffer(){
+ if(!PORTAL_NEW_INVITE)return;
+ PORTAL_NEW_INVITE=false;
+ if(portalIsInstalled())return;
+ var seenKey="woorigolf.portal.install-offer."+SUPPLY_CLUB_ID;
+ try{
+  if(localStorage.getItem(seenKey)==="1")return;
+  localStorage.setItem(seenKey,"1");
+ }catch(e){}
+ sheet='<div class="sheet"><div class="inner" role="dialog" aria-label="골프챌린지 앱 이용 권장">'+
+  '<h2 style="margin:0 0 9px;font-size:18px">앱으로 더 편하게 이용하세요</h2>'+
+  '<p class="portal-sub">내 모임 인증이 확인되었습니다. 골프챌린지를 앱으로 설치하면 주소창 없는 화면으로 이용할 수 있습니다. 설치하지 않아도 기록을 볼 수 있습니다.</p>'+
+  '<button class="btn sm" onclick="portalInstall()">앱으로 실행하기</button><div style="height:8px"></div>'+
+  '<button class="btn sm quiet" onclick="portalContinueWeb()">웹으로 계속하기</button></div></div>';
+ render();
+}
+function portalEnter(){
+ if(PORTAL_ENTER_BUSY)return;
+ if(!SUPPLY_CLUB_ID){toast("먼저 내 모임을 선택하십시오.");return;}
+ if(!L||!cloudOn()||!L.cloudReadKey){
+  alert("초대인증키를 발급받으신 분에게만 입장이 허용됩니다.\n경기위원장에게 초대주소를 받아 접속해 주세요.");return;
+ }
+ PORTAL_ENTER_BUSY=true;render();
+ portalPrepare(false).then(function(prepared){
+  var res=prepared.res;
+  PORTAL_ENTER_BUSY=false;
+  var latest=prepared.latest;
+  if(L.dirty){
+   // Do not destroy changes awaiting upload from host device.
+   L.cloudNew=L.lastName!==res.version;
+   if(res.serverVer)L.serverVer=res.serverVer;
+   save(false);
+   PORTAL_OPEN=false;go("home");
+   toast("미전송 수정사항을 보존했습니다. 최신 기록 받기는 신중히 진행해 주세요.");return;
+  }
+  S=latest;SUPPLY_CLUB_NAME=latest.room.name;
+  L.lastName=res.version;L.lastSync=new Date().toISOString();L.dirty=false;L.cloudNew=false;
+  if(res.serverVer)L.serverVer=res.serverVer;
+  save(false);
+  PORTAL_OPEN=false;go("home");
+  portalInviteInstallOffer();
+ },function(e){PORTAL_ENTER_BUSY=false;render();toast("서버 인증 실패: "+e.message);});
+}
+function portalIsInstalled(){
+ return !!((window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches)||
+  window.navigator.standalone===true||/WGKAndroidApp\//.test(navigator.userAgent||""));
+}
+/* H1.9.6: PWA-first launch path. A website cannot forcibly open an already
+   installed Android PWA; installation is offered only with a real browser event. */
+function portalContinueWeb(){
+ sheet=null;render();
+}
+function portalInstallOutcome(outcome){
+ // An accepted install offer is not proof that an icon was added to Home.
+ if(outcome==="accepted"&&PORTAL_INSTALL_DONE)return;
+ var heading="앱 설치 안내",message="";
+ if(outcome==="installed"){
+  heading="앱 설치 완료";
+  message="골프챌린지가 설치되었습니다. <b>홈 화면이나 앱 목록의 골프챌린지 아이콘을 눌러 실행</b>하세요. 홈 화면에 없다면 앱 목록의 아이콘을 길게 눌러 옮길 수 있습니다.";
+ }else if(outcome==="accepted"){
+  heading="앱 설치 진행 중";
+  message="설치 요청이 접수되었습니다. 설치가 끝나면 <b>홈 화면 또는 앱 목록의 골프챌린지 아이콘으로 실행</b>하세요. 아이콘이 나타나지 않으면 설치 완료 여부를 확인해 주세요.";
+ }else if(outcome==="declined"){
+  heading="앱 설치를 진행하지 않았습니다";
+  message="설치하지 않으셔도 골프챌린지를 이용할 수 있습니다. <b>웹으로 계속하기</b>를 눌러 모임을 선택하세요.";
+ }else{
+  heading="설치창을 열 수 없습니다";
+  message="이 브라우저에서 앱 설치창을 바로 열 수 없습니다. 브라우저 메뉴에서 추가하거나 <b>웹으로 계속하기</b>를 선택하세요.";
+ }
+ sheet='<div class="sheet"><div class="inner" role="dialog" aria-label="'+heading+'">'+
+  '<h2 style="margin:0 0 9px;font-size:18px">'+heading+'</h2>'+
+  '<p class="portal-sub">'+message+'</p>'+
+  '<button class="btn sm" onclick="portalContinueWeb()">웹으로 계속하기</button></div></div>';
+ render();
+}
+/* H1.9.13: The first click tries an actual browser-supported installation
+   action. An ordinary webpage cannot invoke Chrome/Samsung's menu directly. */
+function portalIsAndroidChrome(){
+ var ua=navigator.userAgent||"";
+ return /Android/i.test(ua)&&/Chrome\/\d+/i.test(ua)&&
+  !/(SamsungBrowser|EdgA|OPR|Firefox|FxiOS|KAKAOTALK|NAVER|Instagram|FBAN|FBAV|; ?wv[);]|\bwv\b)/i.test(ua);
+}
+function portalChromeIntentUrl(){
+ /* Android VIEW intents can open the *same page* in Chrome. They do not
+    bypass browser install policies or install without consent. */
+ try{
+  if(!/Android/i.test(navigator.userAgent||""))return "";
+  var url=new URL(location.href);
+  if(url.protocol!=="https:"&&url.protocol!=="http:")return "";
+  return "intent://"+url.host+url.pathname+url.search+
+   "#Intent;scheme="+url.protocol.slice(0,-1)+
+   ";action=android.intent.action.VIEW;package=com.android.chrome;end";
+ }catch(e){return "";}
+}
+function portalTryChromeOpen(){
+ var intent=portalChromeIntentUrl();
+ if(!intent)return false;
+ try{location.href=intent;return true;}catch(e){return false;}
+}
+function portalInstall(){
+ /* Native prompt must be invoked synchronously from the user's tap. */
+ if(PORTAL_INSTALL_PROMPT&&!portalIsInstalled()){
+  portalLaunchInstall();return;
+ }
+ if(portalIsInstalled()){
+  sheet='<div class="sheet"><div class="inner" role="dialog" aria-label="앱 실행 중">'+
+   '<h2 style="margin:0 0 9px;font-size:18px">앱으로 실행 중</h2>'+
+   '<p class="portal-sub">현재 설치형 앱으로 실행 중입니다. 홈 화면이나 앱 목록의 골프챌린지 아이콘을 이용하세요.</p>'+
+   '<button class="btn sm" onclick="portalContinueWeb()">계속하기</button></div></div>';
+  render();return;
+ }
+ var ua=navigator.userAgent||"",isIos=/iPad|iPhone|iPod/.test(ua),isAndroid=/Android/i.test(ua);
+ var androidOtherBrowser=isAndroid&&!portalIsAndroidChrome();
+ if(androidOtherBrowser){
+  /* A launch attempt precedes manual steps. We keep the current screen as
+     fallback if Android declines the intent (e.g. Chrome not installed). */
+  sheet='<div class="sheet"><div class="inner" role="dialog" aria-label="크롬에서 앱 설치 시도">'+
+   '<h2 style="margin:0 0 9px;font-size:18px">크롬에서 설치 시도</h2>'+
+   '<p class="portal-sub">설치를 진행할 수 있도록 현재 모임 주소를 Chrome에서 열어 보겠습니다. Chrome이 열리면 메뉴(⋮)의 <b>앱 설치</b> 또는 <b>홈 화면에 추가</b>를 선택하세요.</p>'+
+   '<button class="btn sm" onclick="portalTryChromeOpen()">Chrome에서 다시 열기</button><div style="height:8px"></div>'+
+   '<p class="portal-install-steps">Chrome이 열리지 않으면 브라우저 메뉴의 홈 화면 추가 기능을 사용하세요. 설치가 끝날 때까지 기존 창은 유지하세요.</p>'+
+   '<button class="btn sm quiet" onclick="portalContinueWeb()">웹으로 계속하기</button></div></div>';
+  render();
+  portalTryChromeOpen();return;
+ }
+ var steps=isIos?
+  "iPhone: 브라우저 공유 메뉴 → 홈 화면에 추가 → 추가":
+  (isAndroid?
+   "Chrome: 우측 상단 메뉴(⋮) → 앱 설치 또는 홈 화면에 추가 → 설치 / 추가":
+   "브라우저 주소창의 설치 아이콘 또는 브라우저 메뉴에서 앱 설치를 선택하세요.");
+ sheet='<div class="sheet"><div class="inner" role="dialog" aria-label="앱 설치 안내">'+
+  '<h2 style="margin:0 0 9px;font-size:18px">앱 설치 시도 결과</h2>'+
+  '<p class="portal-sub">이 브라우저가 직접 설치창을 여는 기능을 제공하지 않아 설치 확인창을 호출할 수 없었습니다. 아래 브라우저 설치 메뉴를 이용해 주세요.</p>'+
+  '<div class="portal-install-steps">'+esc(steps)+'</div>'+
+  '<p class="portal-sub">앱 설치는 브라우저와 기기의 승인이 필요합니다. 설치하지 않아도 웹에서 이용할 수 있습니다.</p>'+
+  '<button class="btn sm quiet" onclick="portalContinueWeb()">웹으로 계속하기</button></div></div>';
+ render();
+}
+function portalInstallControl(){
+ // Standalone only identifies the current window; browser mode cannot reliably
+ // detect or directly launch a separately installed app on this device.
+ if(portalIsInstalled())return '<div class="portal-install-status" role="status" aria-label="설치형 앱으로 실행 중">✓ 앱으로 실행 중</div>';
+ return '<button class="btn sm quiet" onclick="portalInstall()">앱으로 실행하기</button>';
+}
+function portalLaunchInstall(){
+ if(!PORTAL_INSTALL_PROMPT){portalInstallOutcome("unavailable");return;}
+ var p=PORTAL_INSTALL_PROMPT;PORTAL_INSTALL_PROMPT=null;
+ sheet=null;render();
+ try{
+  var request=p.prompt();
+  if(p.userChoice&&typeof p.userChoice.then==="function")p.userChoice.then(function(choice){
+   portalInstallOutcome(choice&&choice.outcome==="accepted"?"accepted":"declined");
+  }).catch(function(){portalInstallOutcome("unavailable")});
+  if(request&&typeof request.catch==="function")request.catch(function(){portalInstallOutcome("unavailable")});
+ }catch(e){portalInstallOutcome("unavailable");}
+}
+window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();PORTAL_INSTALL_PROMPT=e});
+window.addEventListener("appinstalled",function(){
+ PORTAL_INSTALL_PROMPT=null;PORTAL_INSTALL_DONE=true;portalInstallOutcome("installed");
+});
+function scrPortal(){
+ setDocTitle(APP_NAME);
+ var selected=!!SUPPLY_CLUB_ID;
+ var banner='<div class="portal-hero"><div class="portal-brand">'+
+  '<img class="portal-emblem" src="./golf-icon-192.png" width="78" height="78" alt="골프공과 깃발 엠블렘">'+
+  '<div class="portal-brand-copy"><h1><span class="portal-pre">우리끼리</span><span class="portal-focus">골프챌린지</span></h1><p>우리의 골프, 함께하는 기록</p></div></div></div>';
+ var introduction='<div class="card"><p style="font-weight:650;margin:0 0 8px">초대인증키를 발급받으신 분에게만 입장이 허용됩니다.</p>'+
+  '<p class="portal-small" style="margin:0">즐겁게 라운딩 하세요~</p></div>';
+ var invitationHint='가입한 모임이 안보이면 경기위원장에게 접속주소로 초대를 받으세요';
+ var items=SUPPLY_STORED.length?SUPPLY_STORED.map(function(c){
+  return '<button class="portal-list-btn" onclick="supplyGoClub(\''+c.id+'\')">'+
+   '<span>'+esc(c.name)+'</span><span aria-hidden="true">›</span></button>';}).join(""):
+  '<p class="portal-sub">'+invitationHint+'</p>';
+ var main=selected?
+  '<div class="card"><div class="portal-club-identity"><div class="portal-club-caption">선택한 모임</div><h2 class="portal-club-name">'+esc(portalClubName())+'</h2></div>'+
+   '<div class="portal-entry-row"><button class="btn sm portal-start" onclick="portalEnter()"'+
+   (PORTAL_ENTER_BUSY?' disabled':'')+'>'+(PORTAL_ENTER_BUSY?'인증 확인 중…':'<span class="portal-go-lamp" aria-hidden="true"></span>START')+'</button>'+
+   portalInstallControl()+'</div>'+portalPrepStatus()+portalNativeOpenControl()+
+   '<p style="margin:12px 0 0"><button class="chip" onclick="portalChooseClub()">다른 모임 선택</button></p></div>':
+  '<div class="card"><h2>어느 모임이신지요</h2>'+items+
+   (SUPPLY_STORED.length?'<p class="portal-sub" style="margin-top:10px">'+invitationHint+'</p>':'')+
+   '<div style="height:12px"></div><div class="portal-entry-row">'+
+   '<button class="btn sm quiet" onclick="portalNewClub()">모임 만들기</button>'+
+   portalInstallControl()+'</div></div>';
+ return '<div class="screen">'+banner+'<div class="body">'+introduction+main+'</div></div>';
+}
+function render(){
+ document.body.classList.toggle("portal-active",!!PORTAL_OPEN);
+ var app=document.getElementById("app");
+ if(PORTAL_OPEN){
+  app.innerHTML=scrPortal();
+  if(sheet)app.insertAdjacentHTML("beforeend",sheet);
+  return;
+ }
+ if(S&&S.room&&S.room.name)setDocTitle(S.room.name);
+ if(view.name!=="result")fwShown="";
+ if(!S.room&&view.name!=="data")app.innerHTML=scrStart();
+ else if(view.name==="members")app.innerHTML=scrMembers();
+ else if(view.name==="newround")app.innerHTML=scrNewRound();
+ else if(view.name==="edit")app.innerHTML=scrEdit();
+ else if(view.name==="play")app.innerHTML=scrPlay();
+ else if(view.name==="result")app.innerHTML=scrResult();
+ else if(view.name==="data")app.innerHTML=scrData();
+ else if(view.name==="year")app.innerHTML=scrYear();
+ else if(view.name==="stats")app.innerHTML=scrStats();
+ else if(view.name==="rules")app.innerHTML=scrRules();
+ else if(view.name==="past")app.innerHTML=scrPast();
+ else if(view.name==="scan")app.innerHTML=scrScan();
+ else app.innerHTML=scrHome();
+ if(view.name==="result"&&fwShown!==view.rid){
+  var fr=round(view.rid);
+  if(fr){var lab=firstWinnerLabel(fr);
+   if(lab){fwShown=view.rid;setTimeout(function(){fireworks(lab)},160)}}}
+ app.insertAdjacentHTML("beforeend",
+  '<button class="toTop" id="toEnd" onclick="scrollEnd()" aria-label="맨 아래로" style="display:none">\u2193</button>');
+ setTimeout(syncToEnd,0);setTimeout(syncToEnd,150);setTimeout(syncToEnd,600);
+ if(sheet)app.insertAdjacentHTML("beforeend",sheet);
+ if(view.name==="play")markEnter();
+ if(view.name==="newround"||view.name==="edit")teamPreview()}
+
+function scrStart(){return '<div class="screen"><div class="bar"><h1>'+esc(SUPPLY_CLUB_NAME)+'</h1></div><div class="body"><div class="card"><h2>모임 기록 연결</h2><p class="note">'+esc(SUPPLY_CLUB_NAME)+' 전용 공급본입니다. 회원용 접근 키를 등록하고 기록을 받은 뒤, 경기위원장은 암호로 인증하십시오.</p><div style="height:12px"></div><button class="btn" onclick="go(\'data\')">연결 설정 열기</button></div></div></div>'}
+function createRoom(){toast("공급본에서는 모임을 따로 만들지 않습니다.")}
+function scrHome(){
+ var rs=sortedRounds().slice().reverse();
+ var list=rs.length?rs.map(function(r){
+  var pl=isPlanned(r);
+  /* v1.3.2 라운드 한 줄에 두 줄을 더 보입니다.
+     둘째 줄 : 참가 인원 · 스크린/필드 · 골프장 · 코스 · 참가자 이름
+     셋째 줄 : 부문별 우승자 (예정 라운드는 걸린 종목) */
+  var who=r.players.map(function(mid){return mname(mid)}).join(", ");
+  var bits=[];
+  bits.push("참가 "+r.players.length+"명");
+  var vl=venueLabel(r);if(vl)bits.push(vl);
+  if(r.place)bits.push(r.place);
+  if(r.course)bits.push(r.course);
+  var meta=bits.join(" · ");
+  var sum=pl?roundGames(r).map(function(g){
+    return GAMES[g.type]?GAMES[g.type].name:""}).filter(function(x){return x}).join(", "):roundSummary(r);
+  if(!sum)sum="아직 결과가 없습니다";
+  return '<li class="item" style="cursor:pointer;align-items:flex-start" onclick="go(\'result\',{rid:\''+r.id+'\'})">'+
+   '<span class="ribbon'+(pl?'':' done')+'" style="margin-top:2px">'+(pl?'예정':'결과')+'</span>'+
+   '<div style="flex:1;min-width:0">'+
+   '<div class="nm">'+roundNo(r)+'차 · '+esc(r.date)+
+   (r.teeTime?' <span class="mt">'+esc(r.teeTime)+'</span>':'')+'</div>'+
+   '<div class="mt round-line">'+esc(meta)+'</div>'+
+   (who?'<div class="mt round-line">'+esc(who)+'</div>':'')+
+   '<div class="mt round-line" style="color:var(--turf-mid)">'+esc(sum)+'</div></div>'+
+   '<span class="mt" style="margin-top:2px">\u203a</span></li>'}).join("")
+  :'<div class="empty">아직 라운드가 없습니다.</div>';
+ var host=hostSessionActive();
+ /* v1.5.0 받기와 올리기를 나눴습니다.
+    머리띠 오른쪽 등은 받기 전용이고, 올릴 것이 있을 때만
+    머리띠 아래에 올리기 띠가 나타납니다. 회원 모드에는 띠가 없습니다. */
+ var sigNew=!!L.cloudNew, sigDirty=!!L.dirty;
+ return '<div class="screen">'+
+ '<div class="hero"><div class="hero-side"><div class="crest">\u26f3</div>'+
+ '<button class="portal-back" onclick="portalReturn()" title="시작 화면으로 돌아가기" aria-label="홈으로 이동"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 10 9-7 9 7"/><path d="M5.5 9.5V21h13V9.5"/><path d="M9.5 21v-7h5v7"/></svg></button></div><div class="hmain">'+
+ '<div class="hname"><span class="hclubname">'+esc(S.room.name)+'</span></div>'+
+ '<div class="hline">회원 '+S.members.length+'명 · 라운드 '+S.rounds.length+'회</div>'+
+ '<div class="hmeta"><div class="hline">'+APP_NAME+' H'+APP_VER+'</div>'+
+ '<span class="hrole">'+(host?"경기위원장":"회원")+'</span></div></div>'+
+ '</div>'+
+
+ '<div class="bar home-nav" aria-label="주요 메뉴">'+
+ '<button class="chip" onclick="go(\'year\')">연간 집계</button>'+
+ '<button class="chip" onclick="go(\'stats\')">누적 기록</button>'+
+ '<button class="chip" onclick="go(\'rules\')">룰보기</button>'+
+ '<button class="chip" onclick="go(\'data\')">설정</button>'+
+ (cloudOn()?'<button class="chip recv" onclick="pullCloud()" aria-label="최신 기록 받기">'+
+  '<span class="lamp'+(sigNew?" on":"")+'"></span><span class="recvtxt">받기'+(sigNew?'<br>새':'<br>최신')+'</span></button>':'')+
+ '</div>'+
+ '<div class="body">'+
+ '<div class="card"><h2>회원현황</h2><p class="note">'+
+ (S.members.length?esc(byHcp(S.members).map(function(m){return m.name+" "+curHcp(m.id)}).join(" · ")):"아직 없습니다.")+'</p>'+
+ '<div style="height:10px"></div>'+
+ '<button class="btn sm quiet" onclick="go(\'members\')">회원현황 열기</button></div>'+
+ (host?'<div class="card"><h2>경기위원장</h2><div class="row2">'+
+  '<button class="btn sm quiet" onclick="go(\'newround\')">라운드 만들기</button>'+
+  '<button class="btn sm quiet" onclick="go(\'past\')">지난 기록 등록</button></div>'+
+  '<div style="height:8px"></div><button class="btn sm'+(sigDirty?" alertbtn":"")+'" onclick="pushCloud()">'+
+  (sigDirty?'<span class="lamp red"></span>올릴 수정이 있습니다 · 모임에 올리기'
+   :'이 기록을 모임에 올리기')+'</button>'+
+  (sigDirty?'<p class="note" style="color:var(--clay)">이 기기에서 고치신 내용이 아직 서버에 올라가지 않았습니다.</p>':'')+'</div>':
+  '<div class="card"><p class="note">회원 모드입니다. 라운드 만들기와 올리기는 경기위원장 기기에서만 합니다.</p></div>')+
+ '<div class="card"><h2>라운드 기록</h2><ul class="list">'+list+'</ul></div>'+
+ '</div></div>'}
+
+/* ---- 회원 ---- */
+function scrMembers(){
+ var locked=!hostSessionActive();
+ var add=locked?'<div class="card"><p class="note">회원은 경기위원장 기기에서만 고칩니다.</p></div>':
+  '<div class="card"><h2>회원 추가</h2><label for="mn">이름</label><input type="text" id="mn">'+
+  '<label for="mk">닉네임 (선택)</label><input type="text" id="mk" placeholder="스코어카드에 쓰시는 이름"><label for="mh">첫 라운드 전 핸디</label><input type="number" id="mh" inputmode="numeric" value="0">'+
+  '<p class="note">기록이 없는 동안만 쓰이는 숫자입니다. 한 번이라도 치고 나면 그 성적으로 자동 계산됩니다.</p>'+
+  '<div style="height:12px"></div><button class="btn sm" onclick="addMember()">회원 추가</button></div>';
+ var rows=S.members.length?byHcp(S.members).map(function(m){
+  var pr=priorOf(m.id,"9999-12-31",null);
+  var src=!pr.length?("첫 라운드 전 수동 "+m.hcpManual):(pr.length===1?"직전 1회 기준":("최근 "+Math.min(pr.length,S.hcpWindow)+"회 평균"));
+  return '<li class="item"><div style="flex:1;min-width:0"><div class="nm">'+esc(mfull(m.id))+'</div>'+
+   '<div class="mt">'+src+' · 참가 '+pr.length+'회</div></div>'+
+   '<div style="font-weight:700">'+curHcp(m.id)+'</div>'+
+   (locked?'':'<button class="chip" onclick="editMember(\''+m.id+'\')">수정</button>'+
+   '<button class="chip" onclick="delMember(\''+m.id+'\')">삭제</button>')+'</li>'}).join("")
+  :'<div class="empty">회원을 등록해 주세요.</div>';
+ var rule='<div class="card"><h2>핸디 규칙</h2>'+
+  '<p class="note">첫 라운드는 핸디 없이 치고, 두 번째는 직전 한 번의 성적으로, 세 번째부터는 최근 '+
+  S.hcpWindow+'회 평균으로 정해집니다. 파 대비 오버 타수를 그대로 핸디로 씁니다.</p>'+
+  (locked?'':'<label for="hw">평균을 낼 라운드 수</label><input type="number" id="hw" value="'+S.hcpWindow+'" min="1" max="20">'+
+  '<div style="height:10px"></div><button class="btn sm quiet" onclick="setWindow()">바꾸기</button>')+'</div>';
+ return '<div class="screen"><div class="bar"><button class="chip" onclick="go(\'home\')">뒤로</button><h1>회원현황</h1></div>'+
+ '<div class="body">'+add+
+ '<div class="card"><h2>회원과 핸디 (핸디순)</h2><ul class="list">'+rows+'</ul>'+
+ '<p class="note">핸디는 기록에서 자동으로 나오므로 손으로 고치지 않습니다.</p></div>'+rule+'</div>'+
+ '<div class="foot"><button class="btn" onclick="go(\'home\')">완료</button></div></div>'}
+function setWindow(){var v=parseInt(document.getElementById("hw").value,10);
+ if(isNaN(v)||v<1){toast("1 이상을 넣어 주세요.");return}
+ S.hcpWindow=v;save();render();toast("최근 "+v+"회 평균으로 바꿨습니다.")}
+function addMember(){
+ var n=document.getElementById("mn").value.trim(),h=parseInt(document.getElementById("mh").value,10);
+ var nk=document.getElementById("mk");nk=nk?nk.value.trim():"";
+ if(!n){toast("이름을 입력해 주세요.");return}
+ if(isNaN(h))h=0;
+ S.members.push({id:uid(),name:n,nick:nk,hcpManual:h});save();render()}
+function editMember(id){var m=member(id);if(!m)return;
+ var n=prompt("이름",m.name);if(n===null)return;
+ var k=prompt("닉네임 (없으면 비워 두십시오)",m.nick||"");if(k===null)return;
+ var h=prompt("첫 라운드 전 핸디 (기록이 없을 때만 쓰입니다)",m.hcpManual);if(h===null)return;
+ m.name=n.trim()||m.name;m.nick=k.trim();
+ var v=parseInt(h,10);m.hcpManual=isNaN(v)?0:v;save();render()}
+function delMember(id){var m=member(id);if(!m)return;
+ if(!confirm(m.name+" 회원을 삭제할까요? 지난 라운드 기록은 남습니다."))return;
+ S.members=S.members.filter(function(x){return x.id!==id});save();render()}
+
+/* ---- 게임 고르기 ---- */
+function playerPicker(r){
+ if(!S.members.length)return '<div class="empty">먼저 회원을 등록해 주세요.</div>';
+ return byHcp(S.members).map(function(m){
+  var on=r?(r.players.indexOf(m.id)>=0):false;
+  var tm=(r&&r.teams)?(r.teams[m.id]||""):"";
+  return '<div class="item">'+
+   '<label style="display:flex;align-items:center;gap:9px;flex:1;min-width:0;cursor:pointer">'+
+   '<input type="checkbox" class="pck" value="'+m.id+'" onchange="teamPreview()" style="width:22px;height:22px;flex:none"'+(on?" checked":"")+'>'+
+   '<span class="nm">'+esc(m.name)+'</span></label>'+
+   '<span class="mt">'+curHcp(m.id)+'</span>'+
+   '<select class="tsel" data-mid="'+m.id+'" onchange="teamAssigned(this)" style="width:84px;padding:7px 6px">'+
+   '<option value="">팀없음</option>'+TEAM_KEYS.map(function(k){
+    return '<option value="'+k+'"'+(tm===k?" selected":"")+'>'+k+'팀</option>'}).join("")+
+   '</select></div>'}).join("")}
+/* 참가자의 팀을 지정하면 별도의 종목 선택 없이 팀전이 활성화됩니다. */
+function teamAssigned(sel){
+ if(sel.value){
+  var item=sel.closest(".item"),pick=item&&item.querySelector(".pck");
+  if(pick)pick.checked=true;
+  var count=document.getElementById("tcount"),used=TEAM_KEYS.indexOf(sel.value)+1;
+  if(count&&used>parseInt(count.value,10))count.value=String(Math.max(2,used));
+ }
+ teamPreview();
+}
+function syncEditParticipants(){
+ if(view.name!=="edit")return;
+ var ps=readPlayers().players;
+ [].slice.call(document.querySelectorAll("[data-edit-score-row]" )).forEach(function(x){
+  x.hidden=ps.indexOf(x.getAttribute("data-edit-score-row"))<0});
+ [].slice.call(document.querySelectorAll("[data-edit-gross-row]" )).forEach(function(x){
+  x.hidden=ps.indexOf(x.getAttribute("data-edit-gross-row"))<0});
+ syncEditGrossControls();
+}
+function syncEditGrossControls(midOnly){
+ if(view.name!=="edit")return;
+ var controls=midOnly?document.querySelectorAll('.eg[data-mid="'+midOnly+'"]'):document.querySelectorAll(".eg");
+ [].slice.call(controls).forEach(function(x){
+  var mid=x.getAttribute("data-mid"),cells=document.querySelectorAll('.escore[data-mid="'+mid+'"]');
+  var full=cells.length>0;
+  [].slice.call(cells).forEach(function(c){if(!c.value.trim())full=false});
+  x.disabled=full;
+ });
+}
+function teamPreview(){
+ var box=document.getElementById("tprev");if(!box)return;
+ teamAutoHint();
+ var pk=readPlayers();
+ syncEditParticipants();
+ if(!teamOn()){box.innerHTML='<p class="note">아직 팀을 배정하지 않으셨습니다. 참가자 오른쪽에서 팀을 고르시거나 자동 배정을 누르시면 팀전이 결과에 나옵니다. 참가 '+pk.players.length+'명.</p>';return}
+ var want=teamCountSel()||2;
+ if(!pk.players.length){box.innerHTML='<p class="note">참가자를 고르시면 현황이 나옵니다.</p>';return}
+ var basis=teamAutoBasis(),dateEl=document.getElementById(view.name==="edit"?"ed":"rd");
+ var context={date:(dateEl&&dateEl.value)||today(),id:view.name==="edit"?view.rid:null};
+ var grp={},none=[];
+ pk.players.forEach(function(mid){var t=pk.teams[mid];
+  if(t)(grp[t]=grp[t]||[]).push(mid);else none.push(mid)});
+ var keys=TEAM_KEYS.filter(function(k){return grp[k]&&grp[k].length});
+ var html='<div style="height:10px"></div><div class="teambox">'+
+  (keys.length?keys.map(function(k){
+   var hs=grp[k].map(function(mid){return autoTeamValue(context,mid,basis)}),sum=hs.reduce(function(a,b){return a+b},0);
+   return '<div><div class="mt">'+k+'팀 · '+grp[k].length+'명</div>'+
+    esc(grp[k].map(mname).join(", "))+
+    '<div style="margin-top:6px;font-weight:700">'+(basis==="improve"?"과거 개선폭 합 " : "핸디 합 ")+sum+'</div></div>'}).join("")
+   :'<div><div class="mt">아직 팀이 없습니다</div></div>')+'</div>';
+ if(keys.length&&keys.length!==want)
+  html+='<p class="note" style="color:var(--clay)">고르신 팀 수는 '+want+'인데 지금 '+keys.length+'개 팀에만 사람이 있습니다. 자동 배정을 누르시거나 직접 팀을 채워 주십시오.</p>';
+ if(none.length)html+='<p class="note">팀 없음: '+esc(none.map(mname).join(", "))+'</p>';
+ if(keys.length>1){
+  var sizes=keys.map(function(k){return grp[k].length}),mx=Math.max.apply(null,sizes);
+  var un=keys.filter(function(k){return grp[k].length<mx});
+  if(un.length)html+='<p class="note">인원이 적은 '+un.join(", ")+'팀은 핸디가 중간인 분의 점수를 두 배로 칩니다.</p>'}
+ html+='<p class="note">참가 '+pk.players.length+'명</p>';
+ box.innerHTML=html}
+function readPlayers(){
+ var ps=[].slice.call(document.querySelectorAll(".pck:checked")).map(function(x){return x.value});
+ var teams={};
+ [].slice.call(document.querySelectorAll(".tsel")).forEach(function(x){
+  var mid=x.getAttribute("data-mid");
+  if(ps.indexOf(mid)>=0&&x.value)teams[mid]=x.value});
+ return{players:ps,teams:teams}}
+function gameChecklist(sel){
+ /* H1.9.11: each game renders one flat, self-contained row.
+    Preserve class/id contract of readGames(), pickMain(), payout and team controls. */
+ return GAME_ORDER.map(function(t){
+  var g=GAMES[t],on=sel&&sel[t],isTeam=t==="team";
+  var row='<div class="gm game-config">'+
+   '<div class="gc-head"><span class="gc-name">'+(isTeam?'팀 나누기':g.name)+'</span>'+
+   '<label class="gc-main"><input type="checkbox" class="gmain" value="'+t+'" onchange="pickMain(this)"'+
+   (on&&on.main?' checked':'')+'>대회순위</label></div>'+
+   '<div class="gc-desc">'+(isTeam?'참가자를 팀으로 나누면 팀전이 결과에 나옵니다.':g.desc)+'</div>'+
+   '<div class="gc-actions">'+
+   '<button type="button" class="chip" onclick="openPayout(\''+t+'\')">회비 상금'+
+   (on&&on.payout&&on.payout.length?' <b>●</b>':'')+'</button>';
+  if(isTeam){
+   var basis=(on&&on.basis)||'net',basisGame=GAMES[basis]||GAMES.net;
+   row+='<label class="gc-reverse"><input type="checkbox" id="trev"'+(on&&on.rev?' checked':'')+'>'+ 
+    '거꾸로 <span id="teamReverseHint">('+(basisGame.asc?'많으면':'적으면')+' 우승)</span></label>';
+  }else{
+   row+='<label class="gc-reverse"><input type="checkbox" class="grv" data-type="'+t+'"'+(on&&on.rev?' checked':'')+'>'+ 
+    '거꾸로 ('+(g.asc?'많으면':'적으면')+' 우승)</label>';
+  }
+  row+='</div><input type="hidden" class="gpay" data-type="'+t+'" value="'+
+   esc(JSON.stringify((on&&on.payout)||[]))+'"></div>';
+  if(!isTeam)return row;
+  return row+
+   '<div class="gm team-detail"><div style="flex:1;min-width:0">'+
+   '<div class="nm">팀 점수 기준</div><div class="mt">선택한 종목의 팀별 합계로 겨룹니다.</div></div>'+
+   '<select id="tbasis" onchange="teamAutoHint();teamPreview();teamReverseHint()" style="width:120px">'+
+   GAME_ORDER.filter(function(k){return k!=="team"}).map(function(k){
+    return '<option value="'+k+'"'+(basis===k?' selected':'')+'>'+GAMES[k].name+'</option>';}).join('')+
+   '</select></div>'+
+   '<div class="gm team-detail"><div class="nm mt">팀 수</div>'+
+   '<select id="tcount" onchange="teamPreview()" style="width:120px">'+[2,3,4].map(function(nn){
+    return '<option value="'+nn+'"'+((on&&on.teamCount||2)===nn?' selected':'')+'>'+nn+'팀 (A~'+TEAM_KEYS[nn-1]+')</option>';}).join('')+
+   '</select></div>';
+ }).join('');
+}
+function teamReverseHint(){
+ var sel=document.getElementById('tbasis'),hint=document.getElementById('teamReverseHint');
+ if(!sel||!hint)return;
+ var g=GAMES[sel.value]||GAMES.net;
+ hint.textContent='('+(g.asc?'많으면':'적으면')+' 우승)';
+}
+/* ===== 순위별 회비와 상금 =====
+   종목마다 등수별로 회비와 상금을 따로 정합니다.
+   손익 = 받은 상금 - 낸 회비. 회비만 걷는 날이면 모두 음수가 되고,
+   많이 내신 분이 기부왕, 적게 내신 분이 상금왕이 됩니다.
+   공동 순위는 등수 표시는 위로, 금액은 아래 등수 것으로 맞춥니다. */
+var PAYOUT_MAX=20;
+var payEdit=null;
+function payoutOf(g){return (g&&g.payout)||[]}
+function payRow(pay,rank){
+ if(!pay||rank<1)return null;
+ var r=pay[rank-1];
+ if(!r)return null;
+ var fee=Number(r.fee)||0,prize=Number(r.prize)||0;
+ if(!fee&&!prize)return null;
+ return{fee:fee,prize:prize}}
+function payFor(pay,rank,same){
+ var use=rank+(same>1?(same-1):0);
+ return payRow(pay,use)}
+/* ===== v1.9.0 회비로 상금 배정 =====
+   한 사람당 회비만 정하시면 참가 인원을 곱해 총 상금이 되고,
+   프로그램이 등수별로 쪼개 순위별 표를 자동으로 채웁니다.
+   채운 뒤에 손으로 고치실 수 있습니다. */
+function prizeTiers(n){
+ if(n<=4)return[65,35];
+ if(n<=8)return[50,30,20];
+ return[50,25,15,10]}
+/* 비율대로 나누되 단위를 맞춰 떨어뜨리고, 남는 끝수는 1등에게 몰아
+   합이 총액과 정확히 맞게 합니다. */
+function splitPrize(total,tiers){
+ var unit=1;
+ if(total%10000===0&&total>=10000*tiers.length)unit=10000;
+ else if(total%1000===0&&total>=1000*tiers.length)unit=1000;
+ var out=[],used=0;
+ for(var i=1;i<tiers.length;i++){
+  var v=Math.floor(total*tiers[i]/100/unit)*unit;
+  out.push(v);used+=v}
+ out.unshift(total-used);
+ return out}
+function payAuto(){
+ var r=view.rid?round(view.rid):null;
+ var ps=readPlayers().players;
+ var n=(ps&&ps.length)?ps.length:((r&&r.players.length)||0);
+ if(!n){toast("참가자를 먼저 정해 주십시오.");return}
+ var v=prompt("한 사람당 회비를 넣어 주십시오. 참가 "+n+"명 기준으로 총 상금을 나눕니다.","50000");
+ if(v===null)return;
+ var fee=parseInt(String(v).replace(/[^0-9]/g,""),10);
+ if(isNaN(fee)||fee<=0){toast("회비를 숫자로 넣어 주십시오.");return}
+ var total=fee*n,tiers=prizeTiers(n),got=splitPrize(total,tiers);
+ payEdit.rows=[];
+ for(var i=0;i<PAYOUT_MAX;i++)payEdit.rows.push({fee:(i<n?fee:0),prize:(got[i]||0)});
+ renderPayout();
+ toast(n+"명 \u00d7 "+won(fee)+" = "+won(total)+" 를 "+tiers.length+"등까지 나눴습니다.")}
+function payBox(type){return document.querySelector('.gpay[data-type="'+type+'"]')}
+function openPayout(type){
+ var box=payBox(type),cur=[];
+ if(box){try{cur=JSON.parse(box.value||"[]")}catch(e){cur=[]}}
+ if(!cur.length&&view.rid){
+  var r0=round(view.rid);
+  if(r0)roundGames(r0).forEach(function(g){if(g.type===type&&g.payout&&g.payout.length)cur=g.payout.slice()});
+ }
+ payEdit={type:type,rows:cur.slice()};
+ while(payEdit.rows.length<PAYOUT_MAX)payEdit.rows.push({fee:0,prize:0});
+ renderPayout()}
+function renderPayout(){
+ var g=GAMES[payEdit.type],rows="";
+ for(var i=0;i<PAYOUT_MAX;i++){
+  var r=payEdit.rows[i]||{fee:0,prize:0};
+  rows+='<tr><td>'+(i+1)+'위</td>'+
+   '<td><input type="number" min="0" inputmode="numeric" value="'+(Number(r.fee)||0?r.fee:"")+
+   '" placeholder="0" onchange="payVal('+i+',\'fee\',this.value)"></td>'+
+   '<td><input type="number" min="0" inputmode="numeric" value="'+(Number(r.prize)||0?r.prize:"")+
+   '" placeholder="0" onchange="payVal('+i+',\'prize\',this.value)"></td></tr>';
+ }
+ sheet='<div class="sheet" onclick="if(event.target===this)payClose()"><div class="inner">'+
+  '<h2 style="margin:0 0 6px;font-size:16px">'+esc(g?g.name:"")+' · 순위별 회비와 상금</h2>'+
+  '<p class="note" style="margin:0 0 10px">금액창에서 저장한 내용은 '+(view.name==="edit"?"라운드 수정저장":"라운드 만들기")+'을 누를 때 최종 반영됩니다. '+
+  '비워 두신 등수는 결과에 나오지 않습니다. 공동 순위는 아래 등수 금액으로 계산하여 '+
+  '차액이 모임에 쌓입니다. 회비로 상금 배정을 쓰시면 걷은 회비 전부가 '+
+  '등수별 상금으로 자동으로 나뉩니다.</p>'+
+  '<div class="scroll paytbl" style="max-height:48vh"><table>'+
+  '<thead><tr><th>등수</th><th>회비</th><th>상금</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+  '<div style="height:12px"></div>'+
+  '<button class="btn sm" onclick="paySave()">저장</button>'+
+  '<div style="height:8px"></div>'+
+  '<button class="btn sm quiet" onclick="payAuto()">회비로 상금 배정</button>'+
+  '<div style="height:8px"></div>'+
+  '<div class="row2"><button class="btn sm line" onclick="payPrev()">직전 라운드에서 불러오기</button>'+
+  '<button class="btn sm line" onclick="payClear()">모두 지우기</button></div>'+
+  '<div style="height:8px"></div>'+
+  '<button class="btn sm quiet" onclick="payClose()">닫기</button></div></div>';
+ /* Keep the underlying form DOM intact, including participant picks, typed scores and unsaved game settings. */
+ var app=document.getElementById("app");
+ if(!app)return;
+ var prev=app.querySelector(".sheet");
+ if(prev)prev.remove();
+ app.insertAdjacentHTML("beforeend",sheet);
+}
+function payVal(i,k,v){var n=parseInt(v,10);
+ if(!payEdit.rows[i])payEdit.rows[i]={fee:0,prize:0};
+ payEdit.rows[i][k]=isNaN(n)||n<0?0:n}
+function payClear(){
+ for(var i=0;i<PAYOUT_MAX;i++)payEdit.rows[i]={fee:0,prize:0};
+ renderPayout();toast("모두 지웠습니다.")}
+function payPrev(){
+ var rs=sortedRounds(),cur=view.rid||null,found=null;
+ for(var i=rs.length-1;i>=0;i--){
+  if(cur&&rs[i].id===cur)continue;
+  var gg=(rs[i].games||[]).filter(function(x){return x.type===payEdit.type&&x.payout&&x.payout.length})[0];
+  if(gg){found=gg.payout;break}}
+ if(!found){toast("이 종목에 금액이 적힌 지난 라운드가 없습니다.");return}
+ payEdit.rows=[];
+ for(var j=0;j<PAYOUT_MAX;j++)payEdit.rows.push(found[j]?
+  {fee:Number(found[j].fee)||0,prize:Number(found[j].prize)||0}:{fee:0,prize:0});
+ renderPayout();toast("직전 설정을 불러왔습니다.")}
+function paySave(){
+ /* H1.9.12: Draft payout is a form field until createRound()/saveRoundEdit() commits it. */
+ var out=payEdit.rows.map(function(r){return{fee:Number(r.fee)||0,prize:Number(r.prize)||0}});
+ while(out.length&&!out[out.length-1].fee&&!out[out.length-1].prize)out.pop();
+ var type=payEdit.type,box=payBox(type);
+ if(box){
+  box.value=JSON.stringify(out);
+  var config=box.closest(".game-config"),button=config&&config.querySelector(".gc-actions .chip");
+  if(button)button.innerHTML="회비 상금"+(out.length?' <b>●</b>':'');
+ }
+ payEdit=null;sheet=null;
+ var overlay=document.querySelector("#app > .sheet");if(overlay)overlay.remove();
+ toast(out.length?((GAMES[type]?GAMES[type].name:"")+" 회비·상금 "+out.length+"개를 입력했습니다. 마지막 저장에서 확정됩니다.")
+  :((GAMES[type]?GAMES[type].name:"")+" 회비·상금을 비웠습니다. 마지막 저장에서 확정됩니다."));
+}
+function payClose(){
+ payEdit=null;sheet=null;
+ var overlay=document.querySelector("#app > .sheet");if(overlay)overlay.remove();
+}
+function pickMain(el){
+ var all=document.querySelectorAll(".gmain");
+ if(el&&el.checked)for(var i=0;i<all.length;i++)if(all[i]!==el)all[i].checked=false;
+}
+/* v1.8.0 팀전은 팀을 한 명이라도 배정하셨을 때만 결과에 나옵니다. */
+function teamOn(){
+ var sel=document.querySelectorAll(".tsel");
+ for(var i=0;i<sel.length;i++)if(sel[i].value)return true;
+ return false}
+function teamCountSel(){
+ var t=document.getElementById("tcount");if(!t)return 0;
+ var v=parseInt(t.value,10);return isNaN(v)?0:v}
+function readGames(){
+ /* v1.8.0 모든 종목을 늘 담습니다. 종목을 끄는 길은 없습니다. */
+ var games=[],pays={},revs={},main="";
+ [].slice.call(document.querySelectorAll(".gpay")).forEach(function(el){
+  var t=el.getAttribute("data-type");
+  try{pays[t]=JSON.parse(el.value||"[]")}catch(e){pays[t]=[]}});
+ [].slice.call(document.querySelectorAll(".grv")).forEach(function(el){
+  revs[el.getAttribute("data-type")]=!!el.checked});
+ var tv=document.getElementById("trev");if(tv)revs.team=!!tv.checked;
+ [].slice.call(document.querySelectorAll(".gmain")).forEach(function(el){
+  if(el.checked)main=el.value});
+ GAME_ORDER.forEach(function(t){
+  var g={type:t,prize:0};
+  if(pays[t]&&pays[t].length)g.payout=pays[t];
+  if(revs[t])g.rev=true;
+  if(main===t)g.main=true;
+  if(t==="team"){
+   var b=document.getElementById("tbasis");g.basis=b?b.value:"net";
+   var tc=document.getElementById("tcount");g.teamCount=tc?parseInt(tc.value,10):2}
+  games.push(g)});
+ return games}
+
+/* ---- 새 라운드 ---- */
+function scrNewRound(){
+ var opts=playerPicker(null);setTimeout(function(){syncVenueField('r')},0);
+ return '<div class="screen"><div class="bar"><button class="chip" onclick="go(\'home\')">뒤로</button><h1>새 라운드</h1></div>'+
+ '<div class="body">'+
+ '<div class="card"><label for="rd">날짜</label><input type="date" id="rd" value="'+today()+'">'+
+ '<label for="rt">티오프 시간 (선택)</label><input type="time" id="rt">'+
+ '<label for="rv">구분</label><select id="rv" onchange="syncVenueField(\'r\')"><option value="">정하지 않음</option>'+
+ '<option value="screen">스크린</option><option value="field">필드</option></select>'+
+ '<label for="rp" id="rpl">장소 이름</label><input type="text" id="rp" placeholder="예: 골프존 ○○점">'+
+ '<label for="ra" id="ral">주소</label><input type="text" id="ra" placeholder="예: 주소를 입력해 주세요">'+
+ '<label for="rc">코스</label><input type="text" id="rc" placeholder="예: 동코스">'+
+ '<label for="rh">홀 수</label><select id="rh"><option value="18">18홀</option><option value="9">9홀</option></select>'+
+ '<label for="rg">조 수</label><select id="rg"><option value="1">나누지 않음</option><option value="2">2조</option>'+
+ '<option value="3">3조</option><option value="4">4조</option></select>'+
+ '<p class="note">조는 같이 도는 단위이고, 팀은 조와 상관없이 따로 나눕니다.</p></div>'+
+ '<div class="card"><h2>경기 종목</h2><p class="note">여러 개를 함께 거실 수 있습니다. 상금은 1등이 가져가며 공동이면 나눕니다. 팀으로 겨루시려면 팀 나누기에 체크하십시오.</p>'+
+ '<div style="height:6px"></div>'+gameChecklist({net:{prize:0}})+
+ '<p class="note">신페리오와 다파상과 버디킹과 어니언킹은 홀별 타수가 있어야 계산됩니다.</p></div>'+
+ '<div class="card"><h2>참가 여부와 팀 배정</h2>'+
+ '<p class="note">참가에 체크하고 오른쪽에서 팀을 고르시면, 아래 팀 나누기 현황이 바로 바뀝니다.</p>'+
+ '<ul class="list">'+opts+'</ul>'+
+ '<h2 style="margin-top:14px">팀 나누기 현황</h2><div id="tprev"></div>'+
+ '<div style="height:12px"></div><button type="button" id="autoTeamButton" class="btn sm quiet" onclick="doAutoTeams()">핸디로 자동 배정</button>'+
+ '<p class="note">팀 점수 기준이 개선상이면 과거 두 경기의 개선폭으로 편성합니다. 이전 기록이 없으면 중립값으로 처리합니다.</p></div>'+
+ '<div class="card"><h2>홀별 파</h2>'+
+ '<p class="note">미리 정하지 않습니다. 라운드를 돌면서 홀마다 파를 고르시거나, 스코어카드를 올리실 때 카드에 적힌 파가 그대로 들어옵니다.</p></div></div>'+
+ '<div class="foot"><button class="btn" onclick="createRound()">라운드 만들기</button></div></div>'}
+function createRound(){
+ var tee=document.getElementById("rt").value;
+ if(!teeTimeValid(tee)){toast("티오프 시간을 확인하십시오.");return}
+ var pk=readPlayers(),ps=pk.players;
+ if(!ps.length){toast("참가자를 선택해 주세요.");return}
+ var games=readGames();
+ if(!games.length){toast("게임을 하나 이상 고르세요.");return}
+ var hc=parseInt(document.getElementById("rh").value,10);
+ var gc=parseInt(document.getElementById("rg").value,10);
+ var pars=[];for(var pi=0;pi<hc;pi++)pars.push(0);
+ var groupOf={};ps.forEach(function(mid,i){groupOf[mid]=gc<=1?1:(Math.floor(i/Math.ceil(ps.length/gc))+1)});
+ var r={id:uid(),date:document.getElementById("rd").value||today(),teeTime:tee,
+  venue:document.getElementById("rv").value,
+  place:document.getElementById("rp").value.trim(),
+  address:document.getElementById("ra").value.trim(),
+  course:document.getElementById("rc").value.trim(),
+  holeCount:hc,pars:pars,players:ps,
+  groupCount:gc,groupOf:groupOf,scores:{},grossOnly:{},times:{},games:games,teams:pk.teams,perio:null,
+  confirmed:false,createdAt:new Date().toISOString()};
+ var tg=games.filter(function(g){return g.type==="team"})[0];
+ if(tg&&!Object.keys(pk.teams).length)autoTeams(r,tg.teamCount,tg.basis);
+ drawPerio(r);
+ S.rounds.push(r);save();go("result",{rid:r.id});toast("라운드를 만들었습니다.")}
+
+/* ---- 지난 기록 등록 ---- */
+function scrPast(){
+ var rows=S.members.map(function(m){
+  return '<div class="gm"><div class="nm">'+esc(m.name)+'</div>'+
+   '<input type="number" class="pg" data-mid="'+m.id+'" min="1" inputmode="numeric" placeholder="타수"></div>'}).join("");
+ return '<div class="screen"><div class="bar"><button class="chip" onclick="go(\'home\')">뒤로</button><h1>지난 기록 등록</h1></div>'+
+ '<div class="body">'+
+ '<div class="card"><h2>스코어카드로 등록</h2>'+
+ '<p class="note">카드 사진을 인공지능에 넣어 받은 글 하나로 라운드가 통째로 만들어집니다. 날짜와 장소와 코스, 참가자, 홀별 파와 타수가 한꺼번에 들어옵니다.</p>'+
+ '<div style="height:10px"></div>'+
+ '<button class="btn sm" onclick="go(\'scan\',{scanNew:true})">스코어카드로 등록하기</button></div>'+
+ '<div class="card"><h2>최종 타수만 넣기</h2>'+
+ '<p class="note">카드가 없는 옛 기록용입니다. 홀별 자료가 없으므로 버디킹과 다파상과 어니언킹과 신페리오는 계산되지 않습니다.</p>'+
+ '<label for="pd">날짜</label><input type="date" id="pd" value="'+today()+'">'+
+ '<label for="pt">티오프 시간 (선택)</label><input type="time" id="pt">'+
+ '<label for="pp">장소</label><input type="text" id="pp">'+
+ '<div style="height:12px"></div>'+
+ '<p class="note">불참하신 분은 비워 두십시오.</p>'+rows+
+ '<div style="height:12px"></div><button class="btn sm quiet" onclick="savePast()">최종 타수로 등록</button></div>'+
+ '</div></div>'}
+function savePast(){
+ var tee=document.getElementById("pt").value;
+ if(!teeTimeValid(tee)){toast("티오프 시간을 확인하십시오.");return}
+ var g2={},ps=[];
+ [].slice.call(document.querySelectorAll(".pg")).forEach(function(x){
+  var v=parseInt(x.value,10);if(isNaN(v)||v<=0)return;
+  g2[x.getAttribute("data-mid")]=v;ps.push(x.getAttribute("data-mid"))});
+ if(!ps.length){toast("타수를 하나 이상 넣어 주세요.");return}
+ S.rounds.push({id:uid(),date:document.getElementById("pd").value||today(),teeTime:tee,
+  place:document.getElementById("pp").value.trim(),holeCount:18,pars:DEFAULT_PARS.slice(),
+  players:ps,groupCount:1,groupOf:{},scores:{},grossOnly:g2,times:{},teams:{},perio:null,
+  games:[{type:"net",prize:0},{type:"gross",prize:0}],confirmed:true,createdAt:new Date().toISOString()});
+ save();go("home");toast("등록했습니다.")}
+
+/* ---- 라운드 수정: 화면에서 먼저 편집하고, 수정저장 한 번에 확정 ---- */
+function scrEdit(){
+ var r=round(view.rid);if(!r)return scrHome();setTimeout(function(){syncVenueField('e')},0);
+ var sel={};roundGames(r).forEach(function(g){sel[g.type]=g});
+ var chk=playerPicker(r);
+ var head='<tr><th>이름</th>'+r.pars.map(function(p,i){
+  return '<th'+(r.perio&&r.perio.indexOf(i+1)>=0?' class="hid"':'')+'>'+(i+1)+'</th>'}).join("")+'<th>합</th></tr>';
+ var parRow='<tr><td style="min-width:72px">파</td>';
+ for(var ph=1;ph<=r.holeCount;ph++)
+  parRow+='<td><input type="number" class="epar" data-hole="'+ph+'" min="3" max="6" inputmode="numeric" value="'+(parOf(r,ph)||"")+'"></td>';
+ parRow+='<td>'+(parsReady(r)?parSum(r):"-")+'</td></tr>';
+ var allMembers=S.members.filter(function(m){return r.players.indexOf(m.id)>=0}).concat(
+  S.members.filter(function(m){return r.players.indexOf(m.id)<0}));
+ var rowsHtml=allMembers.map(function(m){
+  var mid=m.id,cells="";
+  for(var h=1;h<=r.holeCount;h++){var c=cell(r,mid,h);
+   cells+='<td><input type="number" class="escore" data-mid="'+mid+'" data-hole="'+h+'" min="1" inputmode="numeric" oninput="syncEditGrossControls(this.dataset.mid)" value="'+(c&&typeof c.s==="number"?c.s:"")+'"></td>'}
+  var p=partialOf(r,mid);
+  return '<tr data-edit-score-row="'+mid+'"'+(r.players.indexOf(mid)<0?' hidden':'')+'><td style="min-width:72px">'+esc(mshort(m.id))+'</td>'+cells+
+   '<td>'+(p.n?p.sum:"-")+'</td></tr>'}).join("");
+ var gro=allMembers.map(function(m){var mid=m.id;
+  return '<div class="gm" data-edit-gross-row="'+mid+'"'+(r.players.indexOf(mid)<0?' hidden':'')+'><div class="nm">'+esc(mshort(m.id))+'</div>'+
+   '<input type="number" class="eg" data-mid="'+mid+'" min="1" inputmode="numeric" value="'+
+   (typeof r.grossOnly[mid]==="number"?r.grossOnly[mid]:"")+'" placeholder="타수"'+
+   (hasHoles(r,mid)?' disabled':'')+'></div>'}).join("");
+ var perioHtml='<div class="card"><h2>신페리오 숨은 홀</h2>'+
+  '<p class="note" id="eperioText">'+(r.perio&&r.perio.length?(r.perio.join(", ")+"번 홀"):"아직 뽑지 않았습니다.")+'</p>'+
+  '<input type="hidden" id="eperio" value="'+(r.perio?r.perio.join(","):"")+'">'+
+  '<p class="note">라운드를 만들 때 프로그램이 조용히 뽑아 둡니다. 여기서 다시 뽑으시면 수정저장 때 확정됩니다. 결과 화면의 뒤집기 추첨을 쓰시는 편이 더 간단합니다.</p>'+
+  '<div style="height:10px"></div><button class="btn sm quiet" onclick="rollPerioDraft(\''+r.id+'\')">'+
+  (r.perio&&r.perio.length?"다시 뽑기":"숨은 홀 뽑기")+'</button></div>';
+ return '<div class="screen">'+
+ '<div class="bar"><button class="chip" onclick="go(\'result\',{rid:\''+r.id+'\'})">뒤로</button>'+
+ '<h1>라운드 수정<div class="sub">'+roundNo(r)+'차 · '+esc(r.date)+
+ (r.teeTime?' '+esc(r.teeTime):'')+(placeLabel(r)?' · '+esc(placeLabel(r)):'')+'</div></h1></div>'+
+ '<div class="body">'+
+ '<p class="note" style="margin:0 0 10px">변경사항은 아래 수정저장을 누를 때 한꺼번에 저장됩니다. 뒤로 가면 저장되지 않은 내용은 사라집니다.</p>'+
+  '<div class="card"><label for="ed">날짜</label><input type="date" id="ed" value="'+esc(r.date)+'">'+
+ '<label for="et">티오프 시간 (선택)</label><input type="time" id="et" value="'+esc(r.teeTime||'')+'">'+
+ '<label for="ev">구분</label><select id="ev" onchange="syncVenueField(\'e\')"><option value=""'+(r.venue?"":" selected")+'>정하지 않음</option>'+
+ '<option value="screen"'+(r.venue==="screen"?" selected":"")+'>스크린</option>'+
+ '<option value="field"'+(r.venue==="field"?" selected":"")+'>필드</option></select>'+
+ '<label for="ep" id="epl">장소 이름</label><input type="text" id="ep" value="'+esc(r.place||"")+'">'+
+ '<label for="ea" id="eal">주소</label><input type="text" id="ea" value="'+esc(r.address||"")+'">'+
+ '<label for="ec">코스</label><input type="text" id="ec" value="'+esc(r.course||"")+'"></div>'+
+ '<div class="card"><h2>경기 종목</h2><p class="note">등록할 때와 같은 전체 종목입니다. 대회순위, 회비·상금, 거꾸로, 팀 점수 기준을 수정할 수 있습니다.</p>'+
+ '<div style="height:6px"></div>'+gameChecklist(sel)+
+ '<p class="note">신페리오와 다파상과 버디킹과 어니언킹은 홀별 타수가 있어야 계산됩니다.</p></div>'+
+ '<div class="card"><h2>참가 여부와 팀 배정</h2>'+
+ '<p class="note">참가에 체크하고 팀을 지정하면 팀 나누기 현황이 바뀝니다. 이 변경도 마지막에 함께 저장됩니다.</p>'+
+ '<ul class="list">'+chk+'</ul>'+
+ '<h2 style="margin-top:14px">팀 나누기 현황</h2><div id="tprev"></div>'+
+ '<div style="height:12px"></div><button type="button" id="autoTeamButton" class="btn sm quiet" onclick="doAutoTeams(\''+r.id+'\')">핸디로 자동 배정</button>'+
+ '<p class="note">개선상 선택 시 과거 두 경기의 개선폭을 참고합니다. 저장 전까지 원본은 바뀌지 않습니다.</p></div>'+
+ '<div class="card"><h2>홀별 타수</h2><p class="note">빈칸은 미입력입니다. 홀별 파와 타수도 수정저장 때 함께 저장됩니다.</p>'+
+ '<div class="scroll ed"><table class="hx"><thead>'+head+'</thead><tbody>'+parRow+rowsHtml+'</tbody></table></div>'+
+ '<p class="note">맨 윗줄이 홀별 파입니다. 비어 있으면 그 홀은 버디와 양파 집계에서 빠집니다.</p>'+
+ '<div style="height:10px"></div><button class="btn sm quiet" onclick="if(confirm(\'수정저장하지 않은 내용은 사라집니다. 스코어카드 입력 화면으로 이동할까요?\'))go(\'scan\',{rid:\''+r.id+'\'})">스코어카드 분석자료 올리기</button></div>'+
+ '<div class="card"><h2>최종 타수만</h2>'+
+ '<p class="note">홀별 타수가 모두 들어 있으면 그쪽이 쓰이고 이 칸은 잠깁니다.</p>'+gro+'</div>'+
+ perioHtml+
+ '<div class="card"><h2>삭제</h2><button class="btn sm line" onclick="delRound(\''+r.id+'\')">이 라운드 삭제</button></div>'+
+ '</div><div class="foot"><button class="btn" onclick="saveRoundEdit(\''+r.id+'\')">수정저장</button></div></div>'}
+function saveRoundEdit(rid){
+ var r=round(rid);if(!r)return;
+ var tee=document.getElementById("et").value;
+ if(!teeTimeValid(tee)){toast("티오프 시간을 확인하십시오.");return}
+ var pk=readPlayers(),games=readGames();
+ if(!pk.players.length){toast("참가자를 한 분 이상 선택해 주세요.");return}
+ if(!games.length){toast("경기 종목을 하나 이상 선택해 주세요.");return}
+ var ng=games.filter(function(g){return g.type==="team"})[0];
+ if(ng&&(ng.teamCount<2||ng.teamCount>4)){toast("팀 수는 2~4개로 정해 주세요.");return}
+ var pars=[],patches=[],gross={};
+ var valid=true;
+ [].slice.call(document.querySelectorAll(".epar")).forEach(function(x){
+  var v=x.value.trim(),n=Number(v);
+  if(v&&(!Number.isInteger(n)||n<3||n>6))valid=false;
+  pars[Number(x.getAttribute("data-hole"))-1]=v?n:0;
+ });
+ if(!valid){toast("홀별 파는 3~6 사이 정수로 입력해 주세요.");return}
+ [].slice.call(document.querySelectorAll(".escore")).forEach(function(x){
+  var mid=x.getAttribute("data-mid");if(pk.players.indexOf(mid)<0)return;
+  var v=x.value.trim(),n=Number(v);
+  if(v&&(!Number.isInteger(n)||n<=0))valid=false;
+  patches.push({mid:mid,h:Number(x.getAttribute("data-hole")),score:v?n:null});
+ });
+ if(!valid){toast("홀별 타수는 양의 정수로 입력해 주세요.");return}
+ [].slice.call(document.querySelectorAll(".eg")).forEach(function(x){
+  var mid=x.getAttribute("data-mid");if(pk.players.indexOf(mid)<0)return;
+  var v=x.value.trim(),n=Number(v);
+  if(v&&(!Number.isInteger(n)||n<=0))valid=false;
+  gross[mid]=v?n:null;
+ });
+ if(!valid){toast("최종 타수는 양의 정수로 입력해 주세요.");return}
+ var draft=JSON.parse(JSON.stringify(r));
+ draft.date=document.getElementById("ed").value||r.date;
+ draft.teeTime=tee;
+ draft.place=document.getElementById("ep").value.trim();
+ draft.address=document.getElementById("ea").value.trim();
+ draft.venue=document.getElementById("ev").value;
+ draft.course=document.getElementById("ec").value.trim();
+ /* 회원목록에서 이미 삭제한 사람의 옛 라운드 기록은 보존합니다. */
+ var removedMembers=r.players.filter(function(mid){return !member(mid)});
+ var oldTeamAssignments={};
+ removedMembers.forEach(function(mid){if(r.teams&&r.teams[mid])oldTeamAssignments[mid]=r.teams[mid]});
+ draft.games=games;draft.players=pk.players.concat(removedMembers);
+ draft.teams=Object.assign(oldTeamAssignments,pk.teams);draft.pars=pars;
+ pk.players.forEach(function(mid){if(!draft.groupOf[mid])draft.groupOf[mid]=1});
+ patches.forEach(function(x){
+  var old=cell(draft,x.mid,x.h);
+  if(old&&old.s===x.score)return;
+  setCell(draft,x.mid,x.h,x.score==null?null:{s:x.score,st:"ok"});
+ });
+ Object.keys(gross).forEach(function(mid){
+  if(gross[mid]==null)delete draft.grossOnly[mid];else draft.grossOnly[mid]=gross[mid]});
+ if(ng){
+  var assigned=Object.keys(teamsOf(draft));
+  /* 직접 지정한 C·D팀을 임의로 다시 배정하지 않고 팀 수를 맞춥니다. */
+  if(assigned.length){
+   var highest=Math.max.apply(null,assigned.map(function(k){return TEAM_KEYS.indexOf(k)+1}));
+   ng.teamCount=Math.max(ng.teamCount,highest);
+  }else autoTeams(draft,ng.teamCount,ng.basis);
+ }
+ var ep=document.getElementById("eperio");
+ if(ep&&ep.value){draft.perio=ep.value.split(",").map(Number).filter(function(n){return n>=1&&n<=draft.holeCount})}
+ if(!draft.perio||!draft.perio.length)drawPerio(draft);
+ var pos=S.rounds.indexOf(r);if(pos<0)return;
+ S.rounds[pos]=draft;
+ save();go("result",{rid:rid});toast("라운딩 수정을 저장했습니다.");
+}
+/* 자동 배정은 화면에서만 반영하고, 수정저장에서 확정합니다. */
+function doAutoTeams(rid){
+ var r=rid?round(rid):null,ps=readPlayers().players;
+ if(rid&&!r){toast("해당 라운드를 찾지 못했습니다.");return}
+ if(!ps.length){toast("먼저 참가자를 선택해 주세요.");return}
+ var nn=teamCountSel()||2;
+ if(nn<2)nn=2;if(nn>4)nn=4;
+ var existing=readPlayers().teams;
+ if(Object.keys(existing).length&&!confirm("현재 팀 배정을 자동 편성 결과로 교체하시겠습니까?"))return;
+ var basis=teamAutoBasis(),dateEl=document.getElementById(rid?"ed":"rd");
+ var temp={id:r?r.id:null,date:(dateEl&&dateEl.value)||today(),players:ps,teams:{}};
+ autoTeams(temp,nn,basis);
+ [].slice.call(document.querySelectorAll(".tsel")).forEach(function(x){
+  var mid=x.getAttribute("data-mid");if(ps.indexOf(mid)>=0)x.value=temp.teams[mid]||""});
+ var ck=document.querySelector('.gck[value="team"]');if(ck)ck.checked=true;
+ var ct=document.getElementById("tcount");if(ct)ct.value=String(nn);
+ teamPreview();
+ var group=teamsOf(temp),msg=TEAM_KEYS.filter(function(k){return group[k]}).map(function(k){
+  var t=0;group[k].forEach(function(mid){t+=curHcp(mid)});return k+"팀 "+group[k].length+"명 합"+t}).join(" · ");
+ toast(autoTeamBasisLabel(basis)+" 기준 "+nn+"팀 임시 배정 · "+(rid?"수정저장":"라운드 만들기")+"에서 확정. "+msg);
+}
+function rollPerioDraft(rid){
+ var r=round(rid),el=document.getElementById("eperio");if(!r||!el)return;
+ var tmp={holeCount:r.holeCount};drawPerio(tmp);
+ el.value=tmp.perio.join(",");
+ var desc=document.getElementById("eperioText");if(desc)desc.textContent=tmp.perio.join(", ")+"번 홀";
+ toast("숨은 홀을 임시로 뽑았습니다. 수정저장 후 반영됩니다.");
+}
+function delRound(rid){var r=round(rid);
+ if(!confirm(r.date+teeTimeLabel(r)+" 라운드를 삭제합니다. 되돌릴 수 없습니다. 계속할까요?"))return;
+ S.rounds=S.rounds.filter(function(x){return x.id!==rid});save();go("home");toast("삭제했습니다.")}
+
+/* ---- 입력 ---- */
+var enterAt=0,timeKey=null;
+function markEnter(){var k=view.rid+"#"+view.hole;if(k!==timeKey){timeKey=k;enterAt=Date.now()}}
+function recordTime(){if(!enterAt)return;var r=round(view.rid);if(!r){enterAt=0;return}
+ var s=Math.round((Date.now()-enterAt)/100)/10;
+ if(s>0&&s<600){var c=r.times[view.hole];r.times[view.hole]=(c==null)?s:Math.min(c,s)}
+ enterAt=0;timeKey=null;save()}
+function visiblePlayers(r){var g=L.myGroup[r.id];
+ if(!g||!r.groupOf)return r.players;
+ return r.players.filter(function(mid){return (r.groupOf[mid]||1)===g})}
+function scrPlay(){
+ var r=round(view.rid);if(!r)return scrHome();
+ var h=view.hole||1,par=parOf(r,h),pl=visiblePlayers(r);
+ var strip=[];
+ for(var i=1;i<=r.holeCount;i++){var f=0;
+  pl.forEach(function(mid){if(cell(r,mid,i))f++});
+  strip.push('<button class="seg '+(f===0?"":(f===pl.length?"done":"part"))+(i===h?" cur":"")+
+   '" onclick="goHole('+i+')"></button>')}
+ var picks=[3,4,5,6].map(function(v){
+  return '<button class="'+(par===v?"on":"")+'" onclick="setPar('+v+')">파'+v+'</button>'}).join("");
+ var rows=pl.map(function(mid){
+  var m=member(mid)||{name:"(알 수 없음)"},hc=roundHcp(r,mid),c=cell(r,mid,h);
+  var st=c&&c.st&&c.st!=="ok"?STATUS[c.st]:"";
+  var lo=par?Math.max(1,par-2):1,hi=par?par+4:7,ks=[];
+  for(var v=lo;v<=hi;v++){
+   ks.push('<button class="key'+(c&&c.s===v&&(!c.st||c.st==="ok")?" on":"")+
+    '" onclick="setScore(\''+mid+'\','+v+')">'+v+'</button>')}
+  var out=c&&typeof c.s==="number"&&(c.s<lo||c.s>hi);
+  var oth=(out||(c&&c.st&&c.st!=="ok"));
+  var lab=out?String(c.s):"\u00b7\u00b7\u00b7";
+  var keys='<div class="keys">'+ks.join("")+
+   '<button class="key more'+(oth?" on":"")+'" onclick="openSheet(\''+mid+'\')">'+
+   lab+'</button></div>';
+  var shown=(c&&typeof c.s==="number")?(' '+markHtml(c.s,par)):"";
+  return '<div class="plr"><div class="top"><span class="nm">'+esc(mshort(mid))+'</span>'+
+   (st?'<span class="st">'+st+'</span>':'')+
+   '<span class="hc">핸디 '+hc+'</span>'+shown+'</div>'+keys+'</div>'}).join("");
+ var gl=L.myGroup[r.id]?(L.myGroup[r.id]+"조"):"전체";
+ return '<div class="screen">'+
+ '<div class="bar"><button class="chip" onclick="go(\'result\',{rid:\''+r.id+'\'})">나가기</button>'+
+ '<h1>'+(L.mode==="host"?"필드 스코어 입력":"임시 입력")+'<div class="sub">'+
+ (L.mode==="host"?"이 기록이 결과에 쓰입니다":"이 폰에만 남습니다")+'</div></h1>'+
+ (r.groupCount>1?'<button class="chip" onclick="cycleGroup()">'+gl+'</button>':'')+'</div>'+
+ '<div class="holehead"><span class="holenum">'+h+'</span><span class="holepar">'+
+ (par?('파 '+par):'파를 먼저 골라 주세요')+'</span></div>'+
+ '<div class="parpick"><span class="lb">파</span>'+picks+'</div>'+
+ '<div class="strip">'+strip.join("")+'</div>'+
+ '<div class="body" style="padding-top:2px">'+rows+
+ (par?'<p class="note">버디는 동그라미, 보기는 네모, 더블보기 이상은 겹네모, 양파는 주황으로 표시됩니다.</p>'
+  :'<p class="note">파를 고르지 않아도 타수는 넣을 수 있습니다. 다만 파를 넣으셔야 버디킹과 다파상과 어니언킹이 계산됩니다.</p>')+
+ '</div>'+
+ '<div class="foot"><div class="row2">'+
+ (h>1?'<button class="btn quiet" onclick="prevHole()">이전 홀</button>':'')+
+ '<button class="btn" onclick="nextHole()">'+(h>=r.holeCount?"마치기":"다음 홀")+'</button></div></div></div>'}
+function setPar(v){var r=round(view.rid);
+ r.pars[view.hole-1]=(parOf(r,view.hole)===v)?0:v;save();render()}
+function cycleGroup(){var r=round(view.rid),n=(L.myGroup[r.id]||0)+1;
+ if(n>r.groupCount)n=0;if(n===0)delete L.myGroup[r.id];else L.myGroup[r.id]=n;save(false);render()}
+function setScore(mid,v){var r=round(view.rid),c=cell(r,mid,view.hole);
+ var st=c&&c.st&&c.st!=="ok"&&c.st!=="retire"&&c.st!=="absent"?c.st:"ok";
+ setCell(r,mid,view.hole,{s:v,st:st});save();render()}
+function bump(mid,d,b){var v=b+d;if(v<1)v=1;if(v>20)v=20;setScore(mid,v)}
+function goHole(h){recordTime();view.hole=h;render()}
+function prevHole(){if(view.hole>1)goHole(view.hole-1)}
+function nextHole(){var r=round(view.rid);recordTime();
+ if(view.hole>=r.holeCount)go("result",{rid:r.id});else{view.hole=view.hole+1;render()}}
+function openSheet(mid){
+ var r=round(view.rid),m=member(mid)||{name:"회원"},par=parOf(r,view.hole),nums="";
+ for(var v=1;v<=15;v++)nums+='<button class="key" onclick="setScore(\''+mid+'\','+v+');closeSheet()">'+v+'</button>';
+ sheet='<div class="sheet" onclick="if(event.target===this)closeSheet()"><div class="inner">'+
+  '<h2 style="margin:0 0 10px;font-size:16px">'+esc(m.name)+' · '+view.hole+'번 홀'+(par?' (파 '+par+')':'')+'</h2>'+
+  '<div class="grid5">'+nums+'</div><div class="grid3">'+
+  '<button class="key" onclick="setStatus(\''+mid+'\',\'pickup\')">픽업</button>'+
+  '<button class="key" onclick="setStatus(\''+mid+'\',\'concede\')">컨시드</button>'+
+  '<button class="key" onclick="setStatus(\''+mid+'\',\'retire\')">기권</button>'+
+  '<button class="key" onclick="setStatus(\''+mid+'\',\'absent\')">미참가</button>'+
+  '<button class="key" onclick="setStatus(\''+mid+'\',null)">지우기</button>'+
+  '<button class="key" onclick="closeSheet()">닫기</button></div></div></div>';
+ render()}
+function closeSheet(){sheet=null;render()}
+function setStatus(mid,st){var r=round(view.rid),par=parOf(r,view.hole)||4,c=cell(r,mid,view.hole);
+ if(st===null)setCell(r,mid,view.hole,null);
+ else if(st==="retire"||st==="absent")setCell(r,mid,view.hole,{s:null,st:st});
+ else{var s=c&&typeof c.s==="number"?c.s:par+2;setCell(r,mid,view.hole,{s:s,st:st})}
+ save();closeSheet()}
+
+/* H1.9.1: external maps/calendar are opened on client, no extra Script calls. */
+/* H1.9.9: venue-aware labels keep screen venues and field venues readable. */
+function venuePlaceLabel(v){return v==="screen"?"매장 이름":(v==="field"?"골프장 이름":"장소 이름")}
+function venuePlacePlaceholder(v){return v==="screen"?"예: 골프존 ○○점":(v==="field"?"예: 남서울CC":"예: 남서울CC · 골프존 ○○점")}
+function venueAddressLabel(v){return v==="screen"?"스크린매장주소":(v==="field"?"필드주소":"주소")}
+function venueAddressPlaceholder(v){return v==="screen"?"예: 서울시 강남구 ○○로 12":(v==="field"?"예: 경기도 성남시 ○○구 ○○로 88":"예: 주소를 입력해 주세요")}
+function syncVenueField(kind){
+ var vid=kind+"v",pid=kind+"p",aid=kind+"a",plid=kind+"pl",alid=kind+"al";
+ var sel=document.getElementById(vid),p=document.getElementById(pid),a=document.getElementById(aid),pl=document.getElementById(plid),al=document.getElementById(alid);
+ var v=sel&&sel.value||"";
+ if(pl)pl.textContent=venuePlaceLabel(v);
+ if(p)p.placeholder=venuePlacePlaceholder(v);
+ if(al)al.textContent=venueAddressLabel(v);
+ if(a)a.placeholder=venueAddressPlaceholder(v);
+}
+function golfPlaceQuery(r){return String((r&&((r.address||"").trim()||(r.place||""))||"")).trim()}
+function golfExternal(url){window.open(url,"_blank","noopener,noreferrer")}
+function golfMap(rid,provider){
+ var r=round(rid),q=golfPlaceQuery(r);
+ if(!q){toast("먼저 골프장·매장 위치를 입력하십시오.");return;}
+ if(provider==="naver")golfExternal("https://map.naver.com/p/search/"+encodeURIComponent(q));
+ else golfExternal("https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(q)+"&travelmode=driving");
+}
+function golfCalendar(rid){
+ var r=round(rid);
+ if(!r||!/^\d{4}-\d{2}-\d{2}$/.test(r.date||"")||!teeTimeValid(r.teeTime)||!r.teeTime){
+  toast("구글 캘린더에 보내려면 날짜와 티오프 시간을 등록하십시오.");return;
+ }
+ var start=new Date(r.date+"T"+r.teeTime+":00+09:00");
+ if(!Number.isFinite(start.getTime())){toast("날짜·시각을 확인하십시오.");return;}
+ var end=new Date(start.getTime()+5*60*60*1000);
+ function kst(d){var x=new Date(d.getTime()+9*3600000);
+  return x.getUTCFullYear()+p2(x.getUTCMonth()+1)+p2(x.getUTCDate())+"T"+
+   p2(x.getUTCHours())+p2(x.getUTCMinutes())+"00";}
+ var place=(r&&r.place||"").trim(),address=(r&&r.address||"").trim(),where=golfPlaceQuery(r),title=(S.room.name||APP_NAME)+" · "+((place||where)||"골프 라운딩");
+ var desc="모임: "+(S.room.name||"")+"\n라운딩: "+r.date+" "+r.teeTime+
+  "\n구분: "+venueLabel(r)+"\n장소: "+(place||"미정")+(address?"\n주소: "+address:"")+
+  "\n코스: "+(r.course||"미정")+"\n참가: "+r.players.map(mname).join(", ")+
+  "\n골프챌린지: "+location.origin+location.pathname+"?club="+encodeURIComponent(SUPPLY_CLUB_ID);
+ var url="https://calendar.google.com/calendar/render?action=TEMPLATE"+
+  "&text="+encodeURIComponent(title)+"&dates="+kst(start)+"/"+kst(end)+
+  "&ctz=Asia%2FSeoul&location="+encodeURIComponent(where||place)+"&details="+encodeURIComponent(desc);
+ golfExternal(url);
+}
+function golfLinks(r){
+ if(!r||!r.place&&!r.address&&!r.teeTime)return "";
+ return '<div class="card"><h2>지도 · 일정</h2>'+
+  '<div class="row2"><button class="btn sm quiet" onclick="golfMap(\''+r.id+'\',\'naver\')">네이버지도</button>'+
+  '<button class="btn sm quiet" onclick="golfCalendar(\''+r.id+'\')">구글 캘린더</button></div>'+
+  '<p class="portal-small">구글 캘린더에는 날짜·시간·장소·주소·코스·참가자 정보가 미리 입력됩니다. 회원이 직접 저장합니다.</p></div>';
+}
+/* ---- 결과 ---- */
+/* 종목 카드 아래에 붙는 순위별 회비·상금 표 */
+/* 한 라운드의 특기할 기록을 모읍니다. */
+function roundMarks(r){
+ var out=[],fb=firstBirdie(r);
+ if(fb)out.push({key:"firstBirdie",label:"첫버디",
+  who:fb.mids.map(mname).join(", "),note:fb.hole+"번 홀"});
+ function per(label,fn,note){
+  var hit=[];
+  r.players.forEach(function(mid){var v=fn(r,mid);
+   if(v)hit.push(v>1?(mname(mid)+" "+v+"회"):mname(mid))});
+  if(hit.length)out.push({label:label,who:hit.join(", "),note:note||""})}
+ per("홀인원",countAce);
+ per("이글",countEagle);
+ per("사이클버디",cycleBirdie,"파3·파4·파5에서 모두 버디");
+ per("올림픽",countOlympic,"다섯 홀 이상 연속 파");
+ per("아우디",countAudi,"네 홀 연속 파");
+ per("올파",allPar,"전 홀 파");
+ /* 이븐과 언더, 라베는 총타수로 가립니다. */
+ var even=[],under=[],best=[];
+ r.players.forEach(function(mid){
+  var g=grossOf(r,mid);if(g==null)return;
+  var d=g-parSum(r);
+  if(d===0)even.push(mname(mid));
+  else if(d<0)under.push(mname(mid)+" "+d);
+  if(isPersonalBest(r,mid))best.push(mname(mid)+" "+sgn(d))});
+ if(under.length)out.push({label:"언더",who:under.join(", ")});
+ if(even.length)out.push({label:"이븐",who:even.join(", ")});
+ if(best.length)out.push({label:"라베",who:best.join(", "),note:"자기 최저 기록 경신"});
+ return out}
+function marksCard(r){
+ var m=roundMarks(r);
+ if(!m.length)return "";
+ return '<div class="card"><h2>오늘의 기록</h2><table><tbody>'+
+  m.map(function(x){return '<tr><td style="min-width:84px"><b>'+esc(x.label)+'</b></td>'+
+   '<td style="text-align:left;white-space:normal">'+esc(x.who)+
+   (x.note?' <span class="mt">'+esc(x.note)+'</span>':'')+'</td></tr>'}).join("")+
+  '</tbody></table><p class="note">홀별 타수가 있어야 나옵니다. 최종 타수만 넣은 라운드에서는 언더와 이븐과 라베만 나옵니다.</p></div>'}
+/* ===== v1.8.0 신페리오 뒤집기 추첨 =====
+   숨은 홀은 라운드를 만들 때 프로그램이 조용히 뽑아 둡니다.
+   결과를 열면 그때 드러납니다. 이의가 있는 분이 있으면 경기위원장이
+   그분 이름을 골라 다시 뽑기를 누릅니다. 한 사람에 한 번뿐입니다.
+   누가 뽑았고 그때 어느 홀이었는지가 기록으로 남습니다. */
+function perioLog(r){return (r.perioLog&&r.perioLog.length)?r.perioLog:[]}
+function perioUsed(r){return perioLog(r).map(function(x){return x.mid})}
+function perioCard(r){
+ if(!r.perio||!r.perio.length)return "";
+ var host=hostSessionActive();
+ var used=perioUsed(r);
+ var left=r.players.filter(function(mid){return used.indexOf(mid)<0});
+ var log=perioLog(r);
+ var hist=log.length?('<div style="height:10px"></div><table><tbody>'+
+  log.map(function(x,i){return '<tr><td style="min-width:60px">'+(i+1)+'번째</td>'+
+   '<td style="text-align:left;white-space:normal">'+esc(mname(x.mid))+
+   ' <span class="mt">이전 '+(x.from||[]).join(", ")+'번 홀</span></td></tr>'}).join("")+
+  '</tbody></table>'):"";
+ var pick=host?(left.length?
+  ('<div style="height:10px"></div><p class="note">이의가 있는 분의 이름을 누르시면 그 자리에서 다시 뽑습니다. 한 분에 한 번뿐입니다.</p>'+
+   '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:9px">'+
+   left.map(function(mid){return '<button class="chip" onclick="perioReroll(\''+r.id+'\',\''+mid+'\')">'+
+    esc(mname(mid))+'</button>'}).join("")+'</div>')
+  :'<p class="note">참가자 모두가 권리를 쓰셨습니다. 숨은 홀이 확정되었습니다.</p>')
+  :(left.length?'<p class="note">이의가 있으시면 경기위원장께 말씀하십시오. 아직 '+left.length+'분이 다시 뽑기를 하실 수 있습니다.</p>'
+   :'<p class="note">참가자 모두가 권리를 쓰셨습니다. 숨은 홀이 확정되었습니다.</p>');
+ var reset=(host&&log.length)?('<div style="height:10px"></div>'+
+  '<button class="btn sm line" onclick="perioResetRights(\''+r.id+'\')">권리 모두 되돌리기</button>'):"";
+ return '<div class="card"><h2>신페리오 뒤집기 추첨</h2>'+
+  '<p class="note">지금 숨은 홀 <b>'+r.perio.join(", ")+'</b>번 · 다시 뽑기 '+log.length+'회</p>'+
+  hist+pick+reset+'</div>'}
+function perioReroll(rid,mid){
+ var r=round(rid);if(!r)return;
+ if(!hostSessionActive()){toast("경기위원장 모드에서만 다시 뽑을 수 있습니다.");return}
+ if(perioUsed(r).indexOf(mid)>=0){toast(mname(mid)+" 님은 이미 쓰셨습니다.");return}
+ ask(mname(mid)+" 님의 권리로 숨은 홀을 다시 뽑습니다.\n한 번 쓰시면 되돌릴 수 없습니다.",function(){
+  var before=(r.perio||[]).slice();
+  if(!r.perioLog)r.perioLog=[];
+  r.perioLog.push({mid:mid,from:before,at:new Date().toISOString()});
+  drawPerio(r);save();render();
+  toast(mname(mid)+" 님이 다시 뽑았습니다. 숨은 홀 "+r.perio.join(", ")+"번");
+ },"다시 뽑기")}
+function perioResetRights(rid){
+ var r=round(rid);if(!r)return;
+ ask("다시 뽑기 권리를 모두 되돌립니다. 지금까지의 기록도 지워집니다.",function(){
+  r.perioLog=[];save();render();toast("권리를 되돌렸습니다.")},"되돌리기")}
+function payoutSummary(p){
+ if(!p)return "";
+ return '<p class="note" style="color:var(--turf)">걷은 회비 '+won(p.fee)+
+  ' \u00b7 나간 상금 '+won(p.prize)+' \u00b7 모임에 남는 돈 '+won(p.pot)+'</p>'}
+function gameCard(r,g,isMain){
+ var G=GAMES[g.type];if(!G)return "";
+ if(g.type==="team"){
+  var tr=teamResult(r,g);
+  if(!tr)return '<div class="card"><h2>팀전</h2><div class="empty">두 팀 이상으로 나누고 기록이 들어오면 계산됩니다.</div></div>';
+  var ind=rankBy(tr.sides.reduce(function(acc,sd){
+   return acc.concat(sd.rows.map(function(x){
+    return{mid:x.mid,name:x.name,v:x.v,team:sd.key,gross:x.gross,rh:x.rh}}))},[]),tr.asc);
+  var irk={};ind.forEach(function(x){irk[x.mid]=x});
+  var tpay=gamePayout(r,g),tmap={};
+  if(tpay)tpay.rows.forEach(function(x){tmap[x.mid]=x});
+  var body="";
+  tr.sides.forEach(function(sd){
+   body+='<tr'+(sd.rank===1?' class="gold"':'')+'>'+
+    '<td>'+(sd.rank===1?'<span class="star">\ud83c\udf1f</span> ':'')+
+    (sd.tie?"공동 ":"")+sd.rank+'위 '+sd.key+'팀</td>'+
+    '<td colspan="3" class="mt">'+sd.rows.length+'명</td>'+
+    '<td><b>'+sd.total+'</b></td>'+(tpay?'<td colspan="3"></td>':'')+'</tr>';
+   sd.rows.slice().sort(function(x,y){return irk[x.mid].rank-irk[y.mid].rank}).forEach(function(x){
+    body+='<tr><td style="padding-left:16px">'+esc(x.name)+
+     '<span class="mt"> 개인 '+irk[x.mid].rank+'위</span></td>'+
+     '<td>'+(x.gross==null?"-":x.gross)+'</td><td>'+(tr.basis==="perio"?"-":x.rh)+'</td>'+
+     '<td>'+(tr.basis==="improve"?sgn(x.v):(Math.round(x.v*10)/10))+basisUnit(tr.basis)+'</td>'+
+     '<td>'+(x.mult>1?"\u00d7"+x.mult:"")+'</td>'+
+     (tpay?(function(){var pm=tmap[x.mid];
+      return '<td>'+(pm&&pm.fee?won(pm.fee):"-")+'</td><td>'+(pm&&pm.prize?won(pm.prize):"-")+'</td>'+
+       '<td'+(pm&&pm.net>0?' class="win"':(pm&&pm.net<0?' class="u"':''))+'>'+
+       (pm?((pm.net>0?"+":"")+won(pm.net)):"-")+'</td>'})():'')+'</tr>'})});
+  return '<div class="card'+(isMain?" maincard":"")+'"><h2>'+(isMain?'<span class="maintag">대회순위</span> ':'<span class="reftag">참고순위</span> ')+
+   '팀전 <span class="mt">'+basisName(tr.basis)+(g.rev?' <span class="reverse-label">거꾸로</span>':'')+'</span></h2>'+
+   '<div class="scroll"><table><thead><tr><th>순위와 이름</th><th>타수</th><th>핸디</th>'+
+   '<th>'+basisName(tr.basis)+'</th><th>합계</th>'+(tpay?'<th>회비</th><th>상금</th><th>손익</th>':'')+
+   '</tr></thead><tbody>'+body+'</tbody></table></div>'+
+   '<p class="note">'+basisName(tr.basis)+' 점수를 더해 '+(tr.asc?"적은":"많은")+' 팀이 이깁니다. '+
+   GAMES[tr.basis].desc+'. 인원이 맞지 않는 팀은 핸디가 중간인 분의 점수를 두 배로 칩니다.</p>'+
+   payoutSummary(tpay)+'</div>'}
+ var rows=gameRows(r,g.type,g.rev);
+ if(!rows.length)return '<div class="card"><h2>'+G.name+'</h2><div class="empty">아직 계산할 기록이 없습니다.'+
+  (G.need==="hole"?'<br>홀별 타수가 필요합니다.':'')+'</div></div>';
+ var showHcp=(g.type==="net"||g.type==="perio");
+ var showGross=(g.type==="net"||g.type==="perio"||g.type==="improve");
+ var LBL={gross:"타수",net:"네트",perio:"네트",improve:"개선",dapa:"개수",birdie:"개수",onion:"개수"};
+ var pay=gamePayout(r,g),pmap={};
+ if(pay)pay.rows.forEach(function(x){pmap[x.mid]=x});
+ var hasPay=!!pay;
+ return '<div class="card'+(isMain?" maincard":"")+'"><h2>'+(isMain?'<span class="maintag">대회순위</span> ':'<span class="reftag">참고순위</span> ')+
+  G.name+(g.rev?' <span class="mt reverse-label">거꾸로</span>':'')+(g.type==="perio"&&r.perio?' <span class="mt">숨은 홀 '+r.perio.join(",")+'</span>':'')+'</h2>'+
+  '<div class="scroll"><table><thead><tr><th>순위와 이름</th>'+(showGross?'<th>타수</th>':'')+(showHcp?'<th>핸디</th>':'')+
+  '<th>'+(LBL[g.type]||"결과")+'</th>'+(hasPay?'<th>회비</th><th>상금</th><th>손익</th>':'')+'</tr></thead><tbody>'+
+  rows.map(function(x){var pm=pmap[x.mid];
+   return '<tr'+(x.rank===1?' class="gold"':'')+'><td>'+
+   (x.rank===1?'<span class="star">\ud83c\udf1f</span> ':'')+(x.tie?"공동 ":"")+x.rank+'위 '+esc(x.name)+
+   (x.rank===1?' \ud83c\udf89':'')+'</td>'+
+   (showGross?'<td>'+(x.gross==null?"-":x.gross)+'</td>':'')+
+   (showHcp?'<td>'+x.hcp+'</td>':'')+
+   '<td>'+(g.type==="improve"?sgn(x.v):x.v)+G.unit+'</td>'+
+   (hasPay?('<td>'+(pm&&pm.fee?won(pm.fee):"-")+'</td>'+
+    '<td>'+(pm&&pm.prize?won(pm.prize):"-")+'</td>'+
+    '<td'+(pm&&pm.net>0?' class="win"':(pm&&pm.net<0?' class="u"':''))+'>'+
+    (pm?((pm.net>0?"+":"")+won(pm.net)):"-")+'</td>'):'')+'</tr>'}).join("")+
+  '</tbody></table></div><p class="note">'+G.desc+
+  (g.rev?'<br>거꾸로 적용 \u00b7 '+(G.asc?"많을수록":"적을수록")+' 우승입니다.':'')+'</p>'+
+  payoutSummary(pay)+'</div>'}
+function scrResult(){
+ var r=round(view.rid);if(!r)return scrHome();
+ var gl=orderedGames(r);
+ var cards=gl.map(function(g){return gameCard(r,g,isMainGame(r,g))}).join("");
+ var head='<tr><th>이름</th>'+r.pars.map(function(p,i){
+  var hid=r.perio&&r.perio.indexOf(i+1)>=0,pv=parOf(r,i+1);
+  return '<th'+(hid?' class="hid"':'')+'>'+(i+1)+'<br><span class="mt">'+(pv?pv:"·")+'</span></th>'}).join("")+'<th>합</th></tr>';
+ var body=r.players.map(function(mid){
+  var cells="";
+  for(var h=1;h<=r.holeCount;h++){var c=cell(r,mid,h);
+   if(!c)cells+='<td class="u">·</td>';
+   else if(c.s==null)cells+='<td class="u">'+(STATUS[c.st]||"-")+'</td>';
+   else cells+='<td>'+markHtml(c.s,parOf(r,h))+'</td>'}
+  var pt=partialOf(r,mid);
+  return '<tr><td style="min-width:68px">'+esc(mshort(mid))+'</td>'+cells+
+   '<td>'+(pt.n?pt.sum:"-")+'</td></tr>'}).join("");
+ var gs={};r.players.forEach(function(mid){var k=(r.groupOf&&r.groupOf[mid])||1;(gs[k]=gs[k]||[]).push(mid)});
+ var gHtml="";
+ if(r.groupCount>1){for(var k in gs)if(gs.hasOwnProperty(k))
+   gHtml+='<li class="item"><div class="nm">'+k+'조</div><div class="mt">'+esc(gs[k].map(mname).join(", "))+'</div></li>';
+  gHtml='<div class="card"><h2>조 편성</h2><ul class="list">'+gHtml+'</ul></div>'}
+ var host=L.mode==="host",no=roundNo(r);
+ var marks=perioCard(r)+marksCard(r);
+ return '<div class="screen">'+
+ '<div class="bar"><button class="chip" onclick="go(\'home\')">홈</button>'+
+ '<span class="ribbon'+(isPlanned(r)?'':' done')+'">'+(isPlanned(r)?'예정':'결과')+'</span>'+
+ '<h1 class="round-head">'+no+'차 '+esc(r.date)+'<div class="sub">'+(r.teeTime?'<span class="round-tee">티오프 '+esc(r.teeTime)+'</span>':'')+(r.teeTime&&placeLabel(r)?' · ':'')+esc(placeLabel(r))+'</div></h1>'+
+ '</div>'+
+ '<div style="padding:12px 14px 0"><div class="row2">'+
+ '<button class="btn sm quiet" onclick="go(\'play\',{rid:\''+r.id+'\',hole:1})">필드 스코어 입력</button>'+
+ (host?'<button class="btn sm quiet" onclick="go(\'scan\',{rid:\''+r.id+'\'})">라운드 기록 올리기</button>':'')+
+ '</div>'+(host?'<div style="height:8px"></div>'+
+ '<button class="btn sm quiet" onclick="go(\'edit\',{rid:\''+r.id+'\'})">라운딩 수정</button>':'')+'</div>'+
+ '<div class="body">'+golfLinks(r)+gHtml+cards+marks+
+ '<div class="card"><h2>홀별 기록</h2><div class="scroll"><table class="hx"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>'+
+ cumTable(r.id,no+"차까지의 누적","이 라운드를 마친 시점의 누적입니다. 핸디순으로 늘어놓았으며, 핸디는 다음 라운드에 적용될 값입니다.")+
+ (host?'<div class="card"><h2>모임에 공유</h2>'+
+  '<p class="note">이 기록을 창구에 올리면 회원들이 받아 볼 수 있습니다.</p>'+
+  '<div style="height:10px"></div><button class="btn sm'+(L.dirty?" alertbtn":"")+'" onclick="pushCloud()">'+
+  (L.dirty?'<span class="lamp red"></span>올릴 수정이 있습니다 · 모임에 올리기':'모임에 공유하기')+'</button></div>':'')+
+ '</div></div>'}
+
+/* ---- 스코어카드 읽기 ---- */
+/* ===== v1.3.0 스코어카드 읽기 =====
+   지시문을 엄격한 형식으로 바꾸고, 라운드까지 통째로 만들 수 있게 했습니다.
+   mode "round" : 이미 있는 라운드에 홀별 타수를 채웁니다.
+   mode "new"   : 카드 하나로 지난 라운드를 새로 만듭니다. */
+var CARD_HEAD="#WGK1";
+/* v1.3.1 공급본에 복사 함수가 없어 지시문 복사 단추가 동작하지 않았습니다. */
+/* v1.3.1 홈 화면에 추가할 때 쓰이는 이름을 모임 이름으로 맞춥니다.
+   이미 만들어 두신 바로가기의 이름은 바뀌지 않으므로, 바꾸시려면
+   아이콘을 지우고 다시 추가하시거나 런처에서 이름을 고치셔야 합니다. */
+function setDocTitle(nm){
+ try{
+  if(!nm)return;
+  if(document.title!==nm)document.title=nm;
+  var it=document.getElementById("iosTitle");
+  if(it&&it.getAttribute("content")!==nm)it.setAttribute("content",nm);
+ }catch(e){}}
+function copyText(t){
+ function fallback(){
+  try{
+   var ta=document.createElement("textarea");
+   ta.value=t;ta.setAttribute("readonly","");
+   ta.style.position="fixed";ta.style.top="-1000px";ta.style.opacity="0";
+   document.body.appendChild(ta);ta.select();
+   try{ta.setSelectionRange(0,t.length)}catch(e){}
+   var ok=document.execCommand("copy");ta.remove();
+   toast(ok?"복사했습니다.":"복사하지 못했습니다. 글을 길게 눌러 직접 복사해 주십시오.")
+  }catch(e){toast("복사하지 못했습니다. 글을 길게 눌러 직접 복사해 주십시오.")}}
+ if(navigator.clipboard&&navigator.clipboard.writeText){
+  navigator.clipboard.writeText(t).then(function(){toast("복사했습니다.")},fallback)}
+ else fallback()}
+function cardPrompt(holeCount,forNew){
+ var who=S.members.map(function(m){return m.nick?(m.name+"("+m.nick+")"):m.name}).join(", ");
+ var hc=holeCount||18;
+ var pars=[],line=[];
+ for(var i=0;i<hc;i++){pars.push(i%6===2?"03":(i%6===3?"05":"04"));line.push(i%6===2?"04":(i%6===3?"06":"05"))}
+ return "첨부한 골프 스코어카드 사진을 읽어 아래 형식 그대로만 출력하십시오.\n"+
+ "설명, 인사말, 제목, 표, 굵은 글씨, 코드블록을 절대 붙이지 마십시오.\n\n"+
+ "[형식 규칙]\n"+
+ "1) 첫 줄은 반드시 "+CARD_HEAD+" 입니다.\n"+
+ "2) 마지막 줄은 반드시 #END 입니다.\n"+
+ "3) 각 줄은 '항목: 값' 형식이며 항목은 영문 대문자입니다.\n"+
+ "4) 숫자는 모두 두 자리로 맞춥니다. 한 자리면 앞에 0을 붙입니다. (예: 4 → 04)\n"+
+ "5) 읽을 수 없는 숫자는 ?? 로 적습니다. 빈칸으로 두지 마십시오.\n"+
+ "6) 구분자는 세로줄 | 이며 앞뒤에 공백 한 칸씩 둡니다.\n"+
+ "7) 홀별 타수는 정확히 "+hc+"개여야 합니다. 모자라면 ?? 로 채웁니다.\n"+
+ "8) 사람은 한 줄에 한 명이며 P: 로 시작합니다.\n"+
+ "9) 카드에 없는 항목은 그 줄을 통째로 빼십시오. 빈 값을 적지 마십시오.\n\n"+
+ "[항목]\n"+
+ "DATE: 경기 날짜, YYYY-MM-DD\n"+
+ "TIME: 시작 시각, HH:MM (24시간)\n"+
+ "TYPE: 스크린 또는 필드\n"+
+ "PLACE: 골프장 또는 매장 이름\n"+
+ "COURSE: 코스 이름\n"+
+ "HOLES: 홀 수, 18 또는 09\n"+
+ "PAR: 홀별 파 "+hc+"개\n"+
+ "P: 이름 | 홀별 타수 "+hc+"개 | 합계(세 자리, 예 086)\n\n"+
+ "[이름 규칙]\n"+
+ "아래 명단에 있는 이름이나 괄호 안 닉네임과 같으면 그 글자를 그대로 적습니다.\n"+
+ "명단에 없는 사람도 카드에 있으면 카드에 적힌 그대로 적습니다. 빼지 마십시오.\n"+
+ "명단: "+(who||"(등록된 회원 없음)")+"\n\n"+
+ "[출력 예시]\n"+
+ CARD_HEAD+"\n"+
+ "DATE: 2026-10-12\nTIME: 07:30\nTYPE: 필드\nPLACE: 남서울CC\nCOURSE: 동코스\nHOLES: "+(hc<10?"0"+hc:hc)+"\n"+
+ "PAR: "+pars.join(" ")+"\n"+
+ "P: "+(S.members[0]?S.members[0].name:"홍길동")+" | "+line.join(" ")+" | 0"+
+ (line.reduce(function(x,y){return x+parseInt(y,10)},0))+"\n"+
+ "#END";
+}
+function normName(s){return String(s==null?"":s).replace(/[\s()·.·]/g,"").toLowerCase()}
+/* 이름과 닉네임을 모두 견주어 회원을 찾습니다. pool 은 회원 id 배열입니다. */
+function matchMember(raw,pool){
+ var n=normName(raw);if(!n)return null;
+ function keys(mid){var m=member(mid);if(!m)return [];
+  return [normName(m.name)].concat(m.nick?[normName(m.nick)]:[])}
+ var i,j,k,ks;
+ for(i=0;i<pool.length;i++){ks=keys(pool[i]);for(j=0;j<ks.length;j++)if(ks[j]===n)return pool[i]}
+ for(i=0;i<pool.length;i++){ks=keys(pool[i]);
+  for(j=0;j<ks.length;j++){var x=ks[j];if(x&&(x.indexOf(n)===0||n.indexOf(x)===0))return pool[i]}}
+ for(i=0;i<pool.length;i++){ks=keys(pool[i]);
+  for(j=0;j<ks.length;j++){var y=ks[j];
+   if(y.length&&n.length&&y[0]===n[0]&&Math.abs(y.length-n.length)<=1)return pool[i]}}
+ return null}
+
+/* 카드 글을 읽어 구조로 바꿉니다. 실패하면 why 에 이유를 담습니다. */
+function parseCard(txt){
+ var out={ok:false,why:"",meta:{},pars:null,rows:[],holeCount:0,warn:[]};
+ if(!txt||!txt.trim()){out.why="붙여 넣은 글이 없습니다.";return out}
+ /* v1.3.1 붙여넣기에서 줄바꿈이 사라지는 경우가 있어, 항목 이름 앞에
+    줄바꿈을 다시 넣어 한 줄짜리 글도 읽어냅니다. */
+ var norm=txt.replace(/\r/g,"\n")
+  .replace(/(#WGK1|#END)/g,"\n$1\n")
+  .replace(/(^|[\s|])(DATE|TIME|TYPE|PLACE|COURSE|HOLES|PAR|P)\s*:\s*/g,"\n$2: ");
+ var lines=norm.split("\n").map(function(x){return x.trim()}).filter(function(x){return x});
+ var hi=-1;for(var i=0;i<lines.length;i++)if(lines[i].indexOf(CARD_HEAD)===0){hi=i;break}
+ if(hi<0){out.why="첫 줄의 "+CARD_HEAD+" 표시를 찾지 못했습니다. 지시문을 그대로 넣으셨는지 확인해 주십시오.";return out}
+ lines=lines.slice(hi+1);
+ var end=lines.indexOf("#END");if(end>=0)lines=lines.slice(0,end);
+ function nums(part,want){
+  var t=(part||"").match(/(\d{1,2}|\?\?|\?)/g)||[];
+  var v=t.map(function(x){if(x.indexOf("?")>=0)return null;var q=parseInt(x,10);return isNaN(q)?null:q});
+  if(want){while(v.length<want)v.push(null);v=v.slice(0,want)}
+  return v}
+ var hc=0;
+ lines.forEach(function(ln){
+  var m=ln.match(/^HOLES\s*:\s*(\d{1,2})/i);if(m)hc=parseInt(m[1],10)});
+ lines.forEach(function(ln){
+  var m=ln.match(/^PAR\s*:\s*(.+)$/i);
+  if(m&&!hc){var t=nums(m[1]);hc=t.length>=9?(t.length>=18?18:9):0}});
+ if(!hc)hc=18;
+ out.holeCount=hc;
+ lines.forEach(function(ln){
+  var m;
+  if((m=ln.match(/^DATE\s*:\s*(\d{4})[-./](\d{1,2})[-./](\d{1,2})/i)))
+   out.meta.date=m[1]+"-"+("0"+m[2]).slice(-2)+"-"+("0"+m[3]).slice(-2);
+  else if((m=ln.match(/^TIME\s*:\s*(\d{1,2})\s*[:시]\s*(\d{1,2})/i)))
+   out.meta.teeTime=("0"+m[1]).slice(-2)+":"+("0"+m[2]).slice(-2);
+  else if((m=ln.match(/^TYPE\s*:\s*(.+)$/i)))
+   out.meta.venue=/스크린|screen/i.test(m[1])?"screen":(/필드|field/i.test(m[1])?"field":"");
+  else if((m=ln.match(/^PLACE\s*:\s*(.+)$/i))) out.meta.place=m[1].trim().slice(0,60);
+  else if((m=ln.match(/^COURSE\s*:\s*(.+)$/i))) out.meta.course=m[1].trim().slice(0,60);
+  else if((m=ln.match(/^PAR\s*:\s*(.+)$/i))) out.pars=nums(m[1],hc);
+  else if((m=ln.match(/^P\s*:\s*(.+)$/i))){
+   var body=m[1],parts=body.split("|").map(function(x){return x.trim()});
+   var who,vals,total=null;
+   if(parts.length>=2){
+    who=parts[0];vals=nums(parts[1],hc);
+    if(parts.length>=3){var t=nums(parts[2]);total=t.length?t[t.length-1]:null;
+     if(parts[2].replace(/\D/g,"").length>=3)total=parseInt(parts[2].replace(/\D/g,""),10)}
+   }else{
+    var head=body.split(/\s+/)[0];who=head;vals=nums(body.slice(head.length),hc)}
+   if(!who)return;
+   out.rows.push({raw:who,mid:null,vals:vals,total:total,newName:""})}
+ });
+ if(!out.rows.length){out.why="P: 로 시작하는 사람 줄을 찾지 못했습니다.";return out}
+ var pool=S.members.map(function(x){return x.id});
+ out.rows.forEach(function(row){
+  var mid=matchMember(row.raw,pool);
+  if(mid){row.mid=mid;pool=pool.filter(function(x){return x!==mid})}});
+ out.ok=true;return out}
+
+/* 합계 검산: 읽은 홀별 합과 카드 합계가 다르면 알려 줍니다. */
+function rowSum(vals){var t=0,n=0;vals.forEach(function(v){if(typeof v==="number"){t+=v;n++}});
+ return{sum:t,filled:n}}
+
+function scrScan(){
+ var isNew=(view.scanNew===true);
+ var r=isNew?null:round(view.rid);
+ if(!isNew&&!r)return scrHome();
+ if(scan&&((isNew&&scan.mode==="new")||(!isNew&&scan.rid===r.id)))return scanConfirm(r);
+ var hc=isNew?18:r.holeCount;
+ var back=isNew?'go(\'past\')':('go(\'result\',{rid:\''+r.id+'\'})');
+ return '<div class="screen"><div class="bar"><button class="chip" onclick="'+back+'">뒤로</button>'+
+ '<h1>'+(isNew?"스코어카드로 라운드 등록":"스코어카드 읽기")+'</h1></div><div class="body">'+
+ '<div class="card"><h2>1. 지시문 복사</h2>'+
+ '<p class="note">아래를 복사해 스코어카드 사진과 함께 인공지능에 넣으십시오. 형식을 엄격히 정해 두었으므로 그대로 쓰셔야 오독이 줄어듭니다.</p>'+
+ '<div style="height:10px"></div><textarea readonly id="pt" style="min-height:150px">'+esc(cardPrompt(hc,isNew))+'</textarea>'+
+ '<div style="height:10px"></div><button class="btn sm" onclick="copyText(document.getElementById(\'pt\').value)">지시문 복사</button></div>'+
+ '<div class="card"><h2>2. 받은 글 붙여넣기</h2>'+
+ '<textarea id="sc" placeholder="'+CARD_HEAD+' 으로 시작하는 글 전체를 붙여 넣으십시오"></textarea>'+
+ '<div style="height:10px"></div><button class="btn sm quiet" onclick="runParse('+(isNew?'true':'false')+')">읽어들이기</button>'+
+ (isNew?'<p class="note">읽어들이면 날짜와 장소와 참가자와 홀별 타수가 한꺼번에 들어옵니다. 다음 화면에서 고치신 뒤 등록하십시오.</p>':'')+
+ '</div></div></div>'}
+function runParse(isNew){
+ var txt=document.getElementById("sc").value;
+ var p=parseCard(txt);
+ if(!p.ok){toast(p.why);return}
+ if(isNew){
+  scan={mode:"new",rid:null,meta:p.meta,pars:p.pars,rows:p.rows,holeCount:p.holeCount}}
+ else{
+  var r=round(view.rid);
+  scan={mode:"round",rid:r.id,meta:p.meta,pars:p.pars,rows:p.rows,holeCount:r.holeCount}}
+ render()}
+
+function scanConfirm(r){
+ var isNew=(scan.mode==="new");
+ var hc=scan.holeCount;
+ var head='<tr><th>이름</th>';
+ for(var i=0;i<hc;i++){var pv=scan.pars&&typeof scan.pars[i]==="number"?scan.pars[i]:null;
+  head+='<th>'+(i+1)+'<br><span class="mt">'+(pv?pv:"·")+'</span></th>'}
+ head+='<th>합</th><th>카드</th></tr>';
+ var body=scan.rows.map(function(row,ri){
+  var opts='<option value="">(넣지 않음)</option>'+
+   S.members.map(function(m){return '<option value="'+m.id+'"'+(row.mid===m.id?" selected":"")+'>'+
+    esc(m.nick?(m.name+" ("+m.nick+")"):m.name)+'</option>'}).join("");
+  var sel='<select onchange="scanSetMember('+ri+',this.value)">'+opts+'</select>';
+  var add=row.mid?'':'<div style="height:5px"></div><button class="chip" onclick="scanAddMember('+ri+')">이 이름으로 회원 등록</button>';
+  var cells="";
+  for(var h=0;h<hc;h++){var v=row.vals[h];
+   cells+='<td><input type="number" min="1" inputmode="numeric" value="'+(v==null?"":v)+
+    '" onchange="scanSetVal('+ri+','+h+',this.value)"></td>'}
+  var rs=rowSum(row.vals);
+  var okTotal=(row.total==null)||(rs.filled===hc&&rs.sum===row.total);
+  cells+='<td><b>'+(rs.filled?rs.sum:"-")+'</b></td>'+
+   '<td'+(okTotal?'':' class="u"')+'>'+(row.total==null?"-":row.total)+(okTotal?"":" ✕")+'</td>';
+  return '<tr><td style="min-width:150px">'+sel+
+   '<div class="mt">읽은 이름: '+esc(row.raw)+'</div>'+add+'</td>'+cells+'</tr>'}).join("");
+ var bad=scan.rows.filter(function(row){var rs=rowSum(row.vals);
+  return row.total!=null&&!(rs.filled===hc&&rs.sum===row.total)});
+ var miss=scan.rows.filter(function(row){return rowSum(row.vals).filled<hc});
+ var warn="";
+ if(bad.length)warn+='<p class="note" style="color:var(--clay)">합계가 맞지 않는 줄이 '+bad.length+'개 있습니다. 카드와 대조해 고쳐 주십시오.</p>';
+ if(miss.length)warn+='<p class="note" style="color:var(--clay)">읽지 못한 칸이 남은 줄이 '+miss.length+'개 있습니다.</p>';
+ var metaCard=isNew?('<div class="card"><h2>라운드 정보</h2>'+
+  '<label for="cd">날짜</label><input type="date" id="cd" value="'+esc(scan.meta.date||today())+'">'+
+  '<label for="ct">티오프 시간</label><input type="time" id="ct" value="'+esc(scan.meta.teeTime||"")+'">'+
+  '<label for="cv">구분</label><select id="cv">'+
+   '<option value=""'+(scan.meta.venue?"":" selected")+'>정하지 않음</option>'+
+   '<option value="screen"'+(scan.meta.venue==="screen"?" selected":"")+'>스크린</option>'+
+   '<option value="field"'+(scan.meta.venue==="field"?" selected":"")+'>필드</option></select>'+
+  '<label for="cp">골프장 · 매장</label><input type="text" id="cp" value="'+esc(scan.meta.place||"")+'">'+
+  '<label for="cc">코스</label><input type="text" id="cc" value="'+esc(scan.meta.course||"")+'">'+
+  '<p class="note">홀 수 '+hc+'홀로 읽었습니다.</p></div>'):"";
+ return '<div class="screen"><div class="bar"><button class="chip" onclick="scan=null;render()">다시</button>'+
+ '<h1>읽은 내용 확인</h1></div><div class="body">'+metaCard+
+ '<div class="card"><h2>참가자와 타수</h2>'+
+ '<p class="note">1과 7, 4와 9를 자주 헷갈립니다. 맨 오른쪽 두 칸은 더한 값과 카드에 적힌 합계이니 서로 같은지 보십시오.</p>'+
+ '<div class="scroll ed"><table class="hx"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>'+warn+'</div>'+
+ (scan.pars?'<div class="card"><label style="display:flex;align-items:center;gap:10px;margin:0">'+
+  '<input type="checkbox" id="usepar" checked style="width:22px;height:22px"> 카드에 적힌 파를 이 라운드의 파로 삼기</label>'+
+  '<p class="note">읽은 파: '+scan.pars.map(function(x){return x==null?"?":x}).join(" ")+'</p></div>'
+  :'<div class="card"><p class="note">카드에서 파 줄을 찾지 못했습니다. 파가 없으면 버디킹과 다파상과 어니언킹이 계산되지 않습니다.</p></div>')+
+ '</div><div class="foot"><button class="btn" onclick="'+(isNew?'applyScanNew()':'applyScan()')+'">'+
+ (isNew?"이 내용으로 라운드 등록":"이 내용으로 저장")+'</button></div></div>'}
+function scanSetMember(ri,mid){scan.rows[ri].mid=mid||null;render()}
+function scanSetVal(ri,i,v){var n=parseInt(v,10);scan.rows[ri].vals[i]=isNaN(n)?null:n}
+function scanAddMember(ri){
+ var row=scan.rows[ri];
+ var nm=(prompt("새 회원의 이름을 확인해 주십시오.",row.raw)||"").trim();
+ if(!nm)return;
+ var nk=(prompt("닉네임 (없으면 비워 두십시오)",row.raw===nm?"":row.raw)||"").trim();
+ var m={id:uid(),name:nm,nick:nk,hcpManual:0};
+ S.members.push(m);row.mid=m.id;save();render();
+ toast(nm+" 회원을 등록했습니다.")}
+function applyScan(){
+ var r=round(scan.rid);if(!r){scan=null;render();return}
+ var cb=document.getElementById("usepar");
+ if(cb&&cb.checked&&scan.pars)for(var i=0;i<r.holeCount;i++)
+  if(typeof scan.pars[i]==="number")r.pars[i]=scan.pars[i];
+ var n=0;
+ scan.rows.forEach(function(row){if(!row.mid)return;
+  if(r.players.indexOf(row.mid)<0)r.players.push(row.mid);
+  row.vals.forEach(function(v,i){if(typeof v!=="number")return;
+   setCell(r,row.mid,i+1,{s:v,st:"ok"});n++});
+  if(hasHoles(r,row.mid))delete r.grossOnly[row.mid]});
+ r.confirmed=true;save();var rid=r.id;scan=null;go("result",{rid:rid});
+ toast(n+"개 칸을 저장했습니다.")}
+function applyScanNew(){
+ var used=scan.rows.filter(function(row){return row.mid});
+ if(!used.length){toast("회원으로 지정된 줄이 없습니다.");return}
+ var tee=document.getElementById("ct").value;
+ if(!teeTimeValid(tee)){toast("티오프 시간을 확인하십시오.");return}
+ var hc=scan.holeCount;
+ var pars=[];for(var i=0;i<hc;i++)pars.push(0);
+ var cb=document.getElementById("usepar");
+ if(cb&&cb.checked&&scan.pars)for(var j=0;j<hc;j++)
+  if(typeof scan.pars[j]==="number")pars[j]=scan.pars[j];
+ var r={id:uid(),date:document.getElementById("cd").value||today(),teeTime:tee,
+  venue:document.getElementById("cv").value,
+  place:document.getElementById("cp").value.trim(),
+  course:document.getElementById("cc").value.trim(),
+  holeCount:hc,pars:pars,players:used.map(function(row){return row.mid}),
+  groupCount:1,groupOf:{},scores:{},grossOnly:{},times:{},teams:{},perio:null,
+  games:[{type:"net",prize:0},{type:"gross",prize:0}],confirmed:true,
+  createdAt:new Date().toISOString()};
+ var n=0;
+ used.forEach(function(row){
+  row.vals.forEach(function(v,i){if(typeof v!=="number")return;
+   setCell(r,row.mid,i+1,{s:v,st:"ok"});n++})});
+ S.rounds.push(r);save();scan=null;go("result",{rid:r.id});
+ toast(used.length+"명, "+n+"개 칸으로 라운드를 등록했습니다.")}
+
+/* ---- 연간 ---- */
+function scrYear(){
+ var years={};S.rounds.forEach(function(r){var y=(r.date||"").slice(0,4);if(y)years[y]=true});
+ var ys=Object.keys(years).sort().reverse();
+ var y=view.year||ys[0]||String(new Date().getFullYear());
+ var rs=S.rounds.filter(function(r){return (r.date||"").indexOf(y)===0});
+ var acc={};
+ function A(mid){if(!acc[mid])acc[mid]={mid:mid,name:mname(mid),prize:0,last:0,wins:0,
+  dapa:0,birdie:0,onion:0,improve:0,rounds:0,fee:0,won:0,net:0,give:0,gain:0,
+  ace:0,eagle:0,cycle:0,olympic:0,audi:0,allpar:0,under:0,even:0,best:0,fbird:0};return acc[mid]}
+ rs.forEach(function(r){
+  r.players.forEach(function(mid){A(mid).rounds++});
+  ["dapa","birdie","onion"].forEach(function(t){
+   r.players.forEach(function(mid){if(hasHoles(r,mid))A(mid)[t]+=countType(r,mid,t)})});
+  r.players.forEach(function(mid){var im=improveOf(r,mid);if(im!=null&&im>0)A(mid).improve+=im});
+  /* v1.7.0 기록 항목 누적 */
+  r.players.forEach(function(mid){
+   var a=A(mid);
+   a.ace+=countAce(r,mid);a.eagle+=countEagle(r,mid);
+   a.cycle+=cycleBirdie(r,mid);a.olympic+=countOlympic(r,mid);
+   a.audi+=countAudi(r,mid);a.allpar+=allPar(r,mid);
+   var gg=grossOf(r,mid);
+   if(gg!=null){var dd=gg-parSum(r);
+    if(dd<0)a.under++;else if(dd===0)a.even++;
+    if(isPersonalBest(r,mid))a.best++}});
+  var fb=firstBirdie(r);
+  if(fb)fb.mids.forEach(function(mid){A(mid).fbird++});
+  roundGames(r).forEach(function(g){
+   if(g.type==="team"){
+    var tr=teamResult(r,g);if(!tr)return;
+    var w=tr.sides.filter(function(s){return s.rank===1}),cnt=0;
+    w.forEach(function(s){cnt+=s.rows.length});
+    if(!cnt)return;
+    w.forEach(function(s){s.rows.forEach(function(x){
+     A(x.mid).wins++})});
+    return}
+   var rows=gameRows(r,g.type,g.rev);if(!rows.length)return;
+   var w=rows.filter(function(x){return x.rank===1});
+   w.forEach(function(x){A(x.mid).wins++})});
+  /* v1.6.0 금액이 걸린 모든 종목을 합산합니다. */
+  var mm=roundMoney(r);
+  for(var mid in mm){if(!mm.hasOwnProperty(mid))continue;
+   var a=A(mid);a.fee+=mm[mid].fee;a.won+=mm[mid].prize;a.net+=mm[mid].net}
+  var nr=gameRows(r,"net");
+  if(nr.length){var mx=nr[nr.length-1].rank;
+   nr.filter(function(x){return x.rank===mx}).forEach(function(x){A(x.mid).last++})}});
+ var arr=Object.keys(acc).map(function(k){return acc[k]});
+ /* 손익이 음수면 기부, 양수면 수익입니다. 둘은 같은 숫자의 양 끝입니다. */
+ arr.forEach(function(x){x.give=x.net<0?-x.net:0;x.gain=x.net>0?x.net:0});
+ var moneyRows=arr.filter(function(x){return x.fee||x.won});
+ function tbl(title,key,unit,desc){
+  var a=arr.filter(function(x){return x[key]>0}).sort(function(p,q){return q[key]-p[key]});
+  if(!a.length)return '<div class="card"><h2>'+title+'</h2><div class="empty">기록 없음</div></div>';
+  return '<div class="card"><h2>'+title+'</h2><table><tbody>'+
+   a.map(function(x,i){return '<tr><td>'+(i+1)+'. '+esc(x.name)+'</td><td class="'+(i===0?"win":"")+'">'+
+    (unit==="원"?won(x[key]):x[key]+unit)+'</td></tr>'}).join("")+'</tbody></table>'+
+   (desc?'<p class="note">'+desc+'</p>':'')+'</div>'}
+ function moneyTable(rows){
+  if(!rows.length)return '<div class="card"><h2>회비와 상금</h2>'+
+   '<div class="empty">금액이 걸린 종목이 없습니다.</div>'+
+   '<p class="note">종목 설정에서 순위별 회비와 상금을 넣으시면 여기에 모입니다.</p></div>';
+  var byNet=rows.slice().sort(function(p,q){return p.net-q.net});
+  var give=byNet.filter(function(x){return x.net<0});
+  var gain=byNet.slice().reverse().filter(function(x){return x.net>0});
+  var totFee=0,totWon=0;rows.forEach(function(x){totFee+=x.fee;totWon+=x.won});
+  var all='<div class="scroll"><table><thead><tr><th>이름</th><th>낸 회비</th><th>받은 상금</th><th>손익</th></tr></thead><tbody>'+
+   byNet.map(function(x){return '<tr><td>'+esc(x.name)+'</td><td>'+won(x.fee)+'</td><td>'+won(x.won)+'</td>'+
+    '<td'+(x.net>0?' class="win"':(x.net<0?' class="u"':''))+'>'+(x.net>0?"+":"")+won(x.net)+'</td></tr>'}).join("")+
+   '</tbody></table></div>';
+  function rank(title,list,key,desc){
+   if(!list.length)return "";
+   return '<div class="card"><h2>'+title+'</h2><table><tbody>'+
+    list.map(function(x,i){return '<tr><td>'+(i+1)+'. '+esc(x.name)+'</td>'+
+     '<td class="'+(i===0?"win":"")+'">'+won(x[key])+'</td></tr>'}).join("")+
+    '</tbody></table><p class="note">'+desc+'</p></div>'}
+  return '<div class="card"><h2>회비와 상금</h2>'+all+
+   '<p class="note">낸 회비가 많을수록 손익이 마이너스가 됩니다. 걷은 회비 '+won(totFee)+
+   ' · 나간 상금 '+won(totWon)+' · 모임에 남은 돈 '+won(totFee-totWon)+'</p></div>'+
+   rank("기부왕",give,"give","가장 많이 보태신 분부터입니다. 회비에서 상금을 뺀 금액입니다.")+
+   rank("상금왕",gain,"gain","회비보다 상금을 더 받으신 분입니다. 회비만 걷는 모임이면 비어 있고, 그때는 기부왕의 역순이 적게 내신 순서입니다.")}
+ var hc=S.members.map(function(m){
+  var inY=sortedRounds().filter(function(r){return (r.date||"").indexOf(y)===0&&r.players.indexOf(m.id)>=0});
+  var mine=sortedRounds().filter(function(r){return r.players.indexOf(m.id)>=0});
+  if(!inY.length||!mine.length)return{name:m.name,year:0,all:0};
+  var startH=hcpAt(m.id,inY[0].date,inY[0].id);
+  var firstH=hcpAt(m.id,mine[0].date,mine[0].id);
+  return{name:m.name,year:startH-curHcp(m.id),all:firstH-curHcp(m.id)}});
+ function hcTbl(title,key,desc){
+  var a=hc.filter(function(x){return x[key]>0}).sort(function(p,q){return q[key]-p[key]});
+  if(!a.length)return '<div class="card"><h2>'+title+'</h2><div class="empty">줄어든 분이 없습니다.</div>'+
+   '<p class="note">'+desc+'</p></div>';
+  return '<div class="card"><h2>'+title+'</h2><table><tbody>'+
+   a.map(function(x,i){return '<tr><td>'+(i+1)+'. '+esc(x.name)+'</td><td class="'+(i===0?"win":"")+'">'+x[key]+'만큼</td></tr>'}).join("")+
+   '</tbody></table><p class="note">'+desc+'</p></div>'}
+ var sel=ys.map(function(v){return '<button class="chip'+(v===y?" on":"")+'" onclick="go(\'year\',{year:\''+v+'\'})">'+v+'</button>'}).join(" ");
+ return '<div class="screen"><div class="bar"><button class="chip" onclick="go(\'home\')">뒤로</button><h1>'+y+'년 집계</h1></div>'+
+ '<div class="body">'+(ys.length>1?'<div class="card">'+sel+'</div>':'')+
+ '<div class="card"><h2>라운드</h2><p class="note">'+rs.length+'회</p></div>'+
+ moneyTable(moneyRows)+
+ tbl("우승 횟수","wins","회","종목별 1등을 합친 횟수입니다. 팀전은 이긴 팀 모두에게 셉니다.")+
+ tbl("개선 누적","improve","타","직전 라운드보다 줄인 타수를 모두 더한 것입니다.")+
+ tbl("홀인원","ace","회","")+
+ tbl("이글","eagle","회","")+
+ tbl("사이클버디","cycle","회","파3·파4·파5에서 모두 버디를 한 라운드 수입니다.")+
+ tbl("올림픽","olympic","회","다섯 홀 이상 연속으로 파 이상을 친 횟수입니다.")+
+ tbl("아우디","audi","회","네 홀 연속으로 파 이상을 친 횟수입니다.")+
+ tbl("올파","allpar","회","전 홀을 파로 친 라운드 수입니다.")+
+ tbl("첫버디","fbird","회","그 라운드에서 가장 먼저 버디를 한 횟수입니다.")+
+ tbl("언더","under","회","")+tbl("이븐","even","회","")+
+ tbl("라베","best","회","자기 최저 기록을 경신한 횟수입니다.")+
+ tbl("다파상 누적","dapa","홀","")+tbl("버디킹 누적","birdie","홀","")+tbl("어니언킹 누적","onion","홀","")+
+ tbl("꼴찌왕","last","회","핸디 적용 순위에서 꼴찌를 한 횟수입니다.")+
+ hcTbl("올해 핸디를 줄인 순서","year","올해 첫 라운드 때 핸디와 지금 핸디의 차이입니다.")+
+ hcTbl("처음부터 핸디를 줄인 순서","all","모임에 들어온 첫 라운드 때 핸디와 지금 핸디의 차이입니다.")+
+ '</div></div>'}
+
+/* ---- 누적 ---- */
+function scrStats(){
+ var rs=sortedRounds();
+ var upto=view.upto||null;
+ var sel=rs.length>1?('<div class="card"><h2>어느 라운드까지</h2>'+
+  '<button class="chip'+(upto?"":" on")+'" onclick="go(\'stats\')">전체</button> '+
+  rs.map(function(r,i){return '<button class="chip'+(upto===r.id?" on":"")+
+   '" onclick="go(\'stats\',{upto:\''+r.id+'\'})">'+(i+1)+'차</button>'}).join(" ")+'</div>'):"";
+ var head="회원별 기록";
+ if(upto){for(var i=0;i<rs.length;i++)if(rs[i].id===upto)head=(i+1)+"차 "+rs[i].date+"까지의 누적"}
+ return '<div class="screen"><div class="bar"><button class="chip" onclick="go(\'home\')">뒤로</button><h1>누적 기록</h1></div>'+
+ '<div class="body">'+sel+
+ cumTable(upto,head,"핸디순으로 늘어놓았습니다. 숫자는 모두 파 대비 오버 타수이며, 핸디는 최근 "+(S.hcpWindow||5)+"회 평균에서 자동으로 나옵니다. 마지막 라운드까지의 누적이 곧 전체 누적입니다.")+
+ '</div></div>'}
+
+/* ---- 룰보기: 현재 계산 로직을 기준으로 설명합니다. ---- */
+function scrRules(){
+ function card(title,summary,detail){
+  return '<div class="card"><h2>'+title+'</h2>'+
+   '<p class="rule-desc">'+summary+'</p>'+
+   (detail?'<p class="rule-desc" style="color:var(--muted)">'+detail+'</p>':'')+'</div>'}
+ return '<div class="screen"><div class="bar"><button class="chip" onclick="go(\'home\')">뒤로</button><h1>게임 룰보기</h1></div>'+ 
+ '<div class="body rules">'+
+ '<div class="card"><h2>공통 규칙</h2><p class="rules-intro">라운드마다 여러 종목을 동시에 선택할 수 있습니다. 순위는 해당 종목의 점수를 기준으로 결정하며, 동점은 공동 순위입니다. 1등이 여러 명이면 설정된 상금을 똑같이 나누되 1원 미만은 버립니다. 상금을 0원으로 정해도 순위는 계산합니다.</p>'+ 
+ '<p class="rule-desc" style="margin-top:8px;color:var(--muted)">핸디는 다음 라운드를 위한 최근 기록을 이용해 계산하므로, 완료된 과거 경기의 적용 핸디는 그 경기 전 기록을 기준으로 합니다.</p></div>'+ 
+ card('1. '+GAMES.net.name,
+  '라운드의 전체 타수에서 경기 당일 적용 핸디를 뺀 네트 타수가 가장 적은 사람이 이깁니다.',
+  '첫 참가 경기에는 회원의 초기 핸디(기본값 0)가 적용됩니다. 이후에는 이전 한 경기의 파 대비 오버 타수, 기록이 쌓이면 최근 '+(S.hcpWindow||5)+'경기의 평균을 반올림하여 핸디로 적용합니다.')+
+ card('2. '+GAMES.gross.name,
+  '핸디를 빼지 않은 실제 총타수가 가장 적은 사람이 이깁니다.',
+  '전체 타수만 등록해도 계산할 수 있습니다.')+
+ card('3. '+GAMES.improve.name,
+  '직전에 참가한 경기와 비교하여 파 대비 타수를 더 많이 줄인 사람이 이깁니다.',
+  '예를 들어 이전 경기가 파보다 12타 많고 이번 경기가 7타 많다면 개선 점수는 +5타입니다. 이전 참가 기록이 없는 첫 경기는 계산 대상에서 제외됩니다.')+
+ card('4. '+GAMES.perio.name,
+  '숨은 홀을 이용해 그 경기의 신페리오 핸디를 별도로 계산한 뒤, 총타수에서 빼서 순위를 정합니다. 네트 타수가 적을수록 유리합니다.',
+  '18홀은 무작위로 12홀, 9홀은 6홀을 뽑습니다. 현재 프로그램은 숨은 홀 타수 합계에 1.5를 곱하고 전체 파를 뺀 값의 80%를 핸디로 계산합니다(소수 첫째 자리 반올림). 모든 홀의 타수가 있어야 계산됩니다.')+
+ card('5. '+GAMES.dapa.name,
+  '각 홀에서 파 또는 파보다 적은 타수를 기록한 홀의 개수가 가장 많은 사람이 이깁니다.',
+  '버디와 이글도 포함됩니다. 홀별 파와 타수 입력이 필요합니다.')+
+ card('6. '+GAMES.birdie.name,
+  '각 홀에서 버디 또는 버디보다 좋은 점수를 기록한 홀의 개수가 가장 많은 사람이 이깁니다.',
+  '해당 홀의 파보다 1타 이상 적게 친 경우를 셉니다. 홀별 파와 타수 입력이 필요합니다.')+
+ card('7. '+GAMES.onion.name,
+  '양파를 기록한 홀의 개수가 가장 많은 사람이 이깁니다.',
+  '현재 프로그램에서는 해당 홀 파의 두 배 이상 친 경우를 양파로 셉니다. 예를 들어 파4 홀에서 8타 이상이면 해당합니다. 홀별 파와 타수 입력이 필요합니다.')+
+ card('8. '+GAMES.team.name,
+  '2~4개 팀을 구성하고 선택한 개인전 종목의 점수를 팀별로 합산해 순위를 정합니다.',
+  '개인전의 승리 기준을 그대로 적용하며 팀전의 거꾸로 설정도 가능합니다. 팀 인원이 다르면 인원이 적은 팀에서 핸디가 중간에 가까운 선수들의 점수를 부족한 인원수만큼 중복 합산합니다. 팀을 자동 배정할 때 핸디 적용을 선택하면 적용 핸디를, 개선상을 선택하면 직전 두 참가 경기 사이의 성적 개선폭을 참고합니다. 과거 기록이 부족하면 개선폭을 0으로 취급합니다.')+
+ card('9. 거꾸로',
+  '별도의 경기종목이 아니라 각 종목의 우승 순서를 반대로 정하는 선택 규칙입니다. 라운딩을 만들거나 수정할 때 해당 종목의 ‘거꾸로’를 체크하면 적용됩니다.',
+  '핸디 적용·스크래치·신페리오는 원래 낮은 점수가 우승하지만 거꾸로를 선택하면 높은 점수가 우승합니다. 개선상·다파상·버디킹·어니언킹은 반대로 낮은 점수가 우승합니다. 팀전에서는 선택한 개인전 종목의 팀별 합계를 반대 순서로 비교합니다. 실제 기록과 점수 계산은 그대로이고 순위만 바뀌며, 공동 순위 및 상금 분배 규칙은 동일합니다.')+
+ '<div class="card"><p class="note">이 설명은 골프 일반 경기규칙 전체가 아니라 이 프로그램에서 실제 사용하는 종목별 계산 규칙입니다. 경기위원장은 라운드를 만들 때 종목, 상금, 거꾸로 적용 여부를 선택합니다.</p></div>'+ 
+ '</div></div>'}
+
+/* ---- 설정 ---- */
+function scrData(){
+ var host=hostSessionActive();
+ return '<div class="screen"><div class="bar"><button class="chip" onclick="go(\'home\')">뒤로</button><h1>설정</h1></div>'+ '<div class="body">'+
+ '<div class="card"><h2>모임 이름</h2><p class="note">현재 이름: '+esc(S.room.name)+'<br>모임 식별번호와 기록 저장소는 유지됩니다. 이름 변경은 모든 회원에게 최신 기록으로 전달됩니다.</p>'+
+  (host?'<label for="newClubName">새 모임 이름</label><input type="text" id="newClubName" maxlength="60" value="'+esc(S.room.name)+'" placeholder="변경할 모임 이름">'+
+  '<div style="height:10px"></div><button class="btn sm quiet" onclick="changeClubName()">모임 이름 변경저장</button>':'<p class="note">모임 이름은 경기위원장이 변경할 수 있습니다.</p>')+'</div>'+
+ '<div class="card"><h2>모임 창구</h2><p class="note">최초 한 번만 공급용 서버 주소와 회원용 접근 키를 등록하십시오. 회원은 이후 최신 기록을 받아 사용할 수 있습니다.</p>'+
+ '<label for="cu">공급용 서버 주소</label><input type="text" id="cu" value="'+esc(L.cloudUrl)+'" placeholder="https://script.google.com/macros/s/.../exec">'+
+ '<label for="crk">회원용 접근 키</label><input type="password" id="crk" autocomplete="off" value="'+esc(L.cloudReadKey)+'" placeholder="wgk_로 시작하는 회원용 키">'+
+ '<div style="height:12px"></div><button class="btn sm" onclick="saveCloud()">연결 설정 저장</button>'+
+ '<div style="height:9px"></div><div class="row2"><button class="btn sm quiet" onclick="pullCloud()">최신 기록 받기</button>'+
+ (host?'<button class="btn sm '+(L.dirty?"alertbtn":"quiet")+'" onclick="pushCloud()">'+
+  (L.dirty?'<span class="lamp red"></span>올릴 수정 있음':'서버에 올리기')+'</button>':'')+'</div>'+
+ '<div style="height:9px"></div><button class="btn sm line" onclick="cloudTest()">연결 확인</button>'+
+ (host?'<div style="height:9px"></div><button class="btn sm line" onclick="supplyMemberInvite()">회원용 초대주소 복사</button>':'')+
+ '<div id="cbox" class="note"></div><p class="note">서버 버전 '+(L.lastName?esc(L.lastName):'미연결')+' · 마지막 받기 '+(L.lastSync?fmt(L.lastSync):'없음')+'</p>'+
+ (L.dirty?'<p class="note" style="color:var(--clay)">이 기기에 서버로 올리지 않은 변경 사항이 있습니다.</p>':'')+'</div>'+
+ '<div class="card"><h2>이 기기의 역할</h2><div class="row2"><button class="btn sm '+(host?'':'line')+'" onclick="setRole(\'host\')">경기위원장</button>'+
+ '<button class="btn sm '+(!host?'':'line')+'" onclick="setRole(\'member\')">회원</button></div>'+
+ '<p class="note">경기위원장은 모임별 암호로 인증합니다. 암호는 서버에서 확인하며 회원에게 알려주지 마십시오.</p></div>'+
+ '<div class="card"><h2>모든 데이터 공유와 복원</h2><p class="note">모임 기록 전체를 백업하여 안전한 곳에 보관하십시오. 외부 채팅방 공유에는 회원 개인정보가 포함될 수 있으므로 주의하십시오.</p>'+
+ '<div style="height:10px"></div><button class="btn sm" onclick="shareAll()">모든 데이터 공유하기</button><div id="bkbox"></div>'+
+ (host?'<label for="rb">모든 데이터 복원</label><textarea id="rb" placeholder="백업 문서를 붙여 넣으세요"></textarea><div style="height:10px"></div><button class="btn sm quiet" onclick="restoreBackup()">모든 데이터 복원</button>':'')+'</div>'+
+ (host?'<div class="card"><h2>경기위원장 암호 변경</h2><p class="note">현재 암호를 입력하고 새 암호를 설정합니다. 변경 시 다른 기기의 기존 경기위원장 인증은 해제됩니다.</p>'+ 
+ '<label for="hostOldPw">현재 암호</label><input type="password" id="hostOldPw" autocomplete="current-password" placeholder="현재 경기위원장 암호">'+
+ '<label for="hostNewPw">새 암호 (10~72글자)</label><input type="password" id="hostNewPw" autocomplete="new-password" placeholder="새 경기위원장 암호">'+
+ '<label for="hostNewPw2">새 암호 확인</label><input type="password" id="hostNewPw2" autocomplete="new-password" placeholder="새 암호를 다시 입력">'+
+ '<div style="height:10px"></div><button class="btn sm quiet" onclick="changeHostPassword()">암호 변경</button></div>':'')+
+ '<div class="card"><h2>프로그램 판본</h2>'+
+ '<p class="note">화면 <b>H'+APP_VER+'</b> · 서버 <b>'+(L.serverVer?("S"+L.serverVer):"확인 전")+'</b></p>'+
+ '<p class="note">H는 깃허브에 올리는 화면 파일이고 S는 앱스 스크립트 서버입니다. 둘은 짝이므로 함께 올리셔야 합니다.</p>'+
+ (verMismatch()?'<p class="note" style="color:var(--clay)"><b>짝이 맞지 않습니다.</b> 화면과 서버 중 한쪽이 아직 옛 판입니다. 둘 다 같은 판으로 올려 주십시오.</p>':'')+
+ '<div style="height:10px"></div><button class="btn sm quiet" onclick="peekCloud();toast(\'서버 판본을 확인했습니다.\')">서버 판본 확인</button></div>'+
+ '<div class="card"><h2>이 기기의 자료</h2><p class="note">서버의 기록을 삭제하지 않고 이 기기에 저장된 자료만 초기화합니다.</p><div style="height:10px"></div><button class="btn sm line" onclick="wipe()">이 기기의 기록 지우기</button></div>'+
+ '</div></div>'
+}
+function saveCloud(){
+ var u=document.getElementById("cu").value.trim();
+ if(u&&!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(u)){toast("구글 앱스 스크립트 웹앱의 /exec 주소만 사용할 수 있습니다.");return}
+ L.cloudUrl=u;
+ var r=document.getElementById("crk").value.trim();if(r)L.cloudReadKey=r;
+ save(false);render();toast("연결 설정을 저장했습니다.")
+}
+function changeClubName(){
+ if(!hostSessionActive()){toast('경기위원장 인증이 필요합니다.');return}
+ if(!cloudOn()||!L.cloudReadKey||!L.lastName||S.room.id==='pending'){
+  toast('서버에서 최신 기록을 먼저 받으십시오.');return;
+ }
+ if(L.dirty){toast('아직 서버에 올리지 않은 수정사항이 있습니다. 먼저 저장하거나 별도로 백업하십시오.');return}
+ var input=document.getElementById('newClubName');if(!input)return;
+ var newName=input.value;
+ if(newName.length<2||newName.length>60||newName.trim()!==newName||/[\x00-\x1f\x7f<>]/.test(newName)){
+  toast('모임 이름은 앞뒤 공백 없는 2~60글자로 입력하십시오.');return;
+ }
+ if(newName===S.room.name){toast('현재 모임 이름과 같습니다.');return}
+ if(!confirm('모임 이름을 ‘'+newName+'’(으)로 바꾸시겠습니까?\n기존 회원과 라운딩 기록, 초대주소는 유지됩니다.'))return;
+ if(busy)return;busy=true;
+ cloudRpc('renameClub',L.cloudReadKey,{hostSession:hostSession,baseVersion:L.lastName,newName:newName}).then(function(res){busy=false;
+  if(res&&res.ok&&res.version){
+   S.room.name=res.clubName;SUPPLY_CLUB_NAME=res.clubName;
+   L.lastName=res.version;L.lastSync=new Date().toISOString();L.dirty=false;save(false);render();
+   toast('모임 이름을 변경했습니다. 회원은 최신 기록을 받으면 새 이름이 표시됩니다.');
+  }else if(res&&res.conflict)toast('서버 기록이 변경되었습니다. 먼저 최신 기록을 받은 후 다시 진행하십시오.');
+  else if(isHostExpiredResult(res))rejectHostSession(res.error);
+  else toast('모임 이름 변경 실패: '+(res&&res.error||'서버에서 확인이 필요합니다.'));
+ },function(e){busy=false;toast('모임 이름 변경 통신 오류: '+e.message)});
+}
+function setRole(m){
+ if(m!=="host"){
+  forgetHostSession();L.mode="member";save(false);render();toast("회원 모드로 전환했습니다.");return;
+ }
+ if(hostSessionActive())return;
+ askPw();
+}
+function askPw(){
+ if(!L.cloudReadKey||!cloudOn()){toast("회원용 서버 연결을 먼저 설정하십시오.");return}
+ sheet='<div class="sheet"><div class="inner"><h2 style="margin:0 0 6px;font-size:16px">경기위원장 암호 인증</h2>'+ 
+ '<p class="note">경기위원장 암호만 입력하십시오. 기존 쓰기 키는 사용하지 않습니다.</p>'+ 
+ '<input type="password" id="hpw" autocomplete="current-password" placeholder="경기위원장 암호">'+
+ '<div style="height:12px"></div><button class="btn sm" onclick="tryHost()">인증</button>'+ 
+ '<div style="height:8px"></div><button class="btn sm quiet" onclick="askNo()">취소</button></div></div>';render();
+}
+function tryHost(){
+ var x=document.getElementById("hpw"),password=x&&x.value;
+ if(!password||!cloudOn()||!L.cloudReadKey){toast("경기위원장 암호와 회원용 서버 연결을 확인하십시오.");return}
+ if(busy)return;busy=true;
+ cloudRpc("hostAuth",L.cloudReadKey,{password:password}).then(function(res){busy=false;
+  if(!res||!res.ok||!res.session){toast((res&&res.error)||"암호 인증에 실패했습니다.");return}
+  rememberHostSession(res.session);L.mode="host";sheet=null;save(false);render();toast("경기위원장 인증 성공 (12시간 유효)");
+  if(!L.lastName)pullCloud(true);
+ },function(e){busy=false;toast("서버 인증 실패: "+e.message)});
+}
+function changeHostPassword(){
+ if(!hostSessionActive()){toast("경기위원장 인증을 먼저 해주십시오.");return}
+ var old=document.getElementById("hostOldPw"),next=document.getElementById("hostNewPw"),again=document.getElementById("hostNewPw2");
+ if(!old||!next||!again)return;
+ var current=old.value,future=next.value;
+ if(future!==again.value){toast("새 암호 확인이 일치하지 않습니다.");return}
+ if(future.length<10||future.length>72||future.trim()!==future){toast("새 암호는 공백 없는 10~72글자로 입력하십시오.");return}
+ if(!current){toast("현재 암호를 입력하십시오.");return}
+ if(!confirm("암호를 변경하면 다른 기기의 기존 경기위원장 인증이 해제됩니다. 계속할까요?"))return;
+ if(busy)return;busy=true;
+ cloudRpc("changeHostPassword",L.cloudReadKey,{hostSession:hostSession,currentPassword:current,newPassword:future}).then(function(res){busy=false;
+  old.value="";next.value="";again.value="";
+  if(res&&res.ok&&res.session){rememberHostSession(res.session);toast("경기위원장 암호를 변경했습니다. 다른 기기는 재인증이 필요합니다.")}
+  else if(isHostExpiredResult(res))rejectHostSession(res.error);
+  else toast("암호 변경 실패: "+(res&&res.error||"서버 응답을 확인하십시오."));
+ },function(e){busy=false;toast("암호 변경 오류: "+e.message)});
+}
+function wipe(){
+ if(!confirm("이 기기에 저장된 기록만 삭제합니다. 서버의 기록은 보존됩니다. 진행할까요?"))return;
+ S=blankS();L.lastName="";L.lastSync=null;L.dirty=false;save(false);go("home");toast("이 기기 기록을 초기화했습니다. 서버에서 다시 받으십시오.")
+}
+/* ---- 보관본 ---- */
+function backupText(){
+ return "[우리끼리 골프챌린지 전체 데이터] "+(S.room?S.room.name:"")+" "+fmt(new Date().toISOString())+
+  "\n회원 "+S.members.length+"명 · 라운드 "+S.rounds.length+"회"+
+  "\n이 글 전체를 복사해 설정 화면의 모든 데이터 복원에 붙여 넣으시면 그대로 되살아납니다."+
+  "\n\nWGK:"+JSON.stringify(S)}
+function shareAll(){
+ var t=backupText();
+ if(navigator.share){
+  navigator.share({text:t}).then(function(){},function(e){
+   if(e&&e.name==="AbortError")return;
+   copyAll(true)});
+  return}
+ copyAll(true)}
+function copyAll(fallback){
+ var t=backupText();
+ if(navigator.clipboard&&navigator.clipboard.writeText){
+  navigator.clipboard.writeText(t).then(function(){
+   toast(fallback?"이 화면에서는 공유창이 열리지 않아 복사했습니다. 단톡방에 붙여 넣으세요."
+    :"모든 데이터를 복사했습니다.")},function(){showBackup()})}
+ else showBackup()}
+function showBackup(){
+ var b=document.getElementById("bkbox");if(!b)return;
+ b.innerHTML='<div style="height:10px"></div>'+
+  '<p class="note">자동 복사가 되지 않았습니다. 아래 글을 길게 눌러 전체를 복사해 주십시오.</p>'+
+  '<textarea readonly id="bk">'+esc(backupText())+'</textarea>'}
+function restoreBackup(){
+ var v=document.getElementById("rb").value,i=v.indexOf("WGK:");
+ if(i<0){toast("우리끼리 골프챌린지 데이터를 찾지 못했습니다.");return}
+ var rest=v.slice(i+4),a=rest.indexOf("{"),b=rest.lastIndexOf("}");
+ if(a<0||b<a){toast("내용을 읽지 못했습니다.");return}
+ var o;try{o=JSON.parse(rest.slice(a,b+1))}catch(e){toast("내용을 읽지 못했습니다.");return}
+ if(!validClubData(o)||!S.room||o.room.id!==S.room.id){toast("이 모임의 현재 데이터와 일치하는 백업만 복원할 수 있습니다.");return}
+ if(!confirm("지금 기록을 붙여 넣으신 데이터로 모두 바꿉니다.\n회원 "+(o.members||[]).length+"명, 라운드 "+(o.rounds||[]).length+"회입니다.\n계속할까요?"))return;
+ S=o;if(!S.members)S.members=[];if(!S.rounds)S.rounds=[];if(!S.hcpWindow)S.hcpWindow=5;
+ save(false);go("home");toast("모든 데이터를 복원했습니다.")}
+
+/* ---- 공급본 시작: 초기 화면은 서버에 등록된 빈 모임 기준 ---- */
+load();
+/* Start verification before painting the portal. It remains nonblocking. */
+portalPrepareSoon();
+/* v1.3.1 홈 화면에 추가할 때 쓰이는 이름을 모임 이름으로 맞춥니다. */
+try{if(S&&S.room&&S.room.name)setDocTitle(S.room.name)}catch(e){}
+render();
+if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){
+ window.addEventListener("load",function(){
+  navigator.serviceWorker.register("./sw.js",{scope:"./"}).catch(function(e){
+   if(window.console&&console.warn)console.warn("PWA service worker 등록 실패",e);
+  });
+ });
+}
+if(!PORTAL_OPEN&&!SUPPLY_CLUB_PICK&&cloudOn()&&L.cloudReadKey)setTimeout(function(){
+ if(L.dirty)peekCloud(); else pullCloud(true);
+},600);
+/* Fixed internal banner alternates; portal displays all three lines without animation. */
+(function(){
+ var a=document.getElementById("vanStripWord");if(!a)return;
+ var texts=["카드기 · 포스 · 키오스크 · 테이블오더 · 용지","설치 · 임대 · 관리상담  1899-4540"];
+ var i=0;setInterval(function(){i=1-i;a.textContent=texts[i]},4500);
+})();
+window.addEventListener("pagehide",function(){if(view.name==="play")recordTime()});
+document.addEventListener("visibilitychange",function(){
+ if(document.visibilityState==="hidden"&&view.name==="play")recordTime();
+ if(document.visibilityState==="visible"&&view.name==="play")markEnter()});
+</script>
+</body>
+</html>
