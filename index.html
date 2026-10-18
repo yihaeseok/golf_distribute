@@ -417,7 +417,7 @@ body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(23p
 </a>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.15";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.16";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -1188,6 +1188,12 @@ function supplyMemberInvite(){
 /* H1.9.1: shared entrance for both bare domain and club invite URLs. */
 function portalClubName(){
  if(!SUPPLY_CLUB_ID)return "";
+ // H1.9.16: The verified preload may already know the club's real Korean
+ // name before START. Display it without entering or overwriting local data.
+ if(PORTAL_PREP.ready&&PORTAL_PREP.ready.latest&&
+    PORTAL_PREP.ready.latest.room&&
+    PORTAL_PREP.ready.latest.room.clubId===SUPPLY_CLUB_ID&&
+    PORTAL_PREP.ready.latest.room.name)return PORTAL_PREP.ready.latest.room.name;
  if(S&&S.room&&S.room.id!=="pending"&&S.room.name)return S.room.name;
  for(var i=0;i<SUPPLY_STORED.length;i++)if(SUPPLY_STORED[i].id===SUPPLY_CLUB_ID)return SUPPLY_STORED[i].name;
  return SUPPLY_CLUB_NAME;
@@ -1236,8 +1242,12 @@ function portalPrepare(force){
   PORTAL_PREP.promise=null;
   if(PORTAL_OPEN&&!PORTAL_ENTER_BUSY){
    var prepEl=document.getElementById("portal-prep-status");
-   if(prepEl)prepEl.textContent=portalPrepMessage();
-   else render();
+   if(prepEl){
+    prepEl.textContent=portalPrepMessage();
+    // Update the already-visible title after preload; no extra server call.
+    var nameEl=document.querySelector(".portal-club-name");
+    if(nameEl&&PORTAL_PREP.ready)nameEl.textContent=portalClubName();
+   }else render();
   }
  });
  PORTAL_PREP.promise=promise;
