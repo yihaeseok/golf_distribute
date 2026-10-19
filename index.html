@@ -402,6 +402,29 @@ body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(23p
  .gm.game-config .gc-main,.gm.game-config .gc-reverse{font-size:11px}
  .gm.game-config .gc-actions .chip{padding:6px 9px;font-size:11px}
 }
+
+/* H1.9.17: four-syllable home-menu labels use balanced two-line text. */
+.home-nav{align-items:stretch}
+.home-nav .chip{display:flex;align-items:center;justify-content:center;
+ min-height:46px;line-height:1.16;white-space:normal;padding:6px 2px}
+.home-nav .chip.nav-two-line{font-size:clamp(11px,2.9vw,13px);font-weight:700;letter-spacing:-.025em}
+.home-nav .chip.nav-two-line span{display:block;text-align:center}
+.home-nav .chip.recv{min-height:46px;line-height:1.14}
+@media(max-width:345px){
+ .home-nav .chip{min-height:44px;padding:5px 1px}
+ .home-nav .chip.nav-two-line{font-size:11px}
+ .home-nav .chip.recv{min-height:44px}
+}
+.notice-list{padding:0 0 0 19px;margin:9px 0 12px;font-size:13px;line-height:1.62}
+.notice-list li{margin-bottom:9px;overflow-wrap:anywhere;word-break:keep-all}
+.notice-ack{display:flex;align-items:flex-start;gap:9px;background:var(--sand);
+ border-radius:9px;padding:11px;margin:13px 0 11px;font-size:14px;line-height:1.42;color:var(--ink)}
+.notice-ack input{width:20px;height:20px;min-width:20px;margin:0;accent-color:var(--turf-mid)}
+.notice-ack span{flex:1;min-width:0}
+.notice-sheet .inner{max-height:min(85vh,720px)}
+.notice-sheet h2{font-size:17px;margin:0 0 7px}
+.notice-sheet .notice-list{font-size:13px}
+@media(max-width:600px){.notice-list{font-size:12.5px}.notice-sheet .notice-list{font-size:12.5px}}
 </style>
 </head>
 <body>
@@ -417,7 +440,7 @@ body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(23p
 </a>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.16";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.17";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -1323,12 +1346,57 @@ function portalInviteInstallOffer(){
   '<button class="btn sm quiet" onclick="portalContinueWeb()">웹으로 계속하기</button></div></div>';
  render();
 }
+/* H1.9.17: first-entry acknowledgement is local to a club and this browser/app.
+   It is not individual identification, server authorization, or a legal waiver. */
+var PORTAL_NOTICE_VERSION="2026-10-19-v1";
+var PORTAL_NOTICE_MEMORY={};
+var PORTAL_NOTICE_ITEMS=[
+ "이 프로그램은 친목 골프모임의 기록 정리를 돕는 도구이며, 공식 경기 판정이나 기록 진위의 보증 수단이 아닙니다.",
+ "연산·핸디·순위 오류, 경기결과 입력 오류가 있으면 스코어카드와 합의한 경기규칙, 보관 기록을 대조하여 회원들이 확인하고 정정·합의합니다.",
+ "경기위원장 변경·승계, 비밀번호·인증정보 유출 또는 분실, 인증정보 재발급·복구와 데이터 변경·조작에 따른 문제는 해당 모임이 보관한 기록과 당사자 확인을 바탕으로 회원들 사이에서 해결하는 것을 원칙으로 합니다.",
+ "모임의 경기위원장과 회원은 주요 변경 전에 스코어카드, 경기결과, 정산내역 및 백업을 서로 확인하고 안전하게 보관해 주십시오.",
+ "이 안내는 법령상 보장된 권리나 책임을 일률적으로 제한·면제한다는 뜻은 아닙니다."
+];
+function portalNoticeMarkup(){
+ return '<p class="rule-desc">이용 전 다음 사항을 확인해 주세요.</p><ol class="notice-list">'+
+  PORTAL_NOTICE_ITEMS.map(function(item){return '<li>'+esc(item)+'</li>';}).join('')+'</ol>';
+}
+function portalNoticeKey(){
+ return 'woorigolf.portal.notice.'+PORTAL_NOTICE_VERSION+'.'+SUPPLY_CLUB_ID;
+}
+function portalNoticeAccepted(){
+ if(!SUPPLY_CLUB_ID)return false;
+ var key=portalNoticeKey();
+ if(PORTAL_NOTICE_MEMORY[key])return true;
+ try{return localStorage.getItem(key)==='yes';}catch(e){return false;}
+}
+function portalShowNotice(){
+ sheet='<div class="sheet notice-sheet" role="presentation"><div class="inner" role="dialog" aria-modal="true" aria-label="친목모임 기록 이용 안내 및 확인">'+
+  '<h2>친목모임 기록 이용 안내</h2>'+portalNoticeMarkup()+
+  '<label class="notice-ack" for="portal-notice-check"><input type="checkbox" id="portal-notice-check">'+
+  '<span>위 내용을 읽었으며, 모임별 기록을 보관하고 회원 간 확인·협의하여 처리하는 운영 원칙을 확인했습니다.</span></label>'+ 
+  '<button class="btn sm" onclick="portalConfirmNotice()">확인하고 모임 입장</button>'+ 
+  '<div style="height:8px"></div><button class="btn sm quiet" onclick="portalContinueWeb()">돌아가기</button>'+ 
+  '</div></div>';
+ render();
+}
+function portalConfirmNotice(){
+ var check=document.getElementById('portal-notice-check');
+ if(!check||!check.checked){toast('이용 안내를 읽고 확인란을 선택해 주세요.');return;}
+ var key=portalNoticeKey();
+ PORTAL_NOTICE_MEMORY[key]=true;
+ try{localStorage.setItem(key,'yes');}catch(e){}
+ sheet=null;
+ render();
+ portalEnter();
+}
 function portalEnter(){
  if(PORTAL_ENTER_BUSY)return;
  if(!SUPPLY_CLUB_ID){toast("먼저 내 모임을 선택하십시오.");return;}
  if(!L||!cloudOn()||!L.cloudReadKey){
   alert("초대인증키를 발급받으신 분에게만 입장이 허용됩니다.\n경기위원장에게 초대주소를 받아 접속해 주세요.");return;
  }
+ if(!portalNoticeAccepted()){portalShowNotice();return;}
  PORTAL_ENTER_BUSY=true;render();
  portalPrepare(false).then(function(prepared){
   var res=prepared.res;
@@ -1512,6 +1580,7 @@ function render(){
  else if(view.name==="data")app.innerHTML=scrData();
  else if(view.name==="year")app.innerHTML=scrYear();
  else if(view.name==="stats")app.innerHTML=scrStats();
+ else if(view.name==="info")app.innerHTML=scrInfo();
  else if(view.name==="rules")app.innerHTML=scrRules();
  else if(view.name==="past")app.innerHTML=scrPast();
  else if(view.name==="scan")app.innerHTML=scrScan();
@@ -1571,9 +1640,9 @@ function scrHome(){
  '</div>'+
 
  '<div class="bar home-nav" aria-label="주요 메뉴">'+
- '<button class="chip" onclick="go(\'year\')">연간 집계</button>'+
- '<button class="chip" onclick="go(\'stats\')">누적 기록</button>'+
- '<button class="chip" onclick="go(\'rules\')">룰보기</button>'+
+ '<button class="chip nav-two-line" onclick="go(\'year\')" aria-label="연간 집계"><span>연간<br>집계</span></button>'+
+ '<button class="chip nav-two-line" onclick="go(\'stats\')" aria-label="누적 기록"><span>누적<br>기록</span></button>'+
+ '<button class="chip" onclick="go(\'info\')">정보</button>'+
  '<button class="chip" onclick="go(\'data\')">설정</button>'+
  (cloudOn()?'<button class="chip recv" onclick="pullCloud()" aria-label="최신 기록 받기">'+
   '<span class="lamp'+(sigNew?" on":"")+'"></span><span class="recvtxt">받기'+(sigNew?'<br>새':'<br>최신')+'</span></button>':'')+
@@ -2912,13 +2981,26 @@ function scrStats(){
  cumTable(upto,head,"핸디순으로 늘어놓았습니다. 숫자는 모두 파 대비 오버 타수이며, 핸디는 최근 "+(S.hcpWindow||5)+"회 평균에서 자동으로 나옵니다. 마지막 라운드까지의 누적이 곧 전체 누적입니다.")+
  '</div></div>'}
 
-/* ---- 룰보기: 현재 계산 로직을 기준으로 설명합니다. ---- */
+/* H1.9.17: notices and game rules are grouped under the Information menu. */
+function scrInfo(){
+ return '<div class="screen"><div class="bar"><button class="chip" onclick="go(\'home\')">뒤로</button><h1>정보</h1></div>'+ 
+  '<div class="body">'+
+  '<div class="card"><h2>친목모임 기록 이용 안내</h2>'+portalNoticeMarkup()+
+  '<p class="note">이용 안내 확인은 모임별로 이 기기에 저장됩니다. '+
+  (portalNoticeAccepted()?'이 기기에서 확인 완료':'이 기기에서 아직 확인하지 않았습니다')+
+  '</p></div>'+ 
+  '<div class="card"><h2>게임 규칙</h2>'+ 
+  '<p class="note">프로그램에서 사용하는 종목별 계산 기준과 거꾸로 규칙을 열람할 수 있습니다.</p>'+ 
+  '<div style="height:10px"></div><button class="btn sm quiet" onclick="go(\'rules\')">게임 규칙 보기</button></div>'+ 
+  '</div></div>';
+}
+/* ---- 게임 규칙: 현행 계산 로직에 대한 설명을 그대로 유지합니다. ---- */
 function scrRules(){
  function card(title,summary,detail){
   return '<div class="card"><h2>'+title+'</h2>'+
    '<p class="rule-desc">'+summary+'</p>'+
    (detail?'<p class="rule-desc" style="color:var(--muted)">'+detail+'</p>':'')+'</div>'}
- return '<div class="screen"><div class="bar"><button class="chip" onclick="go(\'home\')">뒤로</button><h1>게임 룰보기</h1></div>'+ 
+ return '<div class="screen"><div class="bar"><button class="chip" onclick="go(\'info\')">뒤로</button><h1>게임 규칙</h1></div>'+ 
  '<div class="body rules">'+
  '<div class="card"><h2>공통 규칙</h2><p class="rules-intro">라운드마다 여러 종목을 동시에 선택할 수 있습니다. 순위는 해당 종목의 점수를 기준으로 결정하며, 동점은 공동 순위입니다. 1등이 여러 명이면 설정된 상금을 똑같이 나누되 1원 미만은 버립니다. 상금을 0원으로 정해도 순위는 계산합니다.</p>'+ 
  '<p class="rule-desc" style="margin-top:8px;color:var(--muted)">핸디는 다음 라운드를 위한 최근 기록을 이용해 계산하므로, 완료된 과거 경기의 적용 핸디는 그 경기 전 기록을 기준으로 합니다.</p></div>'+ 
