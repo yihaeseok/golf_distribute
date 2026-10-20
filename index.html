@@ -440,7 +440,7 @@ body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(23p
 </a>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.18";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.20";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -499,12 +499,46 @@ var LKEY="woorigolf.supply."+(SUPPLY_CLUB_ID||"__none__")+".local";
 var S=null,L=null,view={name:"home"},sheet=null,tTimer=null,scan=null,busy=false;
 // 경기위원장 인증 토큰은 장기 저장하지 않고 브라우저 탭 세션에만 저장합니다.
 var HOST_SESSION_STORAGE_KEY="woorigolf.supply."+(SUPPLY_CLUB_ID||"__none__")+".hostSession";
-var hostSession="";
-function forgetHostSession(){hostSession="";try{sessionStorage.removeItem(HOST_SESSION_STORAGE_KEY)}catch(e){}}
-function rememberHostSession(token){hostSession=token;try{sessionStorage.setItem(HOST_SESSION_STORAGE_KEY,token)}catch(e){}}
+var HOST_ROLE_STORAGE_KEY="woorigolf.supply."+(SUPPLY_CLUB_ID||"__none__")+".hostRole";
+var CHAIR_DEVICE_KEY="woorigolf.supply."+(SUPPLY_CLUB_ID||"__none__")+".officialDevice";
+var CHAIR_REQUEST_KEY="woorigolf.supply."+(SUPPLY_CLUB_ID||"__none__")+".chairRequest";
+var hostSession="",hostRole="",CHAIR_REGISTERED=false,CHAIR_AUTO_AUTH_PENDING=false;
+function forgetHostSession(){
+ hostSession="";hostRole="";
+ try{sessionStorage.removeItem(HOST_SESSION_STORAGE_KEY);sessionStorage.removeItem(HOST_ROLE_STORAGE_KEY)}catch(e){}
+}
+function rememberHostSession(token,role){
+ hostSession=token;
+ hostRole=role||((token||"").indexOf("gs1.")===0?"legacy":"delegate");
+ try{sessionStorage.setItem(HOST_SESSION_STORAGE_KEY,token);sessionStorage.setItem(HOST_ROLE_STORAGE_KEY,hostRole)}catch(e){}
+}
 function hostSessionActive(){return L&&L.mode==="host"&&!!hostSession}
+function officialChairActive(){return hostSessionActive()&&(hostRole==="official"||(hostRole==="legacy"&&!CHAIR_REGISTERED));}
 function rejectHostSession(message){forgetHostSession();L.mode="member";save(false);render();toast(message||"경기위원장 인증이 만료되었습니다. 다시 인증하십시오.")}
-function isHostExpiredResult(res){return !!(res&&/경기위원장 인증이 (만료|변경)/.test(res.error||""))}
+function isHostExpiredResult(res){return !!(res&&/경기위원장 인증이 (만료|변경)|정식 경기위원장 권한이 필요/.test(res.error||""))}
+function chairLocalCredential(){try{return localStorage.getItem(CHAIR_DEVICE_KEY)||""}catch(e){return ""}}
+function chairLocalRequest(){try{return JSON.parse(localStorage.getItem(CHAIR_REQUEST_KEY)||"null")}catch(e){return null}}
+function chairMakeCredential(){
+ var b=crypto.getRandomValues(new Uint8Array(64));
+ return "wgc_"+Array.from(b,function(x){return x.toString(16).padStart(2,"0")}).join("");
+}
+function chairUpdateServerFlag(res){
+ if(res&&typeof res.chairRegistered==="boolean")CHAIR_REGISTERED=res.chairRegistered;
+}
+/** Reauthentication starts while the portal is already preparing a club. Never block entry. */
+function chairAutoAuth(){
+ if(CHAIR_AUTO_AUTH_PENDING||(officialChairActive()&&hostRole==='official')||!cloudOn()||!L.cloudReadKey)return;
+ var credential=chairLocalCredential();if(!/^wgc_[a-f0-9]{128}$/.test(credential))return;
+ CHAIR_AUTO_AUTH_PENDING=true;
+ cloudRpc("chairAuth",L.cloudReadKey,{chairCredential:credential}).then(function(res){
+  CHAIR_AUTO_AUTH_PENDING=false;
+  if(res&&res.ok&&res.role==="official"&&res.session){
+   CHAIR_REGISTERED=true;rememberHostSession(res.session,"official");L.mode="host";
+   try{localStorage.removeItem(CHAIR_REQUEST_KEY)}catch(e){}
+   save(false);render();
+  }
+ },function(){CHAIR_AUTO_AUTH_PENDING=false;});
+}
 
 function uid(){return Math.random().toString(36).slice(2,10)}
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){
@@ -540,7 +574,9 @@ function load(){
  if(!L.cloudReadKey)L.cloudReadKey="";if(typeof L.dirty!=="boolean")L.dirty=false;
  // v1.1.0에서 브라우저에 보관했던 쓰기 키는 삭제합니다.
  if(Object.prototype.hasOwnProperty.call(L,"cloudPw"))delete L.cloudPw;
- try{hostSession=sessionStorage.getItem(HOST_SESSION_STORAGE_KEY)||""}catch(e){hostSession=""}
+ try{hostSession=sessionStorage.getItem(HOST_SESSION_STORAGE_KEY)||"";
+  hostRole=sessionStorage.getItem(HOST_ROLE_STORAGE_KEY)||(hostSession.indexOf("gs1.")===0?"legacy":"delegate");
+ }catch(e){hostSession="";hostRole=""}
  // 기존 쓰기 키만으로는 경기위원장으로 머물 수 없습니다.
  if(L.mode==="host"&&!hostSession)L.mode="member";
  try{localStorage.setItem(LKEY,JSON.stringify(L))}catch(e){}
@@ -1256,6 +1292,7 @@ function portalPrepare(force){
   if(res.clubId!==expectedClub||!validClubData(latest))
    throw new Error("선택한 모임과 초대인증키가 일치하지 않습니다.");
   PORTAL_PREP.ready={res:res,latest:latest};
+  chairUpdateServerFlag(res);chairAutoAuth();
   PORTAL_PREP.verifiedAt=Date.now();PORTAL_PREP.error="";
   return PORTAL_PREP.ready;
  },function(e){throw e;}).catch(function(e){
@@ -1636,7 +1673,7 @@ function scrHome(){
  '<div class="hname"><span class="hclubname">'+esc(S.room.name)+'</span></div>'+
  '<div class="hline">회원 '+S.members.length+'명 · 라운드 '+S.rounds.length+'회</div>'+
  '<div class="hmeta"><div class="hline">'+APP_NAME+' H'+APP_VER+'</div>'+
- '<span class="hrole">'+(host?"경기위원장":"회원")+'</span></div></div>'+
+ '<span class="hrole">'+(host?(hostRole==="delegate"?"임시 경기관리":"경기위원장"):"회원")+'</span></div></div>'+
  '</div>'+
 
  '<div class="bar home-nav" aria-label="주요 메뉴">'+
@@ -3039,7 +3076,7 @@ function scrData(){
  var host=hostSessionActive();
  return '<div class="screen"><div class="bar"><button class="chip" onclick="go(\'home\')">뒤로</button><h1>설정</h1></div>'+ '<div class="body">'+
  '<div class="card"><h2>모임 이름</h2><p class="note">현재 이름: '+esc(S.room.name)+'<br>모임 식별번호와 기록 저장소는 유지됩니다. 이름 변경은 모든 회원에게 최신 기록으로 전달됩니다.</p>'+
-  (host?'<label for="newClubName">새 모임 이름</label><input type="text" id="newClubName" maxlength="60" value="'+esc(S.room.name)+'" placeholder="변경할 모임 이름">'+
+  (officialChairActive()?'<label for="newClubName">새 모임 이름</label><input type="text" id="newClubName" maxlength="60" value="'+esc(S.room.name)+'" placeholder="변경할 모임 이름">'+
   '<div style="height:10px"></div><button class="btn sm quiet" onclick="changeClubName()">모임 이름 변경저장</button>':'<p class="note">모임 이름은 경기위원장이 변경할 수 있습니다.</p>')+'</div>'+
  '<div class="card"><h2>모임 창구</h2><p class="note">최초 한 번만 공급용 서버 주소와 회원용 접근 키를 등록하십시오. 회원은 이후 최신 기록을 받아 사용할 수 있습니다.</p>'+
  '<label for="cu">공급용 서버 주소</label><input type="text" id="cu" value="'+esc(L.cloudUrl)+'" placeholder="https://script.google.com/macros/s/.../exec">'+
@@ -3054,11 +3091,12 @@ function scrData(){
  (L.dirty?'<p class="note" style="color:var(--clay)">이 기기에 서버로 올리지 않은 변경 사항이 있습니다.</p>':'')+'</div>'+
  '<div class="card"><h2>이 기기의 역할</h2><div class="row2"><button class="btn sm '+(host?'':'line')+'" onclick="setRole(\'host\')">경기위원장</button>'+
  '<button class="btn sm '+(!host?'':'line')+'" onclick="setRole(\'member\')">회원</button></div>'+
- '<p class="note">경기위원장은 모임별 암호로 인증합니다. 암호는 서버에서 확인하며 회원에게 알려주지 마십시오.</p></div>'+
+ '<p class="note">정식 경기위원장은 등록된 기기로 자동 인증합니다. 일반 회원은 비밀번호를 입력해 10분간 경기관리 기능을 수행할 수 있지만, 위원장 비밀번호 변경이나 승계는 불가능합니다. 최초 승인 전에는 종전 방식이 유지됩니다.</p></div>'+
+ chairSettingsMarkup()+
  '<div class="card"><h2>모든 데이터 공유와 복원</h2><p class="note">모임 기록 전체를 백업하여 안전한 곳에 보관하십시오. 외부 채팅방 공유에는 회원 개인정보가 포함될 수 있으므로 주의하십시오.</p>'+
  '<div style="height:10px"></div><button class="btn sm" onclick="shareAll()">모든 데이터 공유하기</button><div id="bkbox"></div>'+
  (host?'<label for="rb">모든 데이터 복원</label><textarea id="rb" placeholder="백업 문서를 붙여 넣으세요"></textarea><div style="height:10px"></div><button class="btn sm quiet" onclick="restoreBackup()">모든 데이터 복원</button>':'')+'</div>'+
- (host?'<div class="card"><h2>경기위원장 암호 변경</h2><p class="note">현재 암호를 입력하고 새 암호를 설정합니다. 변경 시 다른 기기의 기존 경기위원장 인증은 해제됩니다.</p>'+ 
+ (officialChairActive()?'<div class="card"><h2>경기위원장 암호 변경</h2><p class="note">현재 암호를 입력하고 새 암호를 설정합니다. 변경 시 다른 기기의 기존 경기위원장 인증은 해제됩니다.</p>'+ 
  '<label for="hostOldPw">현재 암호</label><input type="password" id="hostOldPw" autocomplete="current-password" placeholder="현재 경기위원장 암호">'+
  '<label for="hostNewPw">새 암호 (10~72글자)</label><input type="password" id="hostNewPw" autocomplete="new-password" placeholder="새 경기위원장 암호">'+
  '<label for="hostNewPw2">새 암호 확인</label><input type="password" id="hostNewPw2" autocomplete="new-password" placeholder="새 암호를 다시 입력">'+
@@ -3071,6 +3109,90 @@ function scrData(){
  '<div class="card"><h2>이 기기의 자료</h2><p class="note">서버의 기록을 삭제하지 않고 이 기기에 저장된 자료만 초기화합니다.</p><div style="height:10px"></div><button class="btn sm line" onclick="wipe()">이 기기의 기록 지우기</button></div>'+
  '</div></div>'
 }
+/* H1.9.19: the chair is an administrator-approved device, not everyone
+   who knows the shared host password. Candidate codes are display-only;
+   a separate unguessable private key stays in this device's localStorage. */
+function chairSettingsMarkup(){
+ var request=chairLocalRequest(),registered=CHAIR_REGISTERED;
+ var header='<div class="card"><h2>정식 경기위원장 · 승계</h2>'+
+  '<p class="note">정식 경기위원장은 최초에 전체 관리자가 승인한 기기에서 인증됩니다. 후임 승계는 기존 위원장의 승인과 후임자의 수락으로 완료합니다. 비밀번호를 아는 일반 회원은 정식 위원장이 아닙니다.</p>';
+ var code=request&&request.code?'<p class="note">이 기기의 신청번호: <b>'+esc(request.code)+'</b> · 해당 신청자가 위원장에게 직접 전달해야 합니다.</p>':'';
+ return header+code+
+  (officialChairActive()&&registered?
+    '<div class="row2"><button class="btn sm quiet" onclick="chairNominatePrompt()">후임자 승인</button><button class="btn sm line" onclick="chairCancelHandover()">승계 취소</button></div>':
+    '<div class="row2"><button class="btn sm quiet" onclick="chairRequestStart()">'+(registered?'후임자 신청':'최초 위원장 등록 신청')+'</button>'+ 
+     '<button class="btn sm line" onclick="chairManualCheck()">정식 권한 확인</button></div>'+ 
+     (registered&&request&&request.kind==='chairCandidateRequest'&&request.code?'<div style="height:8px"></div><button class="btn sm" onclick="chairAcceptPrompt()">후임 승계 수락</button>':''))+
+  '</div>';
+}
+function chairManualCheck(){
+ if(!chairLocalCredential()){toast('먼저 이 기기에서 정식 위원장 등록 또는 후임 승계를 신청하세요.');return}
+ chairAutoAuth();
+}
+function chairRequestStart(){
+ if(!cloudOn()||!L.cloudReadKey){toast('먼저 모임 초대정보를 등록해 주세요.');return}
+ var display=prompt('경기위원장 등록·승계 신청자의 표시 이름을 입력하세요. 기존 위원장 또는 전체 관리자에게 본인이 직접 신청번호를 확인받아야 합니다.','');
+ if(display===null)return;display=display.trim();
+ if(display.length<2||display.length>60){toast('신청자 이름은 2~60글자로 입력하세요.');return}
+ var request=chairLocalRequest(),credential=chairLocalCredential();
+ if(!/^wgc_[a-f0-9]{128}$/.test(credential))credential=chairMakeCredential();
+ var action=CHAIR_REGISTERED?'chairCandidateRequest':'chairEnrollRequest';
+ if(busy)return;busy=true;
+ cloudRpc(action,L.cloudReadKey,{chairCredential:credential,displayName:display}).then(function(res){
+  busy=false;if(!res||!res.ok){toast(res&&res.error||'신청 실패');return}
+  try{localStorage.setItem(CHAIR_DEVICE_KEY,credential);
+    localStorage.setItem(CHAIR_REQUEST_KEY,JSON.stringify({code:res.requestCode,kind:action}));
+  }catch(e){toast('기기에 인증정보를 저장하지 못했습니다. 저장공간을 확인하세요.');return}
+  chairUpdateServerFlag(res);render();
+  alert('신청번호: '+res.requestCode+'\n'+(res.chairRegistered?'기존 경기위원장':'전체 관리자')+'에게 본인 확인 후 번호를 전달하세요.\n인증키 원문은 공유하지 마세요.');
+ },function(e){busy=false;toast('신청 통신 오류: '+e.message)});
+}
+function chairNominatePrompt(){
+ if(!officialChairActive()||!CHAIR_REGISTERED){toast('정식 경기위원장 인증이 필요합니다.');return}
+ var code=prompt('후임자의 신청번호(12자리)를 입력하세요. 직접 만나거나 신뢰할 수 있는 연락 방법으로 본인과 확인한 후 진행하세요.','');
+ if(code===null)return;code=code.trim().toUpperCase();
+ if(!/^[A-F0-9]{12}$/.test(code)){toast('신청번호 형식을 확인하세요.');return}
+ if(busy)return;busy=true;
+ cloudRpc('chairCandidateInfo',L.cloudReadKey,{hostSession:hostSession,requestCode:code}).then(function(check){
+  busy=false;if(!check||!check.ok){toast(check&&check.error||'후임자 정보 확인 실패');return}
+  var label=String(check.candidateLabel||'');
+  if(!confirm('신청자: '+label+'\n신청번호: '+code+'\n\n후임자 본인과 이름·번호를 직접 대조하셨습니까?\n승계 완료 즉시 기존 위원장 암호가 바뀌고 이전 세션은 무효화됩니다.'))return;
+  if(busy)return;busy=true;
+  cloudRpc('chairNominate',L.cloudReadKey,{hostSession:hostSession,requestCode:code}).then(function(res){
+   busy=false;if(!res||!res.ok){toast(res&&res.error||'후임자 승인 실패');return}
+   alert('후임자 '+String(res.candidateLabel||label)+' 승인 완료.\n후임자는 자신의 기기에서 "후임 승계 수락"을 누르고 새로운 비밀번호를 설정해야 합니다.\n수락 즉시 기존 암호가 무효가 되므로, 회원들에게 새 암호를 별도로 알려주세요.');
+  },function(e){busy=false;toast('승계 승인 통신 오류: '+e.message)});
+ },function(e){busy=false;toast('후임자 확인 통신 오류: '+e.message)});
+}
+function chairCancelHandover(){
+ if(!officialChairActive()||!CHAIR_REGISTERED)return;
+ if(!confirm('아직 수락하지 않은 승계를 취소하시겠습니까?'))return;
+ cloudRpc('chairCancel',L.cloudReadKey,{hostSession:hostSession}).then(function(r){toast(r&&r.ok?'승계 대기를 취소했습니다.':(r&&r.error||'취소 실패'))},function(e){toast(e.message)});
+}
+function chairAcceptPrompt(){
+ var request=chairLocalRequest(),secret=chairLocalCredential();
+ if(!request||!request.code||!/^wgc_[a-f0-9]{128}$/.test(secret)){toast('이 기기에 후임 신청정보가 없습니다.');return}
+ sheet='<div class="sheet"><div class="inner" role="dialog" aria-label="경기위원장 승계 수락">'+
+  '<h2>경기위원장 승계 수락</h2><p class="note">기존 경기위원장이 신청번호를 승인한 후 진행하세요. 수락하는 즉시 정식 권한이 이 기기로 이전되고, 기존 경기위원장 인증과 기존 비밀번호가 모두 무효화됩니다. 회원에게 새 비밀번호를 별도로 알려야 합니다.</p>'+ 
+  '<label for="succPw">새 경기위원장 비밀번호 (10~72글자)</label><input id="succPw" type="password" autocomplete="new-password">'+
+  '<label for="succPw2">비밀번호 확인</label><input id="succPw2" type="password" autocomplete="new-password">'+
+  '<div style="height:9px"></div><button class="btn sm" onclick="chairAcceptSubmit()">승계 수락 · 비밀번호 설정</button>'+ 
+  '<div style="height:7px"></div><button class="btn sm quiet" onclick="askNo()">취소</button></div></div>';render();
+}
+function chairAcceptSubmit(){
+ var one=document.getElementById('succPw'),two=document.getElementById('succPw2');if(!one||!two)return;
+ var pw=one.value;if(pw!==two.value){toast('새 비밀번호가 일치하지 않습니다.');return}
+ if(pw.length<10||pw.length>72||pw.trim()!==pw){toast('새 비밀번호는 공백 없는 10~72글자여야 합니다.');return}
+ var request=chairLocalRequest();if(!request){toast('후임 신청정보가 없습니다.');return}
+ if(!confirm('승계가 확정되면 기존 경기위원장 인증과 비밀번호가 즉시 해제됩니다. 회원들에게 새 비밀번호를 별도로 알려야 합니다. 진행하시겠습니까?'))return;
+ if(busy)return;busy=true;
+ cloudRpc('chairAccept',L.cloudReadKey,{chairCredential:chairLocalCredential(),requestCode:request.code,newPassword:pw}).then(function(res){
+  busy=false;if(!res||!res.ok){toast(res&&res.error||'승계 수락 실패');return}
+  CHAIR_REGISTERED=true;rememberHostSession(res.session,'official');L.mode='host';
+  try{localStorage.removeItem(CHAIR_REQUEST_KEY)}catch(e){}
+  sheet=null;save(false);render();alert('경기위원장 승계 완료. 이 기기에서 정식 경기위원장 권한이 활성화됐습니다.\n기존 비밀번호는 즉시 무효화됐습니다. 회원들에게 새 비밀번호를 안전하게 전달하세요.');
+ },function(e){busy=false;toast('승계 수락 통신 오류: '+e.message)});
+}
 function saveCloud(){
  var u=document.getElementById("cu").value.trim();
  if(u&&!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(u)){toast("구글 앱스 스크립트 웹앱의 /exec 주소만 사용할 수 있습니다.");return}
@@ -3079,7 +3201,7 @@ function saveCloud(){
  save(false);render();toast("연결 설정을 저장했습니다.")
 }
 function changeClubName(){
- if(!hostSessionActive()){toast('경기위원장 인증이 필요합니다.');return}
+ if(!officialChairActive()){toast('모임명 변경은 정식 경기위원장만 가능합니다.');return}
  if(!cloudOn()||!L.cloudReadKey||!L.lastName||S.room.id==='pending'){
   toast('서버에서 최신 기록을 먼저 받으십시오.');return;
  }
@@ -3112,7 +3234,7 @@ function setRole(m){
 function askPw(){
  if(!L.cloudReadKey||!cloudOn()){toast("회원용 서버 연결을 먼저 설정하십시오.");return}
  sheet='<div class="sheet"><div class="inner"><h2 style="margin:0 0 6px;font-size:16px">경기위원장 암호 인증</h2>'+ 
- '<p class="note">경기위원장 암호만 입력하십시오. 기존 쓰기 키는 사용하지 않습니다.</p>'+ 
+ '<p class="note">정식 경기위원장 등록 후에는 회원의 비밀번호 인증이 10분간 임시 경기관리 권한만 부여합니다. 기존 쓰기 키는 사용하지 않습니다.</p>'+ 
  '<input type="password" id="hpw" autocomplete="current-password" placeholder="경기위원장 암호">'+
  '<div style="height:12px"></div><button class="btn sm" onclick="tryHost()">인증</button>'+ 
  '<div style="height:8px"></div><button class="btn sm quiet" onclick="askNo()">취소</button></div></div>';render();
@@ -3123,12 +3245,13 @@ function tryHost(){
  if(busy)return;busy=true;
  cloudRpc("hostAuth",L.cloudReadKey,{password:password}).then(function(res){busy=false;
   if(!res||!res.ok||!res.session){toast((res&&res.error)||"암호 인증에 실패했습니다.");return}
-  rememberHostSession(res.session);L.mode="host";sheet=null;save(false);render();toast("경기위원장 인증 성공 (12시간 유효)");
+  rememberHostSession(res.session,res.role);L.mode="host";sheet=null;save(false);render();
+  toast(res.role==="delegate"?"임시 경기관리 권한을 받았습니다 (10분 유효).": "경기위원장 인증 성공 (12시간 유효)");
   if(!L.lastName)pullCloud(true);
  },function(e){busy=false;toast("서버 인증 실패: "+e.message)});
 }
 function changeHostPassword(){
- if(!hostSessionActive()){toast("경기위원장 인증을 먼저 해주십시오.");return}
+ if(!officialChairActive()){toast("정식 경기위원장만 암호를 변경할 수 있습니다.");return}
  var old=document.getElementById("hostOldPw"),next=document.getElementById("hostNewPw"),again=document.getElementById("hostNewPw2");
  if(!old||!next||!again)return;
  var current=old.value,future=next.value;
@@ -3139,7 +3262,7 @@ function changeHostPassword(){
  if(busy)return;busy=true;
  cloudRpc("changeHostPassword",L.cloudReadKey,{hostSession:hostSession,currentPassword:current,newPassword:future}).then(function(res){busy=false;
   old.value="";next.value="";again.value="";
-  if(res&&res.ok&&res.session){rememberHostSession(res.session);toast("경기위원장 암호를 변경했습니다. 다른 기기는 재인증이 필요합니다.")}
+  if(res&&res.ok&&res.session){rememberHostSession(res.session,hostRole);toast("경기위원장 암호를 변경했습니다. 다른 기기는 재인증이 필요합니다.")}
   else if(isHostExpiredResult(res))rejectHostSession(res.error);
   else toast("암호 변경 실패: "+(res&&res.error||"서버 응답을 확인하십시오."));
  },function(e){busy=false;toast("암호 변경 오류: "+e.message)});
