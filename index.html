@@ -440,7 +440,7 @@ body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(23p
 </a>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.23";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.25";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -616,7 +616,28 @@ function ask(msg,yes,label){
  render()}
 function askYes(){var f=askCb;askCb=null;sheet=null;render();if(f)f()}
 function askNo(){askCb=null;sheet=null;render()}
-function go(n,p){view=Object.assign({name:n},p||{});sheet=null;render();window.scrollTo(0,0)}
+/* H1.9.25 폰의 뒤로가기로 한 단계씩 되돌아갑니다.
+   화면을 옮길 때마다 되돌아갈 자리를 쌓아 두고, 뒤로가기를 누르면 그 자리로 갑니다.
+   덮개창(시트)이 열려 있으면 먼저 그것만 닫습니다. */
+var NAV_HIST=[];
+function navState(){
+ var v=view||{name:"home"};
+ return{name:v.name,rid:v.rid,hole:v.hole,scanNew:v.scanNew,upto:v.upto,portal:!!PORTAL_OPEN}}
+function navPush(){
+ try{NAV_HIST.push(navState());
+  if(NAV_HIST.length>60)NAV_HIST.shift();
+  history.pushState({wgk:NAV_HIST.length},"")}catch(e){}}
+function navBack(){
+ var s=NAV_HIST.pop();
+ if(!s)return false;
+ sheet=null;payEdit=null;
+ PORTAL_OPEN=s.portal;
+ view={name:s.name,rid:s.rid,hole:s.hole,scanNew:s.scanNew,upto:s.upto};
+ render();window.scrollTo(0,0);
+ return true}
+function go(n,p){
+ if(view&&view.name)navPush();
+ view=Object.assign({name:n},p||{});sheet=null;render();window.scrollTo(0,0)}
 function p2(n){return n<10?"0"+n:""+n}
 function fmt(iso){if(!iso)return "없음";var d=new Date(iso);
  return d.getFullYear()+"."+p2(d.getMonth()+1)+"."+p2(d.getDate())+" "+p2(d.getHours())+":"+p2(d.getMinutes())}
@@ -1346,31 +1367,33 @@ function portalNativeIntent(pkg,p){
   "#Intent;scheme=golfchallenge;action=android.intent.action.VIEW;"+
   "package="+pkg+";end";
 }
-function portalNativeOpen(){
+/* H1.9.24: 실제 기기에서 확인한 결과 golfchallenge:// 직접 호출이 확실하게
+   동작합니다. intent:// 는 패키지 이름이 맞아야 하므로 대체 수단으로 돌립니다. */
+function portalNativeOpen(onMissing){
  var p=portalNativeInviteParts();
  if(!p){toast("먼저 초대주소로 모임을 인증해 주세요.");return;}
+ var left=false;
+ function onHide(){left=true}
+ document.addEventListener("visibilitychange",onHide,{once:true});
+ window.location.href="golfchallenge://invite?club="+p.club+
+  "#server="+p.server+"&memberKey="+p.memberKey;
+ /* 앱이 열리지 않으면 패키지를 지정한 방식으로 한 번 더 시도합니다. */
  var i=0;
- function attempt(){
+ setTimeout(function tryPkg(){
+  document.removeEventListener("visibilitychange",onHide);
+  if(left||document.visibilityState!=="visible")return;
   if(i>=WGK_PACKAGES.length){
+   if(typeof onMissing==="function"){onMissing();return}
    toast("설치된 골프챌린지 앱을 찾지 못했습니다. 웹으로 계속하셔도 됩니다.");return;
   }
-  var pkg=WGK_PACKAGES[i++];
-  var left=false;
-  function onHide(){left=true}
-  document.addEventListener("visibilitychange",onHide,{once:true});
-  window.location.href=portalNativeIntent(pkg,p);
-  setTimeout(function(){
-   document.removeEventListener("visibilitychange",onHide);
-   if(!left&&document.visibilityState==="visible")attempt();
-  },1200);
- }
- attempt();
+  window.location.href=portalNativeIntent(WGK_PACKAGES[i++],p);
+  setTimeout(tryPkg,1400);
+ },1400);
 }
 function portalNativeOpenLegacy(){
  var p=portalNativeInviteParts();
  if(!p){toast("먼저 초대주소로 모임을 인증해 주세요.");return;}
- window.location.href="golfchallenge://invite?club="+p.club+
-  "#server="+p.server+"&memberKey="+p.memberKey;
+ window.location.href=portalNativeIntent(WGK_PACKAGES[0],p);
 }
 function portalNativeOpenControl(){
  /* H1.9.23: 앱 안에서 열렸더라도 다른 모임으로 넘길 수 있어야 하므로
@@ -1379,7 +1402,7 @@ function portalNativeOpenControl(){
     !SUPPLY_CLUB_ID||!L||!cloudOn()||!L.cloudReadKey)return "";
  return '<div style="margin-top:10px">'+
   '<button class="btn sm line" onclick="portalNativeOpen()">설치된 앱으로 이 모임 열기</button>'+
-  '<p class="portal-small" style="margin:5px 0 0">설치된 골프챌린지 앱에 이 모임의 인증정보를 넘깁니다. 앱에서 모임을 바꿔 쓰실 때 사용하십시오. 실행되지 않으면 아래 대체 연결을 눌러 주세요.</p>'+
+  '<p class="portal-small" style="margin:5px 0 0">설치된 골프챌린지 앱에 이 모임의 인증정보를 넘깁니다. 앱에서 모임을 바꿔 쓰실 때 사용하십시오.</p>'+
   '<button class="btn sm quiet" style="margin-top:6px" onclick="portalNativeOpenLegacy()">다른 방식으로 앱 열기</button></div>';
 }
 function portalPrepMessage(){
@@ -1540,9 +1563,12 @@ function portalTryChromeOpen(){
 }
 /* H1.9.23: 이미 설치된 앱이 있으면 그 앱으로 이 모임을 넘깁니다.
    앱 안에서 눌린 경우에는 넘길 곳이 없으므로 그대로 진행합니다. */
+/* H1.9.25 앱이 깔려 있으면 그 앱으로 넘기고, 없으면 설치를 안내합니다. */
 function portalOpenApp(){
  if(portalIsInstalled()){portalContinueWeb();return;}
- if(/Android/i.test(navigator.userAgent||"")){portalNativeOpen();return;}
+ if(/Android/i.test(navigator.userAgent||"")&&portalNativeInviteParts()){
+  portalNativeOpen(function(){portalInstall()});return;
+ }
  portalInstall();
 }
 function portalInstall(){
@@ -1584,11 +1610,26 @@ function portalInstall(){
   '<button class="btn sm quiet" onclick="portalContinueWeb()">웹으로 계속하기</button></div></div>';
  render();
 }
+/* H1.9.25 포털에서 바로 초대주소를 복사합니다.
+   이 기기에 그 모임의 접근키가 있을 때만 보입니다. */
+function portalInviteControl(){
+ if(!SUPPLY_CLUB_ID||!L||!cloudOn()||!L.cloudReadKey)return "";
+ return '<div style="margin-top:12px">'+
+  '<button class="btn sm line" onclick="portalCopyInvite()">초대주소 복사</button>'+
+  '<p class="portal-small" style="margin:5px 0 0">이 모임의 초대주소를 복사합니다. 모임 단톡방에만 보내십시오. '+
+  '받으신 분은 주소를 누르기만 하면 이 화면으로 들어옵니다.</p></div>';
+}
+function portalCopyInvite(){
+ if(!L||!L.cloudReadKey||!cloudOn()){toast("이 기기에 모임 인증정보가 없습니다.");return}
+ var url=location.origin+location.pathname+"?club="+encodeURIComponent(SUPPLY_CLUB_ID)+
+  "#server="+encodeURIComponent(L.cloudUrl)+"&memberKey="+encodeURIComponent(L.cloudReadKey);
+ copyText(url);
+}
 function portalInstallControl(){
  // Standalone only identifies the current window; browser mode cannot reliably
  // detect or directly launch a separately installed app on this device.
  if(portalIsInstalled())return '<div class="portal-install-status" role="status" aria-label="설치형 앱으로 실행 중">✓ 앱으로 실행 중</div>';
- return '<button class="btn sm quiet" onclick="portalInstall()">앱 설치 안내</button>';
+ return '<button class="btn sm quiet" onclick="portalOpenApp()">앱 설치 · 열기</button>';
 }
 function portalLaunchInstall(){
  if(!PORTAL_INSTALL_PROMPT){portalInstallOutcome("unavailable");return;}
@@ -1619,17 +1660,30 @@ function scrPortal(){
   return '<button class="portal-list-btn" onclick="supplyGoClub(\''+c.id+'\')">'+
    '<span>'+esc(c.name)+'</span><span aria-hidden="true">›</span></button>';}).join(""):
   '<p class="portal-sub">'+invitationHint+'</p>';
+ /* H1.9.25 모임을 고르셨더라도 아래에 전체 목록을 함께 보입니다.
+    초대를 받고 들어오셔도 다른 모임으로 바로 건너가실 수 있습니다. */
+ var others=SUPPLY_STORED.filter(function(c){return c.id!==SUPPLY_CLUB_ID});
+ var otherList=others.length?
+  ('<div class="card"><h2>다른 모임</h2>'+
+   others.map(function(c){
+    return '<button class="portal-list-btn" onclick="supplyGoClub(\''+c.id+'\')">'+
+     '<span>'+esc(c.name)+'</span><span aria-hidden="true">›</span></button>'}).join("")+
+   '<p class="portal-sub" style="margin-top:10px">'+invitationHint+'</p>'+
+   '<div style="height:10px"></div>'+
+   '<button class="btn sm quiet" onclick="portalNewClub()">모임 만들기</button></div>'):
+  ('<div class="card"><p class="portal-sub" style="margin:0 0 10px">'+invitationHint+'</p>'+
+   '<button class="btn sm quiet" onclick="portalNewClub()">모임 만들기</button></div>');
  var main=selected?
-  '<div class="card"><div class="portal-club-identity"><div class="portal-club-caption">선택한 모임</div><h2 class="portal-club-name">'+esc(portalClubName())+'</h2></div>'+
+  ('<div class="card"><div class="portal-club-identity"><div class="portal-club-caption">선택한 모임</div><h2 class="portal-club-name">'+esc(portalClubName())+'</h2></div>'+
    '<div class="portal-entry-row"><button class="btn sm portal-start" onclick="portalEnter()"'+
    (PORTAL_ENTER_BUSY?' disabled':'')+'>'+(PORTAL_ENTER_BUSY?'인증 확인 중…':'<span class="portal-go-lamp" aria-hidden="true"></span>START')+'</button>'+
    portalInstallControl()+'</div>'+portalPrepStatus()+portalNativeOpenControl()+
-   '<p style="margin:12px 0 0"><button class="chip" onclick="portalChooseClub()">다른 모임 선택</button></p></div>':
-  '<div class="card"><h2>어느 모임이신지요</h2>'+items+
+   portalInviteControl()+'</div>'+otherList):
+  ('<div class="card"><h2>어느 모임이신지요</h2>'+items+
    (SUPPLY_STORED.length?'<p class="portal-sub" style="margin-top:10px">'+invitationHint+'</p>':'')+
    '<div style="height:12px"></div><div class="portal-entry-row">'+
    '<button class="btn sm quiet" onclick="portalNewClub()">모임 만들기</button>'+
-   portalInstallControl()+'</div></div>';
+   portalInstallControl()+'</div></div>');
  return '<div class="screen">'+banner+'<div class="body">'+introduction+main+'</div></div>';
 }
 function render(){
@@ -3300,6 +3354,17 @@ render();
    서비스워커 보관함은 앱의 캐시 지우기로 지워지지 않으므로,
    여기서 보관함을 비우고 새 sw.js 로 즉시 교체되도록 재촉합니다.
    모임 기록과 회원용 접근키는 다른 곳(localStorage)에 있어 영향을 받지 않습니다. */
+/* H1.9.25 뒤로가기 받기 */
+try{history.replaceState({wgk:0},"")}catch(e){}
+window.addEventListener("popstate",function(){
+ if(sheet){sheet=null;payEdit=null;render();
+  try{history.pushState({wgk:NAV_HIST.length},"")}catch(e){}
+  return}
+ if(navBack())return;
+ /* 더 돌아갈 곳이 없으면 모임 선택 화면으로 */
+ if(!PORTAL_OPEN){PORTAL_OPEN=true;render();
+  try{history.pushState({wgk:0},"")}catch(e){}}
+});
 if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){
  window.addEventListener("load",function(){
   try{
