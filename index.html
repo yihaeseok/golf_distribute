@@ -26,7 +26,7 @@
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--ink);
  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;
- font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%;font-variant-numeric:tabular-nums}
+ font-size:17.5px;line-height:1.55;-webkit-text-size-adjust:100%;font-variant-numeric:tabular-nums}
 #app{min-height:100%;display:flex;flex-direction:column}
 .screen{flex:1;display:flex;flex-direction:column;min-height:0}
 .bar{display:flex;align-items:center;gap:8px;padding:12px 14px;background:var(--card);
@@ -440,7 +440,7 @@ body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(23p
 </a>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.25";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.26";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -1158,6 +1158,24 @@ function scrollInfo(){
  var top=isDoc?(window.pageYOffset||el.scrollTop||0):el.scrollTop;
  var view=isDoc?(window.innerHeight||el.clientHeight):el.clientHeight;
  return{el:el,isDoc:isDoc,top:top,view:view,full:el.scrollHeight}}
+/* H1.9.26 일이 끝나면 다음에 보셔야 할 자리로 화면을 옮깁니다.
+   화면이 다시 그려진 뒤에 자리를 찾아야 하므로 조금 기다렸다 움직입니다. */
+function scrollToMark(id,tries){
+ tries=tries||0;
+ setTimeout(function(){
+  var el=document.getElementById(id);
+  if(!el){if(tries<8)scrollToMark(id,tries+1);return}
+  var s=scrollInfo();
+  try{
+   var box=el.getBoundingClientRect();
+   var top=(s&&s.isDoc?(window.pageYOffset||0):(s?s.el.scrollTop:0))+box.top-64;
+   if(top<0)top=0;
+   if(s&&s.isDoc)window.scrollTo({top:top,behavior:"smooth"});
+   else if(s)s.el.scrollTo({top:top,behavior:"smooth"});
+  }catch(e){try{el.scrollIntoView({behavior:"smooth",block:"start"})}catch(e2){}}
+  syncToEnd();
+ },tries?220:120);
+}
 function scrollEnd(){
  var s=scrollInfo();if(!s)return;
  var atEnd=(s.full-s.top-s.view)<=24;
@@ -1248,7 +1266,10 @@ function doPush(){
  busy=true;toast("서버에 저장하는 중입니다…");
  var copy=JSON.parse(JSON.stringify(S));copy.updatedAt=new Date().toISOString();
  cloudRpc("publish",L.cloudReadKey,{hostSession:hostSession,baseVersion:L.lastName,data:JSON.stringify(copy)}).then(function(res){busy=false;
-  if(res&&res.ok){S.updatedAt=copy.updatedAt;L.lastName=res.version;L.lastSync=new Date().toISOString();L.dirty=false;L.cloudNew=false;if(res.serverVer)L.serverVer=res.serverVer;save(false);render();toast("서버 저장이 완료되었습니다.")}
+  if(res&&res.ok){S.updatedAt=copy.updatedAt;L.lastName=res.version;L.lastSync=new Date().toISOString();L.dirty=false;L.cloudNew=false;if(res.serverVer)L.serverVer=res.serverVer;save(false);render();
+   /* H1.9.26 올린 뒤에는 맨 위로 올려 신호등이 꺼진 것을 바로 보시게 합니다. */
+   window.scrollTo(0,0);syncToEnd();
+   toast("서버 저장이 완료되었습니다.")}
   else if(res&&res.conflict)toast("다른 기기에서 최신 기록을 올렸습니다. 백업 후 새 기록을 확인하십시오.");
   else if(isHostExpiredResult(res))rejectHostSession(res.error);
   else toast("저장 실패: "+(res&&res.error||"알 수 없는 오류"))
@@ -1395,15 +1416,16 @@ function portalNativeOpenLegacy(){
  if(!p){toast("먼저 초대주소로 모임을 인증해 주세요.");return;}
  window.location.href=portalNativeIntent(WGK_PACKAGES[0],p);
 }
+/* H1.9.26 앱 관련 단추를 하나로 줄였습니다.
+   브라우저에서 보실 때만 앱으로 넘기는 단추가 나오고,
+   앱 안에서는 오른쪽 위의 '앱으로 실행 중' 표시만으로 충분합니다. */
 function portalNativeOpenControl(){
- /* H1.9.23: 앱 안에서 열렸더라도 다른 모임으로 넘길 수 있어야 하므로
-    설치 여부로 숨기지 않습니다. 안드로이드이고 인증이 끝난 경우에만 보입니다. */
+ if(portalIsInstalled())return "";
  if(!/Android/i.test(navigator.userAgent||"")||
     !SUPPLY_CLUB_ID||!L||!cloudOn()||!L.cloudReadKey)return "";
  return '<div style="margin-top:10px">'+
-  '<button class="btn sm line" onclick="portalNativeOpen()">설치된 앱으로 이 모임 열기</button>'+
-  '<p class="portal-small" style="margin:5px 0 0">설치된 골프챌린지 앱에 이 모임의 인증정보를 넘깁니다. 앱에서 모임을 바꿔 쓰실 때 사용하십시오.</p>'+
-  '<button class="btn sm quiet" style="margin-top:6px" onclick="portalNativeOpenLegacy()">다른 방식으로 앱 열기</button></div>';
+  '<button class="btn sm line" onclick="portalNativeOpen(function(){toast(\'앱이 열리지 않았습니다. 아래 앱 설치를 눌러 주십시오.\')})">앱으로 열기</button>'+
+  '<p class="portal-small" style="margin:5px 0 0">설치된 골프챌린지 앱에 이 모임의 인증정보를 넘깁니다. 앱에서 모임을 바꿔 쓰실 때 쓰십시오.</p></div>';
 }
 function portalPrepMessage(){
  return PORTAL_ENTER_BUSY?"모임 화면 준비 중…":
@@ -1792,10 +1814,15 @@ function scrHome(){
 function scrMembers(){
  var locked=!hostSessionActive();
  var add=locked?'<div class="card"><p class="note">회원은 경기위원장 기기에서만 고칩니다.</p></div>':
-  '<div class="card"><h2>회원 추가</h2><label for="mn">이름</label><input type="text" id="mn">'+
-  '<label for="mk">닉네임 (선택)</label><input type="text" id="mk" placeholder="스코어카드에 쓰시는 이름"><label for="mh">첫 라운드 전 핸디</label><input type="number" id="mh" inputmode="numeric" value="0">'+
-  '<p class="note">기록이 없는 동안만 쓰이는 숫자입니다. 한 번이라도 치고 나면 그 성적으로 자동 계산됩니다.</p>'+
-  '<div style="height:12px"></div><button class="btn sm" onclick="addMember()">회원 추가</button></div>';
+  /* H1.9.26 입력칸은 단추를 누르셨을 때만 펼칩니다. */
+  (MEMBER_ADD_OPEN?
+   '<div class="card"><h2>회원 추가</h2><label for="mn">이름</label><input type="text" id="mn">'+
+   '<label for="mk">닉네임 (선택)</label><input type="text" id="mk" placeholder="스코어카드에 쓰시는 이름"><label for="mh">첫 라운드 전 핸디</label><input type="number" id="mh" inputmode="numeric" value="0">'+
+   '<p class="note">기록이 없는 동안만 쓰이는 숫자입니다. 한 번이라도 치고 나면 그 성적으로 자동 계산됩니다.</p>'+
+   '<div style="height:12px"></div><div class="row2">'+
+   '<button class="btn sm" onclick="addMember()">추가하기</button>'+
+   '<button class="btn sm line" onclick="toggleMemberAdd(false)">닫기</button></div></div>'
+   :'<div class="card"><button class="btn sm" onclick="toggleMemberAdd(true)">회원 추가</button></div>');
  var rows=S.members.length?byHcp(S.members).map(function(m){
   var pr=priorOf(m.id,"9999-12-31",null);
   var src=!pr.length?("첫 라운드 전 수동 "+m.hcpManual):(pr.length===1?"직전 1회 기준":("최근 "+Math.min(pr.length,S.hcpWindow)+"회 평균"));
@@ -1812,18 +1839,21 @@ function scrMembers(){
   '<div style="height:10px"></div><button class="btn sm quiet" onclick="setWindow()">바꾸기</button>')+'</div>';
  return '<div class="screen"><div class="bar"><button class="chip" onclick="go(\'home\')">뒤로</button><h1>회원현황</h1></div>'+
  '<div class="body">'+add+
- '<div class="card"><h2>회원과 핸디 (핸디순)</h2><ul class="list">'+rows+'</ul>'+
+ '<div class="card" id="memberList"><h2>회원과 핸디 (핸디순)</h2><ul class="list">'+rows+'</ul>'+
  '<p class="note">핸디는 기록에서 자동으로 나오므로 손으로 고치지 않습니다.</p></div>'+rule+'</div>'+
  '<div class="foot"><button class="btn" onclick="go(\'home\')">완료</button></div></div>'}
 function setWindow(){var v=parseInt(document.getElementById("hw").value,10);
  if(isNaN(v)||v<1){toast("1 이상을 넣어 주세요.");return}
  S.hcpWindow=v;save();render();toast("최근 "+v+"회 평균으로 바꿨습니다.")}
+var MEMBER_ADD_OPEN=false;
+function toggleMemberAdd(v){MEMBER_ADD_OPEN=!!v;render()}
 function addMember(){
  var n=document.getElementById("mn").value.trim(),h=parseInt(document.getElementById("mh").value,10);
  var nk=document.getElementById("mk");nk=nk?nk.value.trim():"";
  if(!n){toast("이름을 입력해 주세요.");return}
  if(isNaN(h))h=0;
- S.members.push({id:uid(),name:n,nick:nk,hcpManual:h});save();render()}
+ S.members.push({id:uid(),name:n,nick:nk,hcpManual:h});MEMBER_ADD_OPEN=false;save();render();
+ scrollToMark("memberList");toast(n+" 님을 추가했습니다.")}
 function editMember(id){var m=member(id);if(!m)return;
  var n=prompt("이름",m.name);if(n===null)return;
  var k=prompt("닉네임 (없으면 비워 두십시오)",m.nick||"");if(k===null)return;
@@ -2205,10 +2235,12 @@ function savePast(){
   var v=parseInt(x.value,10);if(isNaN(v)||v<=0)return;
   g2[x.getAttribute("data-mid")]=v;ps.push(x.getAttribute("data-mid"))});
  if(!ps.length){toast("타수를 하나 이상 넣어 주세요.");return}
- S.rounds.push({id:uid(),date:document.getElementById("pd").value||today(),teeTime:tee,
+ var pastRound={id:uid(),date:document.getElementById("pd").value||today(),teeTime:tee,
   place:document.getElementById("pp").value.trim(),holeCount:18,pars:DEFAULT_PARS.slice(),
   players:ps,groupCount:1,groupOf:{},scores:{},grossOnly:g2,times:{},teams:{},perio:null,
-  games:[{type:"net",prize:0},{type:"gross",prize:0}],confirmed:true,createdAt:new Date().toISOString()});
+  games:[{type:"net",prize:0},{type:"gross",prize:0}],confirmed:true,createdAt:new Date().toISOString()};
+ drawPerio(pastRound);
+ S.rounds.push(pastRound);
  save();go("home");toast("등록했습니다.")}
 
 /* ---- 라운드 수정: 화면에서 먼저 편집하고, 수정저장 한 번에 확정 ---- */
@@ -2339,7 +2371,7 @@ function saveRoundEdit(rid){
  if(!draft.perio||!draft.perio.length)drawPerio(draft);
  var pos=S.rounds.indexOf(r);if(pos<0)return;
  S.rounds[pos]=draft;
- save();go("result",{rid:rid});toast("라운딩 수정을 저장했습니다.");
+ save();go("result",{rid:rid});window.scrollTo(0,0);toast("라운딩 수정을 저장했습니다.");
 }
 /* 자동 배정은 화면에서만 반영하고, 수정저장에서 확정합니다. */
 function doAutoTeams(rid){
@@ -2555,6 +2587,11 @@ function marksCard(r){
    누가 뽑았고 그때 어느 홀이었는지가 기록으로 남습니다. */
 function perioLog(r){return (r.perioLog&&r.perioLog.length)?r.perioLog:[]}
 function perioUsed(r){return perioLog(r).map(function(x){return x.mid})}
+/* H1.9.26 예전에 만들어져 숨은 홀이 없는 라운드는 결과를 열 때 한 번 뽑습니다. */
+function perioEnsure(r){
+ if(!r||!r.holeCount)return false;
+ if(r.perio&&r.perio.length)return false;
+ drawPerio(r);return true}
 function perioCard(r){
  if(!r.perio||!r.perio.length)return "";
  var host=hostSessionActive();
@@ -2683,19 +2720,21 @@ function scrResult(){
    gHtml+='<li class="item"><div class="nm">'+k+'조</div><div class="mt">'+esc(gs[k].map(mname).join(", "))+'</div></li>';
   gHtml='<div class="card"><h2>조 편성</h2><ul class="list">'+gHtml+'</ul></div>'}
  var host=hostSessionActive(),no=roundNo(r);
+ if(perioEnsure(r))save(false);
  var marks=perioCard(r)+marksCard(r);
  return '<div class="screen">'+
  '<div class="bar"><button class="chip" onclick="go(\'home\')">홈</button>'+
  '<span class="ribbon'+(isPlanned(r)?'':' done')+'">'+(isPlanned(r)?'예정':'결과')+'</span>'+
  '<h1 class="round-head">'+no+'차 '+esc(r.date)+'<div class="sub">'+(r.teeTime?'<span class="round-tee">티오프 '+esc(r.teeTime)+'</span>':'')+(r.teeTime&&placeLabel(r)?' · ':'')+esc(placeLabel(r))+'</div></h1>'+
  '</div>'+
- '<div style="padding:12px 14px 0"><div class="row2">'+
- '<button class="btn sm quiet" onclick="go(\'play\',{rid:\''+r.id+'\',hole:1})">필드 스코어 입력</button>'+
- (host?'<button class="btn sm quiet" onclick="go(\'scan\',{rid:\''+r.id+'\'})">라운드 기록 올리기</button>':'')+
- '</div>'+(host?'<div style="height:8px"></div>'+
- '<button class="btn sm quiet" onclick="go(\'edit\',{rid:\''+r.id+'\'})">라운딩 수정</button>':'')+'</div>'+
+ /* H1.9.26 회원이 중간에 넣던 필드 스코어 입력을 없애고,
+    경기위원장의 두 단추를 나란히 둡니다. */
+ (host?'<div style="padding:12px 14px 0"><div class="row2">'+
+ '<button class="btn sm quiet" onclick="go(\'edit\',{rid:\''+r.id+'\'})">라운딩 수정</button>'+
+ '<button class="btn sm quiet" onclick="go(\'scan\',{rid:\''+r.id+'\'})">기록 올리기</button>'+
+ '</div></div>':'')+
  '<div class="body">'+golfLinks(r)+gHtml+cards+marks+
- '<div class="card"><h2>홀별 기록</h2><div class="scroll"><table class="hx"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>'+
+ '<div class="card" id="holeTable"><h2>홀별 기록</h2><div class="scroll"><table class="hx"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>'+
  cumTable(r.id,no+"차까지의 누적","이 라운드를 마친 시점의 누적입니다. 핸디순으로 늘어놓았으며, 핸디는 다음 라운드에 적용될 값입니다.")+
  (host?'<div class="card"><h2>모임에 공유</h2>'+
   '<p class="note">이 기록을 창구에 올리면 회원들이 받아 볼 수 있습니다.</p>'+
@@ -2875,7 +2914,10 @@ function runParse(isNew){
  else{
   var r=round(view.rid);
   scan={mode:"round",rid:r.id,meta:p.meta,pars:p.pars,rows:p.rows,holeCount:r.holeCount}}
- render()}
+ render();window.scrollTo(0,0);
+ /* 읽어들인 뒤 바로 확인하실 자리로 옮깁니다. */
+ scrollToMark("scanCheck");
+ toast(p.rows.length+"명을 읽었습니다. 아래에서 확인해 주십시오.")}
 
 function scanConfirm(r){
  var isNew=(scan.mode==="new");
@@ -2918,7 +2960,7 @@ function scanConfirm(r){
   '<p class="note">홀 수 '+hc+'홀로 읽었습니다.</p></div>'):"";
  return '<div class="screen"><div class="bar"><button class="chip" onclick="scan=null;render()">다시</button>'+
  '<h1>읽은 내용 확인</h1></div><div class="body">'+metaCard+
- '<div class="card"><h2>참가자와 타수</h2>'+
+ '<div class="card" id="scanCheck"><h2>참가자와 타수</h2>'+
  '<p class="note">1과 7, 4와 9를 자주 헷갈립니다. 맨 오른쪽 두 칸은 더한 값과 카드에 적힌 합계이니 서로 같은지 보십시오.</p>'+
  '<div class="scroll ed"><table class="hx"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>'+warn+'</div>'+
  (scan.pars?'<div class="card"><label style="display:flex;align-items:center;gap:10px;margin:0">'+
@@ -2949,6 +2991,7 @@ function applyScan(){
    setCell(r,row.mid,i+1,{s:v,st:"ok"});n++});
   if(hasHoles(r,row.mid))delete r.grossOnly[row.mid]});
  r.confirmed=true;save();var rid=r.id;scan=null;go("result",{rid:rid});
+ scrollToMark("holeTable");
  toast(n+"개 칸을 저장했습니다.")}
 function applyScanNew(){
  var used=scan.rows.filter(function(row){return row.mid});
@@ -2972,7 +3015,11 @@ function applyScanNew(){
  used.forEach(function(row){
   row.vals.forEach(function(v,i){if(typeof v!=="number")return;
    setCell(r,row.mid,i+1,{s:v,st:"ok"});n++})});
+ /* H1.9.26 숨은 홀은 어느 경로로 만들든 늘 뽑아 둡니다.
+    라운드 만들기에만 있고 스코어카드 등록과 지난 기록 등록에 빠져 있었습니다. */
+ drawPerio(r);
  S.rounds.push(r);save();scan=null;go("result",{rid:r.id});
+ scrollToMark("holeTable");
  toast(used.length+"명, "+n+"개 칸으로 라운드를 등록했습니다.")}
 
 /* ---- 연간 ---- */
