@@ -1425,10 +1425,10 @@ function portalApkReadyUpdate(ready){
  WGK_APK_FOUND=!!ready;
  var btn=document.getElementById("wgkApkDownload");
  var hint=document.getElementById("wgkApkMessage");
- if(!btn||!hint)return;
+ if(!btn)return;
  btn.disabled=!WGK_APK_FOUND;
  btn.textContent=WGK_APK_FOUND?(WGK_APK_DOWNLOAD_REQUESTED?"설치파일 다시 다운로드":"안드로이드 앱 다운로드"):"APK 설치파일 준비 중";
- hint.textContent=WGK_APK_FOUND?
+ if(hint)hint.textContent=WGK_APK_FOUND?
   "다운로드 버튼을 누르면 받은 파일을 여는 방법부터 설치 후 모임을 앱으로 여는 방법까지 안내합니다.":
   "안드로이드 설치파일을 찾지 못했습니다. 아래에서 웹으로 계속 이용하실 수 있습니다.";
 }
@@ -1473,6 +1473,7 @@ function portalAndroidNotOpened(){
   '<p class="portal-sub">앱이 설치되지 않았거나 브라우저에서 앱 실행을 제한했을 수 있습니다. 설치된 앱이 있다면 휴대전화 앱 목록에서 직접 실행해 보십시오.</p>'+
   '<button class="btn sm" id="wgkApkDownload" disabled onclick="portalAndroidDownload()">설치파일 확인 중…</button>'+
   '<p class="portal-small" id="wgkApkMessage" role="status" style="margin:7px 0 14px">골프챌린지 APK 제공 여부를 확인하고 있습니다.</p>'+
+  '<button class="btn sm line" onclick="portalAndroidInstallGuide(false)">다운로드 후 설치 방법 보기</button><div style="height:9px"></div>'+
   '<button class="btn sm quiet" onclick="portalAndroidUseWeb()">설치하지 않고 웹으로 계속하기</button>'+
   '<div style="height:9px"></div><button class="btn sm line" onclick="portalContinueWeb()">모임 첫 화면으로 돌아가기</button></div></div>';
  render();
