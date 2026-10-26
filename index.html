@@ -454,7 +454,7 @@ body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(26.
 <script src="application-config.js"></script>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.32";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.33";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -961,13 +961,15 @@ function visibleGames(r){
 /* 보이는 순서는 대회순위종목 → 금액이 걸린 종목 → 나머지입니다. */
 function orderedGames(r){
  return visibleGames(r).slice().sort(function(a,b){
-  var am=a.main?0:1, bm=b.main?0:1;
+  var am=isMainGame(r,a)?0:1, bm=isMainGame(r,b)?0:1;
   if(am!==bm)return am-bm;
   var ap=payoutOf(a).length?0:1, bp=payoutOf(b).length?0:1;
   if(ap!==bp)return ap-bp;
   return 0})}
-/* 체크된 것만 대회순위입니다. 체크가 없으면 모두 참고순위입니다. */
-function isMainGame(r,g){return !!g.main}
+/* 대회순위를 고르지 않으면 핸디 적용을 기본으로 쓰며, 다른 종목도 늘 계산합니다. */
+function isMainGame(r,g){
+ var selected=roundGames(r).some(function(x){return !!x.main});
+ return selected?!!g.main:g.type==="net"}
 /* 한 종목의 순위별 정산 결과.
    반환: [{mid,name,rank,tie,fee,prize,net}], 그리고 모임 적립금 */
 function gamePayout(r,g){
@@ -1025,12 +1027,10 @@ function isPlanned(r){
  }
  return date>today();
 }
-/* v1.7.2 첫 화면 목록에는 대회순위 종목의 우승자만 한 줄로 보입니다.
-   대회순위가 정해지지 않은 라운드는 맨 앞 종목 하나만 보입니다. */
+/* 첫 화면 목록에도 같은 대회순위 기준을 씁니다. 미지정이면 핸디 적용입니다. */
 function roundSummary(r){
  var out=[];
- var gl=roundGames(r).filter(function(g){return g.main});
- if(!gl.length)gl=roundGames(r).slice(0,1);
+ var gl=roundGames(r).filter(function(g){return isMainGame(r,g)});
  gl.forEach(function(g){
   var G=GAMES[g.type];if(!G)return;
   if(g.type==="team"){
@@ -2050,7 +2050,7 @@ function readPlayers(){
 function gameChecklist(sel){
  /* H1.9.11: each game renders one flat, self-contained row.
     Preserve class/id contract of readGames(), pickMain(), payout and team controls. */
- return GAME_ORDER.map(function(t){
+ return '<p class="note">대회순위를 고르지 않으면 핸디 적용 순위가 기본입니다. 모든 참고순위는 선택 여부와 관계없이 계산하며, 신페리오 등 홀별 종목에는 홀별 타수가 필요합니다.</p>'+GAME_ORDER.map(function(t){
   var g=GAMES[t],on=sel&&sel[t],isTeam=t==="team";
   var row='<div class="gm game-config">'+
    '<div class="gc-head"><span class="gc-name">'+(isTeam?'팀 나누기':g.name)+'</span>'+
@@ -2742,9 +2742,10 @@ function payoutSummary(p){
   ' \u00b7 나간 상금 '+won(p.prize)+' \u00b7 모임에 남는 돈 '+won(p.pot)+'</p>'}
 function gameCard(r,g,isMain){
  var G=GAMES[g.type];if(!G)return "";
+ var open='<div class="card'+(isMain?" maincard":"")+'"><h2>'+(isMain?'<span class="maintag">대회순위</span> ':'<span class="reftag">참고순위</span> ');
  if(g.type==="team"){
   var tr=teamResult(r,g);
-  if(!tr)return '<div class="card"><h2>팀전</h2><div class="empty">두 팀 이상으로 나누고 기록이 들어오면 계산됩니다.</div></div>';
+  if(!tr)return open+'팀전</h2><div class="empty">두 팀 이상으로 나누고 기록이 들어오면 계산됩니다.</div></div>';
   var ind=rankBy(tr.sides.reduce(function(acc,sd){
    return acc.concat(sd.rows.map(function(x){
     return{mid:x.mid,name:x.name,v:x.v,team:sd.key,gross:x.gross,rh:x.rh}}))},[]),tr.asc);
@@ -2768,7 +2769,7 @@ function gameCard(r,g,isMain){
       return '<td>'+(pm&&pm.fee?won(pm.fee):"-")+'</td><td>'+(pm&&pm.prize?won(pm.prize):"-")+'</td>'+
        '<td'+(pm&&pm.net>0?' class="win"':(pm&&pm.net<0?' class="u"':''))+'>'+
        (pm?((pm.net>0?"+":"")+won(pm.net)):"-")+'</td>'})():'')+'</tr>'})});
-  return '<div class="card'+(isMain?" maincard":"")+'"><h2>'+(isMain?'<span class="maintag">대회순위</span> ':'<span class="reftag">참고순위</span> ')+
+  return open+
    '팀전 <span class="mt">'+basisName(tr.basis)+(g.rev?' <span class="reverse-label">거꾸로</span>':'')+'</span></h2>'+
    '<div class="scroll"><table><thead><tr><th>순위와 이름</th><th>타수</th><th>핸디</th>'+
    '<th>'+basisName(tr.basis)+'</th><th>합계</th>'+(tpay?'<th>회비</th><th>상금</th><th>손익</th>':'')+
@@ -2777,7 +2778,7 @@ function gameCard(r,g,isMain){
    GAMES[tr.basis].desc+'. 인원이 맞지 않는 팀은 핸디가 중간인 분의 점수를 두 배로 칩니다.</p>'+
    payoutSummary(tpay)+'</div>'}
  var rows=gameRows(r,g.type,g.rev);
- if(!rows.length)return '<div class="card"><h2>'+G.name+'</h2><div class="empty">아직 계산할 기록이 없습니다.'+
+ if(!rows.length)return open+G.name+'</h2><div class="empty">아직 계산할 기록이 없습니다.'+
   (G.need==="hole"?'<br>홀별 타수가 필요합니다.':'')+'</div></div>';
  var showHcp=(g.type==="net"||g.type==="perio");
  var showGross=(g.type==="net"||g.type==="perio"||g.type==="improve");
@@ -2785,7 +2786,7 @@ function gameCard(r,g,isMain){
  var pay=gamePayout(r,g),pmap={};
  if(pay)pay.rows.forEach(function(x){pmap[x.mid]=x});
  var hasPay=!!pay;
- return '<div class="card'+(isMain?" maincard":"")+'"><h2>'+(isMain?'<span class="maintag">대회순위</span> ':'<span class="reftag">참고순위</span> ')+
+ return open+
   G.name+(g.rev?' <span class="mt reverse-label">거꾸로</span>':'')+(g.type==="perio"&&r.perio?' <span class="mt">숨은 홀 '+r.perio.join(",")+'</span>':'')+'</h2>'+
   '<div class="scroll"><table><thead><tr><th>순위와 이름</th>'+(showGross?'<th>타수</th>':'')+(showHcp?'<th>핸디</th>':'')+
   '<th>'+(LBL[g.type]||"결과")+'</th>'+(hasPay?'<th>회비</th><th>상금</th><th>손익</th>':'')+'</tr></thead><tbody>'+
@@ -2805,6 +2806,7 @@ function gameCard(r,g,isMain){
   payoutSummary(pay)+'</div>'}
 function scrResult(){
  var r=round(view.rid);if(!r)return scrHome();
+ if(perioEnsure(r))save(false);
  var gl=orderedGames(r);
  var cards=gl.map(function(g){return gameCard(r,g,isMainGame(r,g))}).join("");
  var head='<tr><th>이름</th>'+r.pars.map(function(p,i){
@@ -2825,7 +2827,6 @@ function scrResult(){
    gHtml+='<li class="item"><div class="nm">'+k+'조</div><div class="mt">'+esc(gs[k].map(mname).join(", "))+'</div></li>';
   gHtml='<div class="card"><h2>조 편성</h2><ul class="list">'+gHtml+'</ul></div>'}
  var host=hostSessionActive(),no=roundNo(r);
- if(perioEnsure(r))save(false);
  var marks=perioCard(r)+marksCard(r);
  return '<div class="screen">'+
  '<div class="bar"><button class="chip" onclick="go(\'home\')">홈</button>'+
