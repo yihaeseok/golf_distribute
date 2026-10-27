@@ -439,6 +439,15 @@ body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(26.
 .notice-sheet h2{font-size:19.4px;margin:0 0 7px}
 .notice-sheet .notice-list{font-size:14.8px}
 @media(max-width:600px){.notice-list{font-size:14.2px}.notice-sheet .notice-list{font-size:14.2px}}
+
+/* H1.9.35 회원 로그인과 위원장 회원 접속관리 */
+.member-login-name{font-size:24px;font-weight:750;margin:10px 0;overflow-wrap:anywhere}
+.member-home-name{overflow-wrap:anywhere}
+.member-login-error{color:var(--clay);min-height:1.5em}
+.member-login-sheet input{font-size:16px}
+.member-manage-item{padding:14px 0;border-top:1px solid var(--line)}
+.member-manage-item h3{margin:0 0 6px;font-size:18px;overflow-wrap:anywhere}
+.member-login-sheet .inner{max-height:88dvh;overflow:auto}
 </style>
 </head>
 <body>
@@ -455,7 +464,7 @@ body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(26.
 <script src="application-config.js"></script>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.34";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.35";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -558,7 +567,7 @@ function chairAutoAuth(){
   CHAIR_AUTO_AUTH_PENDING=false;
   if(res&&res.ok&&res.role==='official'&&res.session){
    rememberHostSession(res.session,'official');chairPosition=res.position||'';
-   L.mode='host';save(false);render();
+   L.mode='host';save(false);if(!MEMBER_AUTH.form)render();
   }
  },function(){CHAIR_AUTO_AUTH_PENDING=false});
 }
@@ -634,7 +643,7 @@ function ask(msg,yes,label){
   '<button class="btn sm quiet" onclick="askNo()">취소</button></div></div>';
  render()}
 function askYes(){var f=askCb;askCb=null;sheet=null;render();if(f)f()}
-function askNo(){askCb=null;sheet=null;render()}
+function askNo(){askCb=null;MEMBER_AUTH.hostManage=false;sheet=null;render()}
 /* H1.9.25 폰의 뒤로가기로 한 단계씩 되돌아갑니다.
    화면을 옮길 때마다 되돌아갈 자리를 쌓아 두고, 뒤로가기를 누르면 그 자리로 갑니다.
    덮개창(시트)이 열려 있으면 먼저 그것만 닫습니다. */
@@ -1606,7 +1615,7 @@ function portalConfirmNotice(){
  render();
  portalEnter();
 }
-function portalEnter(){
+function portalEnterVerified(){
  if(PORTAL_ENTER_BUSY)return;
  if(!SUPPLY_CLUB_ID){toast("먼저 내 모임을 선택하십시오.");return;}
  if(!L||!cloudOn()||!L.cloudReadKey){
@@ -1634,6 +1643,167 @@ function portalEnter(){
   portalInviteInstallOffer();
  },function(e){PORTAL_ENTER_BUSY=false;render();toast("서버 인증 실패: "+e.message);});
 }
+
+/* H1.9.35: 모임별로 이 앱·브라우저의 회원번호를 기억합니다. 비밀번호와 파생값은 저장하지 않습니다. */
+var MEMBER_AUTH={session:'',expiresAt:'',profile:null,form:null,busy:false,hostManage:false};
+var MEMBER_DEVICE_KEY='woorigolf.supply.'+(SUPPLY_CLUB_ID||'__none__')+'.memberDevice';
+function memberRandom(){return Array.from(crypto.getRandomValues(new Uint8Array(32)),function(b){return b.toString(16).padStart(2,'0')}).join('')}
+function memberDeviceSecret(){
+ var native=nativePhoneSecret();if(native)return native;
+ try{
+  var value=localStorage.getItem(MEMBER_DEVICE_KEY)||'';
+  if(!/^wgd_[a-f0-9]{128}$/.test(value)){value='wgd_'+memberRandom()+memberRandom();localStorage.setItem(MEMBER_DEVICE_KEY,value);}
+  if(localStorage.getItem(MEMBER_DEVICE_KEY)!==value)throw Error('MEMBER_STORAGE');return value;
+ }catch(e){throw Error('이 기기에 회원정보를 보관하지 못했습니다. 앱·브라우저의 저장 공간을 확인하십시오.');}
+}
+function memberActive(){return !!(MEMBER_AUTH.session&&MEMBER_AUTH.profile&&Date.parse(MEMBER_AUTH.expiresAt)>Date.now())}
+function memberClearSession(){MEMBER_AUTH.session='';MEMBER_AUTH.expiresAt='';MEMBER_AUTH.profile=null;}
+function memberRpc(action,extra){
+ var request=Object.assign({deviceSecret:memberDeviceSecret()},extra||{});
+ if(['memberList','memberReset','memberRename'].indexOf(action)>=0)request.hostSession=hostSession;
+ return cloudRpc(action,L.cloudReadKey,request).then(function(res){
+  if(!res||!res.ok){var e=Error(res&&res.error||'회원 접속 응답을 확인하지 못했습니다.');e.memberCode=res&&res.code||'';throw e;}return res;
+ });
+}
+function memberRemember(profile){
+ L.memberIdentity={id:profile.id,name:profile.name};
+ try{localStorage.setItem(LKEY,JSON.stringify(L));}catch(e){throw Error('회원번호를 이 기기에 보관하지 못했습니다. 저장 공간을 확인하고 다시 로그인하십시오.');}
+}
+function memberLoginMarkup(form,error){
+ var p=form.member,setup=!p||!p.passwordReady,name=p?p.name:'';
+ return '<div class="sheet member-login-sheet"><div class="inner" role="dialog" aria-modal="true" aria-labelledby="member-login-title">'+
+  '<h2 id="member-login-title" tabindex="-1">'+(setup?'회원 이름과 비밀번호 등록':'회원 로그인')+'</h2>'+
+  '<p class="note">'+esc(portalClubName())+'</p>'+
+  (p?'<p class="member-login-name">'+esc(name)+'</p><p class="note">이 기기에 연결할 회원입니다. '+(setup?'위원장이 초기화한 뒤 사용할 새 비밀번호를 정하십시오.':'비밀번호를 입력하십시오.')+'</p>':
+   '<p class="note">처음 이용하실 때만 이름과 비밀번호를 등록합니다. 다음부터는 이 기기에 이름이 자동으로 표시됩니다. 가입 승인은 받지 않습니다.</p>')+
+  '<form id="member-login-form" onsubmit="memberLoginSubmit(event)">'+
+  (p?'':'<label for="member-login-name">이름</label><input id="member-login-name" type="text" maxlength="40" autocomplete="name" required placeholder="본인의 이름">')+
+  '<label for="member-login-password">'+(setup?'비밀번호 설정 (10~72글자)':'비밀번호')+'</label><input id="member-login-password" type="password" minlength="10" maxlength="72" autocomplete="'+(setup?'new-password':'current-password')+'" required>'+
+  (setup?'<label for="member-login-again">비밀번호 확인</label><input id="member-login-again" type="password" minlength="10" maxlength="72" autocomplete="new-password" required>':'')+
+  '<p id="member-login-error" class="note member-login-error" role="alert">'+esc(error||'')+'</p>'+
+  '<button class="btn sm" id="member-login-submit" type="submit">'+(setup?'등록하고 입장':'로그인하고 입장')+'</button></form>'+
+  '<p class="note">이름이 잘못되었거나 비밀번호를 잊었으면 경기위원장에게 접속 초기화를 요청하십시오.</p>'+
+  (nativePhoneReady()?'<button class="btn sm line" onclick="memberManageOpen()">회원 접속관리 · 경기위원장</button><div style="height:8px"></div>':'')+
+  '<button class="btn sm quiet" onclick="memberLoginCancel()">돌아가기</button></div></div>';
+}
+function memberShowLogin(form,error){
+ MEMBER_AUTH.form=form;sheet=memberLoginMarkup(form,error);render();
+ setTimeout(function(){var input=document.getElementById(form.member?'member-login-password':'member-login-name');if(input)input.focus();},0);
+}
+function memberLoginStart(){
+ if(MEMBER_AUTH.busy)return Promise.resolve(false);
+ MEMBER_AUTH.busy=true;PORTAL_ENTER_BUSY=true;render();
+ return memberRpc('memberPrepare',{memberId:L.memberIdentity&&L.memberIdentity.id||''}).then(function(res){
+  MEMBER_AUTH.busy=false;PORTAL_ENTER_BUSY=false;memberShowLogin(res);return true;
+ },function(e){MEMBER_AUTH.busy=false;PORTAL_ENTER_BUSY=false;render();toast(e.message);return false;});
+}
+function memberLoginCancel(){
+ if(MEMBER_AUTH.busy)return;
+ MEMBER_AUTH.form=null;MEMBER_AUTH.hostManage=false;sheet=null;PORTAL_ENTER_BUSY=false;render();
+}
+function memberDerive(password,prepared){
+ if(prepared.kdf!=='PBKDF2-SHA256'||prepared.iterations!==600000||!/^[a-f0-9]{64}$/.test(prepared.salt||''))
+  return Promise.reject(Error('회원 비밀번호 설정을 다시 확인하십시오.'));
+ if(!crypto.subtle||!window.TextEncoder)return Promise.reject(Error('비밀번호를 처리할 수 없는 앱·브라우저입니다. 최신 버전을 사용하십시오.'));
+ var salt=new Uint8Array(prepared.salt.match(/../g).map(function(x){return parseInt(x,16)}));
+ return crypto.subtle.importKey('raw',new TextEncoder().encode(password),'PBKDF2',false,['deriveBits']).then(function(key){
+  return crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:salt,iterations:600000},key,256);
+ }).then(function(bits){return Array.from(new Uint8Array(bits),function(b){return b.toString(16).padStart(2,'0')}).join('')});
+}
+function memberLoginSubmit(ev){
+ if(ev)ev.preventDefault();if(MEMBER_AUTH.busy||!MEMBER_AUTH.form)return Promise.resolve(false);
+ var form=MEMBER_AUTH.form,p=form.member,name=p?p.name:document.getElementById('member-login-name').value.trim(),
+  pw=document.getElementById('member-login-password'),again=document.getElementById('member-login-again'),password=pw.value,
+  err=document.getElementById('member-login-error'),button=document.getElementById('member-login-submit'),loginForm=document.getElementById('member-login-form');
+ if(!name||name.length>40){err.textContent='본인의 이름을 1~40글자로 입력하십시오.';return Promise.resolve(false);}
+ if(password.length<10||password.length>72||password.trim()!==password){err.textContent='비밀번호는 앞뒤 공백 없이 10~72글자로 입력하십시오.';return Promise.resolve(false);}
+ if(again&&password!==again.value){err.textContent='비밀번호 확인이 일치하지 않습니다.';return Promise.resolve(false);}
+ MEMBER_AUTH.busy=true;button.disabled=true;button.textContent='확인하고 있습니다…';err.textContent='';
+ // 먼저 이름에 해당하는 기존 회원번호와 소금값을 확인합니다. 비밀번호는 요청 본문에 넣지 않습니다.
+ return (p?Promise.resolve(form):memberRpc('memberPrepare',{name:name})).then(function(prepared){
+  return memberDerive(password,prepared).then(function(proof){
+   if(!loginForm.isConnected||MEMBER_AUTH.form!==form){var cancelled=Error('회원 로그인을 취소했습니다.');cancelled.memberCancelled=true;throw cancelled;}
+   password='';if(pw)pw.value='';if(again)again.value='';
+   return memberRpc('memberAuthenticate',{memberId:prepared.member?prepared.member.id:'',name:prepared.name,
+    salt:prepared.salt,iterations:prepared.iterations,revision:prepared.revision,proof:proof});
+  });
+ }).then(function(res){
+  if(!loginForm.isConnected||MEMBER_AUTH.form!==form){MEMBER_AUTH.busy=false;MEMBER_AUTH.form=null;return false;}
+  memberRemember(res.member);MEMBER_AUTH.session=res.memberSession;MEMBER_AUTH.expiresAt=res.expiresAt;MEMBER_AUTH.profile=res.member;
+  MEMBER_AUTH.busy=false;MEMBER_AUTH.form=null;sheet=null;chairAutoAuth();portalEnterVerified();return true;
+ }).catch(function(e){
+  password='';if(pw)pw.value='';if(again)again.value='';MEMBER_AUTH.busy=false;
+  if(e.memberCancelled||!loginForm.isConnected||MEMBER_AUTH.form!==form){MEMBER_AUTH.form=null;return false;}
+  if(e.memberCode==='MEMBER_STALE'||e.memberCode==='MEMBER_BOUND'){
+   return memberLoginStart().then(function(){var target=document.getElementById('member-login-error');if(target)target.textContent=e.message;return false;});
+  }
+  var target=document.getElementById('member-login-error');if(target)target.textContent=e.message;
+  if(button&&button.isConnected){button.disabled=false;button.textContent=p&&p.passwordReady?'로그인하고 입장':'등록하고 입장';}
+  return false;
+ });
+}
+function portalEnter(){
+ if(PORTAL_ENTER_BUSY||MEMBER_AUTH.busy)return;
+ if(!SUPPLY_CLUB_ID){toast('먼저 내 모임을 선택하십시오.');return;}
+ if(!L||!cloudOn()||!L.cloudReadKey){toast('경기위원장에게 받은 모임 초대주소로 접속하십시오.');return;}
+ if(!portalNoticeAccepted()){portalShowNotice();return;}
+ if(!memberActive()){memberClearSession();return memberLoginStart();}
+ return portalEnterVerified();
+}
+function memberLogout(){
+ if(MEMBER_AUTH.busy)return;
+ if(L.dirty&&!confirm('서버에 올리지 않은 수정사항은 이 기기에 보관됩니다. 로그아웃하시겠습니까?'))return;
+ memberClearSession();forgetHostSession();L.mode='member';save(false);sheet=null;PORTAL_OPEN=true;render();toast('로그아웃했습니다. 이 기기의 회원 연결은 유지됩니다.');
+}
+function memberSettingsMarkup(){
+ var p=MEMBER_AUTH.profile||L.memberIdentity;
+ return '<div class="card"><h2>이 기기의 회원</h2><p class="member-login-name">'+esc(p?p.name:'회원 로그인 전')+'</p>'+
+  '<p class="note">모임마다 이 앱·브라우저에 회원번호를 연결합니다. 이름 정정과 접속 초기화는 경기위원장에게 요청하십시오.</p>'+
+  (memberActive()?'<button class="btn sm quiet" onclick="memberLogout()">회원 로그아웃</button>':'')+
+  (nativePhoneReady()?'<div style="height:8px"></div><button class="btn sm line" onclick="memberManageOpen()">회원 접속관리 · 경기위원장</button>':'')+'</div>';
+}
+function memberManageOpen(){
+ if(!nativePhoneReady()){toast('경기위원장 앱에서 회원 접속관리를 이용하십시오.');return Promise.resolve(false);}
+ if(!officialChairActive()){MEMBER_AUTH.hostManage=true;MEMBER_AUTH.form=null;askPw();return Promise.resolve(false);}
+ if(MEMBER_AUTH.busy)return Promise.resolve(false);MEMBER_AUTH.busy=true;
+ return memberRpc('memberList').then(function(res){
+  MEMBER_AUTH.busy=false;
+  var list=res.members.map(function(p){
+   return '<div class="member-manage-item"><h3>'+esc(p.name)+'</h3><p class="note">'+(p.passwordReady?'등록 완료':'비밀번호 다시 설정 대기')+' · 연결 기기 '+p.deviceCount+'개'+(p.rosterMemberId?' · 경기명부 연결됨':'')+'</p>'+
+    '<div class="row2"><button class="btn sm quiet" onclick="memberManageChoose(\''+p.id+'\',\'rename\')">이름 정정</button>'+
+    '<button class="btn sm line" onclick="memberManageChoose(\''+p.id+'\',\'reset\')">접속 초기화</button></div></div>';
+  }).join('');
+  MEMBER_AUTH.manageRows=res.members;MEMBER_AUTH.operation=null;MEMBER_AUTH.form=null;
+  sheet='<div class="sheet"><div class="inner" role="dialog" aria-modal="true" aria-labelledby="member-manage-title"><h2 id="member-manage-title">회원 접속관리</h2>'+
+   '<p class="note">초기화하면 기존 회원 로그인이 해제됩니다. 다음에 회원이 정한 비밀번호를 사용하며, 회원번호와 경기기록은 유지됩니다.</p>'+
+   (list||'<p class="note">아직 이름과 비밀번호를 등록한 회원이 없습니다.</p>')+
+   '<button class="btn sm quiet" onclick="memberManageClose()">닫기</button></div></div>';render();return true;
+ },function(e){MEMBER_AUTH.busy=false;toast(e.message);return false;});
+}
+function memberManageClose(){MEMBER_AUTH.operation=null;MEMBER_AUTH.manageRows=null;MEMBER_AUTH.form=null;sheet=null;render();}
+function memberManageChoose(id,type){
+ var p=(MEMBER_AUTH.manageRows||[]).filter(function(x){return x.id===id})[0];if(!p||MEMBER_AUTH.busy)return;
+ MEMBER_AUTH.operation={id:memberRandom(),member:p,type:type,newName:null};
+ sheet='<div class="sheet"><div class="inner" role="dialog" aria-modal="true"><h2>'+esc(p.name)+' · '+(type==='reset'?'접속 초기화':'이름 정정')+'</h2>'+
+  (type==='rename'?'<label for="member-rename-value">바른 이름</label><input id="member-rename-value" maxlength="40" value="'+esc(p.name)+'">':
+   '<p>비밀번호와 기기 연결을 초기화합니다. 기존 로그인은 해제되며 다음 등록 때 새 비밀번호를 정합니다. 회원번호와 경기기록은 보존합니다.</p>')+
+  '<p id="member-manage-error" role="alert" class="note member-login-error"></p><button class="btn sm" id="member-manage-submit" onclick="memberManageSubmit()">'+(type==='reset'?'확인하고 초기화':'이름 정정 저장')+'</button>'+
+  '<div style="height:8px"></div><button class="btn sm quiet" onclick="memberManageOpen()">목록으로</button></div></div>';render();
+}
+function memberManageSubmit(){
+ var op=MEMBER_AUTH.operation;if(!op||MEMBER_AUTH.busy)return Promise.resolve(false);
+ var button=document.getElementById('member-manage-submit'),error=document.getElementById('member-manage-error');
+ if(op.type==='rename'&&op.newName===null){var input=document.getElementById('member-rename-value');op.newName=input.value.trim();if(!op.newName){error.textContent='바른 이름을 입력하십시오.';op.newName=null;return Promise.resolve(false);}input.readOnly=true;}
+ MEMBER_AUTH.busy=true;button.disabled=true;error.textContent='';
+ return memberRpc(op.type==='reset'?'memberReset':'memberRename',{memberId:op.member.id,revision:op.member.revision,
+  operationId:op.id,confirmed:true,newName:op.newName||''}).then(function(res){
+  MEMBER_AUTH.busy=false;
+  if(L.memberIdentity&&L.memberIdentity.id===res.member.id){memberRemember(res.member);memberClearSession();}
+  MEMBER_AUTH.operation=null;
+  return memberManageOpen().then(function(){toast(op.type==='reset'?'회원 접속을 초기화했습니다. 다음 입장에서 비밀번호를 다시 정하십시오.':'회원 이름을 정정했습니다. 기존 회원번호와 기록은 유지됩니다.');return true;});
+ },function(e){MEMBER_AUTH.busy=false;error.textContent=e.message+' 같은 버튼으로 다시 시도할 수 있습니다.';button.disabled=false;return false;});
+}
+
 function portalIsInstalled(){
  return !!((window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches)||
   window.navigator.standalone===true||/WGKAndroidApp\//.test(navigator.userAgent||""));
@@ -1895,6 +2065,7 @@ function scrHome(){
  '<button class="portal-back" onclick="portalReturn()" title="시작 화면으로 돌아가기" aria-label="홈으로 이동"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 10 9-7 9 7"/><path d="M5.5 9.5V21h13V9.5"/><path d="M9.5 21v-7h5v7"/></svg></button></div><div class="hmain">'+
  '<div class="hname"><span class="hclubname">'+esc(S.room.name)+'</span></div>'+
  '<div class="hline">회원 '+S.members.length+'명 · 라운드 '+S.rounds.length+'회</div>'+
+ (memberActive()?'<div class="hline member-home-name">'+esc(MEMBER_AUTH.profile.name)+'님으로 로그인</div>':'')+
  '<div class="hmeta"><div class="hline">'+APP_NAME+' H'+APP_VER+'</div>'+
  '<span class="hrole">'+(host?(chairPosition==='vice'?'부위원장':'경기위원장'):"회원")+'</span></div></div>'+
  '</div>'+
@@ -3343,7 +3514,7 @@ function scrData(){
  '<div class="card"><h2>이 기기의 역할</h2><div class="row2"><button class="btn sm '+(host?'':'line')+'" onclick="setRole(\'host\')">경기위원장</button>'+
  '<button class="btn sm '+(!host?'':'line')+'" onclick="setRole(\'member\')">회원</button></div>'+
  '<p class="note">경기위원장과 부위원장은 최신 안드로이드 앱에서만 인증할 수 있습니다. 비밀번호 하나로 최대 2대까지 등록됩니다. PC에서는 회원 권한만 이용합니다.</p></div>'+
- chairSettingsMarkup()+
+ memberSettingsMarkup()+chairSettingsMarkup()+
  (host?'<div class="card"><h2>모든 데이터 공유와 복원</h2><p class="note">모임 기록 전체를 백업하여 안전한 곳에 보관하십시오. 외부 채팅방 공유에는 회원 개인정보가 포함될 수 있으므로 주의하십시오.</p>'+
  '<div style="height:10px"></div><button class="btn sm" onclick="shareAll()">모든 데이터 공유하기</button><div id="bkbox"></div>'+
  '<label for="rb">모든 데이터 복원</label><textarea id="rb" placeholder="백업 문서를 붙여 넣으세요"></textarea><div style="height:10px"></div><button class="btn sm quiet" onclick="restoreBackup()">모든 데이터 복원</button>'+'</div>':'')+
@@ -3443,6 +3614,7 @@ function tryHost(){
   if(!res||!res.ok||!res.session){toast((res&&res.error)||"암호 인증에 실패했습니다.");return}
   rememberHostSession(res.session,'official');chairPosition=res.position||'';L.mode="host";sheet=null;save(false);render();
   toast(chairPosition==='vice'?'부위원장 인증 성공':'경기위원장 인증 성공');
+  if(MEMBER_AUTH.hostManage){MEMBER_AUTH.hostManage=false;memberManageOpen();return;}
   if(!L.lastName)pullCloud(true);
  },function(e){busy=false;toast("서버 인증 실패: "+e.message)});
 }
