@@ -445,6 +445,8 @@ body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(26.
 .member-home-name{overflow-wrap:anywhere}
 .member-login-error{color:var(--clay);min-height:1.5em}
 .member-login-sheet input{font-size:16px}
+.member-choice{display:block;text-align:left;width:100%;margin:10px 0;white-space:normal}
+.member-choice .note{display:block;margin-top:6px}
 .member-manage-item{padding:14px 0;border-top:1px solid var(--line)}
 .member-manage-item h3{margin:0 0 6px;font-size:18px;overflow-wrap:anywhere}
 .member-login-sheet .inner{max-height:88dvh;overflow:auto}
@@ -464,7 +466,7 @@ body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(26.
 <script src="application-config.js"></script>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.37";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.38";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -1669,29 +1671,61 @@ function memberRemember(profile){
  L.memberIdentity={id:profile.id,name:profile.name};
  try{localStorage.setItem(LKEY,JSON.stringify(L));}catch(e){throw Error('회원번호를 이 기기에 보관하지 못했습니다. 저장 공간을 확인하고 다시 로그인하십시오.');}
 }
+function memberCandidateHcp(c){
+ var data=PORTAL_PREP.ready&&PORTAL_PREP.ready.latest;if(!data||!c.rosterMemberId)return '초기 핸디 '+c.hcpManual;
+ var ds=data.rounds.slice().sort(function(a,b){var x=roundKey(a),y=roundKey(b);return x<y?-1:x>y?1:0}).filter(function(r){
+  return Array.isArray(r.players)&&r.players.indexOf(c.rosterMemberId)>=0&&r.scores&&grossOf(r,c.rosterMemberId)!=null;
+ }).map(function(r){return grossOf(r,c.rosterMemberId)-parSum(r)});
+ if(!ds.length)return '초기 핸디 '+c.hcpManual;
+ var use=ds.length===1?ds:ds.slice(-(data.hcpWindow||5));
+ return '핸디 '+Math.round(use.reduce(function(a,b){return a+b},0)/use.length);
+}
 function memberLoginMarkup(form,error){
- var p=form.member,known=!!p||!!form.name,setup=!p||!p.passwordReady,name=p?p.name:(form.name||'');
- var title=!known?'회원 이름 확인':(setup?(p?'비밀번호 다시 등록':'처음 비밀번호 등록'):'회원 로그인');
+ var p=form.member,choosing=!!form.chooseRequired,known=!!p||!!form.name,setup=!p||!p.passwordReady,name=p?p.name:(form.name||''),fresh=form.registration==='new';
+ var title=choosing?'본인 회원 선택':(!known?'회원 이름 확인':(fresh?'새 회원 등록':(setup?(p?'비밀번호 다시 등록':'처음 비밀번호 설정'):'회원 로그인')));
+ var body='';
+ if(choosing){
+  body='<p class="note">'+esc(form.queryName)+' 이름으로 조회했습니다. 기존 회원이면 본인을 선택하십시오. 다른 사람이면 새 회원 등록을 선택하십시오.</p>'+
+   '<div id="member-login-choices">'+(form.candidates.length?form.candidates.map(function(c,i){
+    return '<button class="btn sm line member-choice" data-member-choice="'+i+'" onclick="memberChoose('+i+')"><strong>'+esc(c.name)+
+     (c.nick?' ('+esc(c.nick)+')':'')+'</strong><span class="note">'+esc(memberCandidateHcp(c))+' · '+
+     (c.passwordReady?'기존 비밀번호로 로그인':'선택 후 비밀번호 설정')+'</span></button>';
+   }).join(''):'<p class="note">같은 이름의 회원이 없습니다.</p>')+'</div>'+
+   '<div style="height:12px"></div><button class="btn sm quiet" id="member-login-new" onclick="memberChoose(-1)">새 회원 등록</button>'+
+   '<p id="member-login-error" class="note member-login-error" role="alert">'+esc(error||'')+'</p>';
+ }else{
+  body=(known?'<p class="member-login-name">'+esc(name)+'</p><p class="note">'+
+   (fresh?'새 경기회원으로 등록합니다. 같은 이름이 있으면 구분된 등록 이름을 사용합니다.':
+    (setup?(p?'위원장이 초기화한 회원입니다. 사용할 새 비밀번호를 정하십시오.':'기존 경기회원입니다. 회원번호와 경기기록을 유지하고 비밀번호만 처음 설정합니다.'):
+    '이미 등록된 회원입니다. 기존 비밀번호로 로그인하십시오.'))+'</p>':
+   '<p class="note">본인의 이름을 먼저 확인한 뒤 기존 회원을 선택합니다. 다음부터는 이 기기에 이름이 자동으로 표시됩니다.</p>')+
+   '<form id="member-login-form" onsubmit="memberLoginSubmit(event)">'+
+   (!known?'<label for="member-login-name">이름</label><input id="member-login-name" type="text" maxlength="40" autocomplete="name" required placeholder="본인의 이름">':
+    (fresh?'<label for="member-login-nick">닉네임</label><input id="member-login-nick" type="text" maxlength="40" placeholder="스코어카드에 쓰는 이름 · 없으면 비워 두십시오">'+
+     '<label for="member-login-hcp">첫 라운드 전 핸디</label><input id="member-login-hcp" type="number" step="1" inputmode="numeric" value="0" required>'+
+     '<p class="note">경기기록이 없는 동안 사용하는 핸디입니다. 기록이 쌓이면 기존 규칙으로 자동 계산합니다.</p>':'')+
+    '<label for="member-login-password">'+(setup?'비밀번호 설정':'비밀번호')+'</label><input id="member-login-password" type="password" autocomplete="'+(setup?'new-password':'current-password')+'" required>'+
+    (setup?'<label for="member-login-again">비밀번호 확인</label><input id="member-login-again" type="password" autocomplete="new-password" required>':''))+
+   '<p id="member-login-error" class="note member-login-error" role="alert">'+esc(error||'')+'</p>'+
+   '<button class="btn sm" id="member-login-submit" type="submit">'+(!known?'이름 확인':(setup?'등록하고 입장':'로그인하고 입장'))+'</button></form>';
+ }
  return '<div class="sheet member-login-sheet"><div class="inner" role="dialog" aria-modal="true" aria-labelledby="member-login-title">'+
-  '<h2 id="member-login-title" tabindex="-1">'+title+'</h2>'+
-  '<p class="note">'+esc(portalClubName())+'</p>'+
-  (known?'<p class="member-login-name">'+esc(name)+'</p><p class="note">'+
-   (setup?(p?'위원장이 초기화한 회원입니다. 사용할 새 비밀번호를 정하십시오.':'처음 등록하는 이름입니다. 사용할 비밀번호를 정하십시오.'):
-    '이미 등록된 회원입니다. 기존 비밀번호로 로그인하십시오.')+'</p>':
-   '<p class="note">본인의 이름을 먼저 확인합니다. 등록된 이름이면 기존 비밀번호로 로그인하고, 처음 등록하는 이름이면 새 비밀번호를 정합니다. 다음부터는 이 기기에 이름이 자동으로 표시됩니다.</p>')+
-  '<form id="member-login-form" onsubmit="memberLoginSubmit(event)">'+
-  (!known?'<label for="member-login-name">이름</label><input id="member-login-name" type="text" maxlength="40" autocomplete="name" required placeholder="본인의 이름">':
-   '<label for="member-login-password">'+(setup?'비밀번호 설정':'비밀번호')+'</label><input id="member-login-password" type="password" autocomplete="'+(setup?'new-password':'current-password')+'" required>'+
-   (setup?'<label for="member-login-again">비밀번호 확인</label><input id="member-login-again" type="password" autocomplete="new-password" required>':''))+
-  '<p id="member-login-error" class="note member-login-error" role="alert">'+esc(error||'')+'</p>'+
-  '<button class="btn sm" id="member-login-submit" type="submit">'+(!known?'이름 확인':(setup?'등록하고 입장':'로그인하고 입장'))+'</button></form>'+
+  '<h2 id="member-login-title" tabindex="-1">'+title+'</h2><p class="note">'+esc(portalClubName())+'</p>'+body+
   '<p class="note">이름이 잘못되었거나 비밀번호를 잊었으면 경기위원장에게 접속 초기화를 요청하십시오.</p>'+
   (nativePhoneReady()?'<button class="btn sm line" onclick="memberManageOpen()">회원 접속관리 · 경기위원장</button><div style="height:8px"></div>':'')+
   '<button class="btn sm quiet" onclick="memberLoginCancel()">돌아가기</button></div></div>';
 }
 function memberShowLogin(form,error){
  MEMBER_AUTH.form=form;sheet=memberLoginMarkup(form,error);render();
- setTimeout(function(){var input=document.getElementById((form.member||form.name)?'member-login-password':'member-login-name');if(input)input.focus();},0);
+ setTimeout(function(){var input=document.getElementById(form.chooseRequired?'member-login-title':((form.member||form.name)?(form.registration==='new'?'member-login-nick':'member-login-password'):'member-login-name'));if(input)input.focus();},0);
+}
+function memberChoose(index){
+ var form=MEMBER_AUTH.form;if(MEMBER_AUTH.busy||!form||!form.chooseRequired)return Promise.resolve(false);
+ var c=index>=0?form.candidates[index]:null;if(index>=0&&!c)return Promise.resolve(false);
+ MEMBER_AUTH.busy=true;var error=document.getElementById('member-login-error');if(error)error.textContent='회원정보를 확인하고 있습니다…';
+ return memberRpc('memberPrepare',index<0?{name:form.queryName,newMember:true}:{name:form.queryName,selection:{memberId:c.memberId,rosterMemberId:c.rosterMemberId}}).then(function(res){
+  MEMBER_AUTH.busy=false;if(MEMBER_AUTH.form!==form||!sheet){if(MEMBER_AUTH.form===form)MEMBER_AUTH.form=null;return false;}memberShowLogin(res);return true;
+ },function(e){MEMBER_AUTH.busy=false;if(MEMBER_AUTH.form===form){var target=document.getElementById('member-login-error');if(target)target.textContent=e.message;}return false;});
 }
 function memberLoginStart(){
  if(MEMBER_AUTH.busy)return Promise.resolve(false);
@@ -1715,13 +1749,15 @@ function memberDerive(password,prepared){
 }
 function memberLoginSubmit(ev){
  if(ev)ev.preventDefault();if(MEMBER_AUTH.busy||!MEMBER_AUTH.form)return Promise.resolve(false);
- var form=MEMBER_AUTH.form,p=form.member,nameOnly=!p&&!form.name,
+ var form=MEMBER_AUTH.form;if(form.chooseRequired)return Promise.resolve(false);
+ var p=form.member,nameOnly=!p&&!form.name,
   name=p?p.name:(form.name||document.getElementById('member-login-name').value.trim()),
   pw=document.getElementById('member-login-password'),again=document.getElementById('member-login-again'),password=pw?pw.value:'',
   err=document.getElementById('member-login-error'),button=document.getElementById('member-login-submit'),loginForm=document.getElementById('member-login-form');
  if(!name||name.length>40){err.textContent='본인의 이름을 1~40글자로 입력하십시오.';return Promise.resolve(false);}
  if(!nameOnly&&!password){err.textContent='비밀번호를 입력하십시오.';return Promise.resolve(false);}
  if(!nameOnly&&password.trim()!==password){err.textContent='비밀번호의 앞뒤 공백을 제거하십시오.';return Promise.resolve(false);}
+ if(form.registration==='new'){var h=document.getElementById('member-login-hcp');if(!h||h.value.trim()===''||!Number.isSafeInteger(Number(h.value))){err.textContent='첫 라운드 전 핸디를 정수로 입력하십시오.';return Promise.resolve(false);}}
  if(again&&password!==again.value){err.textContent='비밀번호 확인이 일치하지 않습니다.';return Promise.resolve(false);}
  MEMBER_AUTH.busy=true;button.disabled=true;button.textContent='확인하고 있습니다…';err.textContent='';
  // 먼저 이름에 해당하는 기존 회원번호와 소금값을 확인합니다. 비밀번호는 요청 본문에 넣지 않습니다.
@@ -1731,16 +1767,20 @@ function memberLoginSubmit(ev){
    if(!loginForm.isConnected||MEMBER_AUTH.form!==form){if(MEMBER_AUTH.form===form)MEMBER_AUTH.form=null;return null;}
    memberShowLogin(prepared);return null;
   }
+  var registration={registration:prepared.registration||'',selection:prepared.selection||null,requestedName:prepared.queryName||name};
+  if(prepared.registration==='new'){registration.nick=document.getElementById('member-login-nick').value.trim();registration.hcpManual=Number(document.getElementById('member-login-hcp').value);}
   return memberDerive(password,prepared).then(function(proof){
    if(!loginForm.isConnected||MEMBER_AUTH.form!==form){var cancelled=Error('회원 로그인을 취소했습니다.');cancelled.memberCancelled=true;throw cancelled;}
    password='';if(pw)pw.value='';if(again)again.value='';
    return memberRpc('memberAuthenticate',{memberId:prepared.member?prepared.member.id:'',name:prepared.name,
-    salt:prepared.salt,iterations:prepared.iterations,revision:prepared.revision,proof:proof});
+    salt:prepared.salt,iterations:prepared.iterations,revision:prepared.revision,proof:proof,...registration});
   });
  }).then(function(res){
   if(res===null)return false;
   if(!loginForm.isConnected||MEMBER_AUTH.form!==form){MEMBER_AUTH.busy=false;MEMBER_AUTH.form=null;return false;}
   memberRemember(res.member);MEMBER_AUTH.session=res.memberSession;MEMBER_AUTH.expiresAt=res.expiresAt;MEMBER_AUTH.profile=res.member;
+  var rosterMissing=res.member.rosterMemberId&&PORTAL_PREP.ready&&!PORTAL_PREP.ready.latest.members.some(function(m){return String(m.id)===res.member.rosterMemberId});
+  if(res.rosterChanged||rosterMissing){PORTAL_PREP.ready=null;PORTAL_PREP.verifiedAt=0;}
   MEMBER_AUTH.busy=false;MEMBER_AUTH.form=null;sheet=null;chairAutoAuth();portalEnterVerified();return true;
  }).catch(function(e){
   password='';if(pw)pw.value='';if(again)again.value='';MEMBER_AUTH.busy=false;
@@ -2142,10 +2182,15 @@ function setWindow(){var v=parseInt(document.getElementById("hw").value,10);
  S.hcpWindow=v;save();render();toast("최근 "+v+"회 평균으로 바꿨습니다.")}
 var MEMBER_ADD_OPEN=false;
 function toggleMemberAdd(v){MEMBER_ADD_OPEN=!!v;render()}
+function uniqueRosterName(name,exceptId){
+ function used(v){return S.members.some(function(m){return m.id!==exceptId&&String(m.name).normalize('NFC').replace(/\s+/g,'').toLowerCase()===v.normalize('NFC').replace(/\s+/g,'').toLowerCase()})}
+ if(!used(name))return name;for(var i=2;i<=S.members.length+2;i++){var next=name+String(i);if(!used(next))return next;}return name;
+}
 function addMember(){
  var n=document.getElementById("mn").value.trim(),h=parseInt(document.getElementById("mh").value,10);
  var nk=document.getElementById("mk");nk=nk?nk.value.trim():"";
  if(!n){toast("이름을 입력해 주세요.");return}
+ var unique=uniqueRosterName(n);if(unique!==n){document.getElementById("mn").value=unique;toast("같은 이름이 있습니다. 기존 회원을 확인하거나 "+unique+" 이름으로 다시 추가해 주십시오.");return;}
  if(isNaN(h))h=0;
  S.members.push({id:uid(),name:n,nick:nk,hcpManual:h});MEMBER_ADD_OPEN=false;save();render();
  scrollToMark("memberList");toast(n+" 님을 추가했습니다.")}
@@ -3273,6 +3318,7 @@ function scanAddMember(ri){
  var row=scan.rows[ri];
  var nm=(prompt("새 회원의 이름을 확인해 주십시오.",row.raw)||"").trim();
  if(!nm)return;
+ var unique=uniqueRosterName(nm);if(unique!==nm){if(!confirm("같은 이름이 있습니다. 기존 회원을 선택하려면 취소하십시오. 다른 사람을 "+unique+" 이름으로 새로 등록할까요?"))return;nm=unique;}
  var nk=(prompt("닉네임 (없으면 비워 두십시오)",row.raw===nm?"":row.raw)||"").trim();
  var m={id:uid(),name:nm,nick:nk,hcpManual:0};
  S.members.push(m);row.mid=m.id;save();render();
