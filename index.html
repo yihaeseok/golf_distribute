@@ -501,7 +501,7 @@ body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(26.
 <script src="application-config.js"></script>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.43";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.44";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -530,7 +530,7 @@ var SUPPLY_CLUB_PICK=!SUPPLY_CLUB_ID;
 var PORTAL_OPEN=true,PORTAL_ENTER_BUSY=false,PORTAL_INSTALL_PROMPT=null,PORTAL_INSTALL_DONE=false;
 var PORTAL_NEW_INVITE=false; // ephemeral, set only for a valid invite fragment in this page load
 /* H1.9.14: START consumes an already verified portal preload. Never store an
-   authenticated snapshot beyond this page session; never skip server verification. */
+   authenticated snapshot beyond this page session; member login still verifies access. */
 var PORTAL_PREP={promise:null,ready:null,verifiedAt:0,error:""};
 var PORTAL_PREP_TTL=90000;
 var SUPPLY_CLUB_NAME=SUPPLY_CLUB_ID?((SUPPLY_PARAMS.get("name")||"").slice(0,60)||
@@ -658,7 +658,7 @@ function load(){
   if(!r.times)r.times={};if(!r.games)r.games=[];if(!r.teams)r.teams={}});
 }
 function save(stamp){
- if(stamp!==false){S.updatedAt=new Date().toISOString();L.dirty=true;}
+ if(stamp!==false){S.updatedAt=new Date().toISOString();L.dirty=true;if(RECORD_SYNC)RECORD_SYNC.edits++;}
  L.lastSaved=new Date().toISOString();
  try{localStorage.setItem(DKEY,JSON.stringify(S));localStorage.setItem(LKEY,JSON.stringify(L))}
  catch(e){toast("저장하지 못했습니다. 저장 공간을 확인해 주세요.")}
@@ -1292,41 +1292,176 @@ function fireworks(label){
   document.body.appendChild(box);
   setTimeout(function(){if(box&&box.parentNode)box.remove()},10500);
  }catch(e){}}
+/* H1.9.44 기기 저장 기록 우선 표시와 변경 확인 */
+var RECORD_SYNC={epoch:0,edits:0,entered:false,context:'',phase:'idle',error:'',pending:null,headPromise:null,
+ autoPromise:null,externalChange:false};
+function recordContext(){return JSON.stringify([SUPPLY_CLUB_ID,L&&L.cloudUrl||'',L&&L.cloudReadKey||'']);}
+function recordLocalReady(){return !!(L&&validClubData(S)&&S.room.id&&S.room.id!=='pending'&&/^wgk-\d{8}\.json$/.test(L.lastName||''));}
+function recordLocalMatch(){
+ return recordLocalReady()&&L.recordRoomId===S.room.id&&/^[a-f0-9]{64}$/.test(L.recordRevision||'')?
+  {ifRevision:L.recordRevision,baseVersion:L.lastName}:{};
+}
+function recordInvalidate(clearRevision){
+ RECORD_SYNC.epoch++;RECORD_SYNC.pending=null;RECORD_SYNC.headPromise=null;RECORD_SYNC.autoPromise=null;
+ PORTAL_PREP.promise=null;PORTAL_PREP.ready=null;PORTAL_PREP.verifiedAt=0;PORTAL_PREP.error='';
+ if(clearRevision&&L){L.recordRevision='';L.recordRoomId='';L.lastRecordCheck='';}
+}
+function recordMetaSave(){
+ if(RECORD_SYNC.externalChange)return;
+ try{localStorage.setItem(LKEY,JSON.stringify(L));}catch(e){RECORD_SYNC.error='최신 확인 상태를 기기에 저장하지 못했습니다.';}
+}
+function recordIsNew(res){return !recordLocalReady()||L.lastName!==res.version||
+  !!(res.revision&&L.recordRevision&&res.revision!==L.recordRevision);}
+function recordRemember(res,received){
+ L.lastRecordCheck=new Date().toISOString();
+ if(received||res.notModified){L.recordRevision=/^[a-f0-9]{64}$/.test(res.revision||'')?res.revision:'';L.recordRoomId=S.room.id;}
+ RECORD_SYNC.phase=L.cloudNew?'new':'current';RECORD_SYNC.error='';recordMetaSave();
+}
+function recordStatusText(){
+ var received=L&&L.lastSync?'마지막 받기 '+fmt(L.lastSync):'아직 서버 기록을 받지 않았습니다.';
+ if(RECORD_SYNC.externalChange)return '다른 창에서 이 모임의 저장 내용이 바뀌었습니다. 이 화면을 다시 열어 확인하십시오.';
+ if(L&&L.dirty)return '미전송 수정사항을 이 기기에 보관 중입니다. '+received;
+ if(RECORD_SYNC.phase==='checking')return '기기에 저장된 기록을 보고 있습니다. 최신 여부를 확인 중입니다. '+received;
+ if(RECORD_SYNC.phase==='error'||RECORD_SYNC.error)return '최신 여부를 확인하지 못했습니다. 기기에 저장된 기록입니다. '+received;
+ if(L&&L.cloudNew)return '서버에 새 기록이 있습니다. 최신 기록 받기로 확인하십시오. '+received;
+ return (L&&L.lastRecordCheck?'최근 확인 '+fmt(L.lastRecordCheck)+' · ':'기기에 저장된 기록입니다. ')+received;
+}
+function recordStatusMarkup(){return '<p class="note" id="record-sync-status" role="status" style="margin:0 0 12px">'+esc(recordStatusText())+'</p>';}
+function recordPaintStatus(){
+ var el=document.getElementById('record-sync-status');if(el)el.textContent=recordStatusText();
+ var prep=document.getElementById('portal-prep-status');if(prep)prep.textContent=portalPrepMessage();
+}
+function recordStale(){var e=Error('기록 확인 중 모임 또는 저장 상태가 바뀌었습니다. 다시 확인하십시오.');e.recordStale=true;return e;}
+function recordPreparedValid(p){return !!(p&&p.context===recordContext()&&p.epoch===RECORD_SYNC.epoch);}
+function recordLatest(force,full){
+ if(!SUPPLY_CLUB_ID||!L||!cloudOn()||!L.cloudReadKey)return Promise.reject(Error('모임 초대주소와 인증정보가 필요합니다.'));
+ var context=recordContext();
+ if(PORTAL_PREP.promise&&RECORD_SYNC.context===context){
+  if(!full||PORTAL_PREP.full)return PORTAL_PREP.promise;
+  return PORTAL_PREP.promise.then(function(p){return p.res.notModified?recordLatest(true,true):p;});
+ }
+ if(!force&&recordPreparedValid(PORTAL_PREP.ready)&&Date.now()-PORTAL_PREP.verifiedAt<PORTAL_PREP_TTL)
+  return Promise.resolve(PORTAL_PREP.ready);
+ var epoch=RECORD_SYNC.epoch,dataAtStart=S,versionAtStart=L.lastName,editsAtStart=RECORD_SYNC.edits;
+ var match=full?{}:recordLocalMatch();RECORD_SYNC.context=context;RECORD_SYNC.phase='checking';RECORD_SYNC.error='';
+ PORTAL_PREP.full=!!full;recordPaintStatus();
+ var promise=cloudRpc('latest',L.cloudReadKey,match).then(function(res){
+  if(context!==recordContext()||epoch!==RECORD_SYNC.epoch)throw recordStale();
+  if(!res||!res.ok)throw Error(res&&res.error||'초대인증키를 확인해 주세요.');
+  if(res.clubId!==SUPPLY_CLUB_ID||!/^wgk-\d{8}\.json$/.test(res.version||''))throw Error('선택한 모임과 서버 기록이 일치하지 않습니다.');
+  var latest;
+  if(res.notModified===true){
+   if(!match.ifRevision||res.revision!==match.ifRevision||res.version!==match.baseVersion||S!==dataAtStart||L.lastName!==versionAtStart)
+    throw recordStale();
+   latest=dataAtStart;
+  }else{
+   if(typeof res.data!=='string')throw Error('서버 기록을 읽지 못했습니다.');
+   try{latest=JSON.parse(res.data);}catch(e){throw Error('서버 기록을 읽지 못했습니다.');}
+   if(!validClubData(latest)||!latest.room.id||latest.room.id==='pending')throw Error('다른 모임의 기록은 받아올 수 없습니다.');
+  }
+  var prepared={res:res,latest:latest,context:context,epoch:epoch,dataAtStart:dataAtStart,
+   versionAtStart:versionAtStart,editsAtStart:editsAtStart};
+  PORTAL_PREP.ready=prepared;PORTAL_PREP.verifiedAt=Date.now();PORTAL_PREP.error='';
+  if(res.serverVer)L.serverVer=res.serverVer;
+  L.cloudNew=recordIsNew(res);recordRemember(res,false);
+  chairUpdateServerFlag(res);chairAutoAuth();return prepared;
+ }).catch(function(e){
+  if(context===recordContext()&&epoch===RECORD_SYNC.epoch&&!e.recordStale){
+   PORTAL_PREP.ready=null;PORTAL_PREP.error=e.message||'서버 연결 실패';RECORD_SYNC.phase='error';RECORD_SYNC.error=PORTAL_PREP.error;
+  }throw e;
+ }).finally(function(){
+  if(PORTAL_PREP.promise===promise)PORTAL_PREP.promise=null;
+  recordPaintStatus();var title=document.querySelector('.portal-club-name');
+  if(title&&PORTAL_PREP.ready)title.textContent=portalClubName();
+ });
+ PORTAL_PREP.promise=promise;return promise;
+}
+function recordApply(prepared){
+ if(!recordPreparedValid(prepared)||RECORD_SYNC.externalChange||S!==prepared.dataAtStart||
+  L.lastName!==prepared.versionAtStart||RECORD_SYNC.edits!==prepared.editsAtStart)throw recordStale();
+ var res=prepared.res;
+ if(res.notModified){L.cloudNew=false;recordRemember(res,false);recordPaintStatus();return false;}
+ S=prepared.latest;SUPPLY_CLUB_NAME=S.room.name;try{setDocTitle(S.room.name);}catch(e){}
+ L.lastName=res.version;L.lastSync=new Date().toISOString();L.dirty=false;L.cloudNew=false;
+ if(res.serverVer)L.serverVer=res.serverVer;
+ recordRemember(res,true);save(false);RECORD_SYNC.pending=null;
+ prepared.dataAtStart=S;prepared.versionAtStart=L.lastName;prepared.editsAtStart=RECORD_SYNC.edits;
+ return true;
+}
+function recordSafeHome(){return !PORTAL_OPEN&&view.name==='home'&&!sheet&&!busy&&!MEMBER_AUTH.busy&&!L.dirty&&
+ !RECORD_SYNC.externalChange&&!document.querySelector('input:focus,textarea:focus,select:focus');}
+function recordObserve(prepared,identity){
+ if(!recordPreparedValid(prepared)||!memberActive()||!MEMBER_AUTH.profile||MEMBER_AUTH.profile.id!==identity||PORTAL_OPEN)return false;
+ if(prepared.res.notModified){RECORD_SYNC.phase=L.cloudNew?'new':'current';recordPaintStatus();return true;}
+ if(recordSafeHome()){
+  try{recordApply(prepared);render();return true;}catch(e){if(!e.recordStale)throw e;}
+ }
+ RECORD_SYNC.pending=prepared;L.cloudNew=recordIsNew(prepared.res);RECORD_SYNC.phase=L.cloudNew?'new':'current';recordMetaSave();recordPaintStatus();
+ if(view.name==='home'&&!sheet&&!busy&&!MEMBER_AUTH.busy)render();return false;
+}
+function recordHead(){
+ if(!cloudOn()||!L.cloudReadKey)return Promise.resolve(false);
+ if(PORTAL_PREP.promise)return PORTAL_PREP.promise.then(function(){return true;},function(){return false;});
+ if(RECORD_SYNC.headPromise)return RECORD_SYNC.headPromise;
+ var context=recordContext(),epoch=RECORD_SYNC.epoch;
+ RECORD_SYNC.phase='checking';recordPaintStatus();
+ var promise=cloudRpc('status',L.cloudReadKey).then(function(res){
+  if(context!==recordContext()||epoch!==RECORD_SYNC.epoch)return false;
+  if(!res||!res.ok||res.clubId!==SUPPLY_CLUB_ID||!/^wgk-\d{8}\.json$/.test(res.version||''))throw Error(res&&res.error||'최신 기록 확인에 실패했습니다.');
+  if(res.serverVer)L.serverVer=res.serverVer;L.cloudNew=recordIsNew(res);recordRemember(res,false);
+  if(view.name==='home'&&!sheet&&!busy&&!MEMBER_AUTH.busy)render();return true;
+ }).catch(function(e){
+  if(context===recordContext()&&epoch===RECORD_SYNC.epoch){RECORD_SYNC.phase='error';RECORD_SYNC.error=e.message;recordPaintStatus();}
+  return false;
+ }).finally(function(){if(RECORD_SYNC.headPromise===promise)RECORD_SYNC.headPromise=null;});
+ RECORD_SYNC.headPromise=promise;return promise;
+}
+function recordRefresh(force){
+ if(!memberActive()||PORTAL_OPEN||!cloudOn()||!L.cloudReadKey||RECORD_SYNC.externalChange)return Promise.resolve(false);
+ if(RECORD_SYNC.autoPromise)return RECORD_SYNC.autoPromise;
+ if(!force&&RECORD_SYNC.phase!=='error'&&L.lastRecordCheck&&Date.now()-Date.parse(L.lastRecordCheck)<PORTAL_PREP_TTL)return Promise.resolve(false);
+ var identity=MEMBER_AUTH.profile.id;
+ var promise=(L.dirty||!recordSafeHome()?recordHead():recordLatest(!!force,false).then(function(p){return recordObserve(p,identity);}))
+  .catch(function(e){if(!e.recordStale)recordPaintStatus();return false;})
+  .finally(function(){if(RECORD_SYNC.autoPromise===promise)RECORD_SYNC.autoPromise=null;});
+ RECORD_SYNC.autoPromise=promise;return promise;
+}
+function recordResume(){
+ if(!RECORD_SYNC.entered||document.visibilityState==='hidden')return;
+ recordRefresh(false);
+}
+window.addEventListener('online',recordResume);
+window.addEventListener('pageshow',recordResume);
+document.addEventListener('visibilitychange',recordResume);
+window.addEventListener('storage',function(e){
+ if(e.storageArea===localStorage&&(e.key===DKEY||e.key===LKEY||e.key===null)){
+  RECORD_SYNC.externalChange=true;RECORD_SYNC.pending=null;recordInvalidate(false);recordPaintStatus();
+ }
+});
+/* H1.9.44 기기 저장 기록 우선 표시 끝 */
+
 /* 조용히 서버를 살펴 새 기록이 있는지만 확인합니다. 받지는 않습니다. */
 function peekCloud(){
- if(!cloudOn()||!L.cloudReadKey)return;
- cloudRpc("status",L.cloudReadKey).then(function(res){
-  if(!res||!res.ok||!res.version)return;
-  if(res.serverVer)L.serverVer=res.serverVer;
-  var isNew=(L.lastName!==res.version);
-  if(isNew!==!!L.cloudNew||res.serverVer){L.cloudNew=isNew;save(false);
-   if(view.name==="home")render()}
- },function(){});
+ return recordHead();
 }
 function pullCloud(silent){
- if(!cloudOn()){if(!silent)toast("설정에 서버 주소를 넣어 주십시오.");return}
- var key=L.cloudReadKey;
- if(!key){if(!silent){toast("설정에서 회원용 접근 키를 입력해 주세요.");go("data")}return}
- if(busy)return;busy=true;if(!silent)toast("최신 기록을 확인하고 있습니다…");
- cloudRpc("latest",key).then(function(res){busy=false;
-  if(!res||!res.ok){if(!silent)toast("받기 실패: "+(res&&res.error||"인증 오류"));return}
-  if(!res.version)return;
-  if(res.serverVer)L.serverVer=res.serverVer;
-  /* v1.5.0 눌러서 받으실 때는 최신이어도 서버 것으로 다시 받아옵니다.
-     잘못 고치셨을 때 서버 기록으로 되돌리는 길이 됩니다.
-     자동 확인(silent)일 때만 같은 판본이면 건너뜁니다. */
-  if(silent&&L.lastName===res.version&&S.room&&S.room.id!=="pending"){
-   L.cloudNew=false;save(false);render();return}
-  var inc;try{inc=JSON.parse(res.data)}catch(e){toast("기록 파일을 읽지 못했습니다.");return}
-  if(!validClubData(inc)){toast("다른 모임의 기록은 받아올 수 없습니다.");return}
-  function apply(){S=inc;SUPPLY_CLUB_NAME=inc.room.name;try{setDocTitle(inc.room.name)}catch(e){}L.lastName=res.version;L.lastSync=new Date().toISOString();L.dirty=false;L.cloudNew=false;if(res.serverVer)L.serverVer=res.serverVer;save(false);go("home");if(!silent)toast("최신 기록을 받았습니다.")}
-  if(S.room.id==="pending"&&!L.dirty){apply();return}
-  if(L.dirty){ask("이 기기에 아직 서버에 올리지 않은 수정사항이 있습니다. 최신 서버 기록을 받으면 그 수정사항이 사라집니다. 계속할까요?",apply,"받기");return}
-  if(silent){apply();return}
-  var same=(L.lastName===res.version);
-  ask(same?"이미 최신 기록입니다. 서버 기록을 다시 받아 이 기기의 내용을 서버와 똑같이 맞출까요?"
-   :"서버의 최신 기록을 받으면 이 기기에 저장된 기록이 바뀝니다. 계속할까요?",apply,"받기");
- },function(e){busy=false;if(!silent)toast("연결 오류: "+e.message)})
+ if(silent)return recordRefresh(true);
+ if(!cloudOn()){toast('설정에 서버 주소를 넣어 주십시오.');return Promise.resolve(false);}
+ if(!L.cloudReadKey){toast('설정에서 회원용 접근 키를 입력해 주세요.');go('data');return Promise.resolve(false);}
+ if(busy)return Promise.resolve(false);
+ if(RECORD_SYNC.externalChange){toast('다른 창에서 기록이 바뀌었습니다. 이 화면을 다시 열어 확인하십시오.');return Promise.resolve(false);}
+ busy=true;toast('최신 기록을 확인하고 있습니다…');
+ return recordLatest(true,true).then(function(prepared){
+  busy=false;if(!recordPreparedValid(prepared))throw recordStale();
+  function apply(){
+   try{recordApply(prepared);go('home');toast('최신 기록을 받았습니다.');}
+   catch(e){toast(e.message);}
+  }
+  if(S.room.id==='pending'&&!L.dirty){apply();return true;}
+  if(L.dirty){ask('이 기기에 아직 서버에 올리지 않은 수정사항이 있습니다. 최신 서버 기록을 받으면 그 수정사항이 사라집니다. 계속할까요?',apply,'받기');return true;}
+  ask(L.lastName===prepared.res.version?'이미 최신 기록입니다. 서버 기록을 다시 받아 이 기기의 내용을 서버와 똑같이 맞출까요?':
+   '서버의 최신 기록을 받으면 이 기기에 저장된 기록이 바뀝니다. 계속할까요?',apply,'받기');return true;
+ }).catch(function(e){busy=false;toast(e.recordStale?e.message:'받기 실패: '+e.message);return false;});
 }
 function pushCloud(){
  if(!hostSessionActive()){toast("경기위원장 암호 인증이 필요합니다.");return}
@@ -1339,7 +1474,7 @@ function doPush(){
  busy=true;toast("서버에 저장하는 중입니다…");
  var copy=JSON.parse(JSON.stringify(S));copy.updatedAt=new Date().toISOString();
  cloudRpc("publish",L.cloudReadKey,{hostSession:hostSession,baseVersion:L.lastName,data:JSON.stringify(copy)}).then(function(res){busy=false;
-  if(res&&res.ok){S.updatedAt=copy.updatedAt;L.lastName=res.version;L.lastSync=new Date().toISOString();L.dirty=false;L.cloudNew=false;if(res.serverVer)L.serverVer=res.serverVer;save(false);render();
+  if(res&&res.ok){recordInvalidate(true);S.updatedAt=copy.updatedAt;L.lastName=res.version;L.lastSync=new Date().toISOString();L.dirty=false;L.cloudNew=false;if(res.serverVer)L.serverVer=res.serverVer;save(false);render();
    /* H1.9.26 올린 뒤에는 맨 위로 올려 신호등이 꺼진 것을 바로 보시게 합니다. */
    window.scrollTo(0,0);syncToEnd();
    toast("서버 저장이 완료되었습니다.")}
@@ -1397,43 +1532,10 @@ function portalChooseClub(){
  location.href=location.pathname;
 }
 /* H1.9.14: begin the exact START RPC while the visitor reads portal notices.
-   A single pending promise is reused; only server-verified, club-matched data
-   can allow entry. Editing/synchronization conflict rules remain in portalEnter. */
+   A single pending promise is reused. Member login still verifies access online;
+   saved records may then display while the same conditional check finishes. */
 function portalPrepare(force){
- if(!SUPPLY_CLUB_ID||!L||!cloudOn()||!L.cloudReadKey)
-  return Promise.reject(new Error("모임 초대주소와 인증정보가 필요합니다."));
- if(!force&&PORTAL_PREP.ready&&Date.now()-PORTAL_PREP.verifiedAt<PORTAL_PREP_TTL)
-  return Promise.resolve(PORTAL_PREP.ready);
- if(PORTAL_PREP.promise)return PORTAL_PREP.promise;
- var expectedClub=SUPPLY_CLUB_ID,expectedKey=L.cloudReadKey,expectedServer=L.cloudUrl;
- var promise=cloudRpc("latest",expectedKey).then(function(res){
-  if(expectedClub!==SUPPLY_CLUB_ID||expectedKey!==L.cloudReadKey||expectedServer!==L.cloudUrl)
-   throw new Error("인증정보가 변경되었습니다. 다시 확인해 주세요.");
-  if(!res||!res.ok||!res.data)throw new Error(res&&res.error||"초대인증키를 확인해 주세요.");
-  var latest;try{latest=JSON.parse(res.data)}catch(e){throw new Error("서버 기록을 읽지 못했습니다.");}
-  if(res.clubId!==expectedClub||!validClubData(latest))
-   throw new Error("선택한 모임과 초대인증키가 일치하지 않습니다.");
-  PORTAL_PREP.ready={res:res,latest:latest};
-  chairUpdateServerFlag(res);chairAutoAuth();
-  PORTAL_PREP.verifiedAt=Date.now();PORTAL_PREP.error="";
-  return PORTAL_PREP.ready;
- },function(e){throw e;}).catch(function(e){
-  PORTAL_PREP.ready=null;PORTAL_PREP.error=e&&e.message||"서버 연결 실패";
-  throw e;
- }).finally(function(){
-  PORTAL_PREP.promise=null;
-  if(PORTAL_OPEN&&!PORTAL_ENTER_BUSY){
-   var prepEl=document.getElementById("portal-prep-status");
-   if(prepEl){
-    prepEl.textContent=portalPrepMessage();
-    // Update the already-visible title after preload; no extra server call.
-    var nameEl=document.querySelector(".portal-club-name");
-    if(nameEl&&PORTAL_PREP.ready)nameEl.textContent=portalClubName();
-   }else render();
-  }
- });
- PORTAL_PREP.promise=promise;
- return promise;
+ return recordLatest(!!force,false);
 }
 function portalPrepareSoon(){
  if(SUPPLY_CLUB_ID&&L&&cloudOn()&&L.cloudReadKey)
@@ -1579,9 +1681,11 @@ function portalNativeOpenControl(){
   ' 를 눌러 이 모임을 앱으로 넘기실 수 있습니다. 설치하지 않으셨어도 위 START로 그대로 쓰실 수 있습니다.</p>';
 }
 function portalPrepMessage(){
- return PORTAL_ENTER_BUSY?"모임 화면 준비 중…":
-  (PORTAL_PREP.ready&&Date.now()-PORTAL_PREP.verifiedAt<PORTAL_PREP_TTL?
-   "✓ 입장 준비 완료":PORTAL_PREP.error?"인증 확인이 지연됩니다. START를 누르면 다시 확인합니다.":"서버 인증과 최신 기록을 미리 확인하고 있습니다…");
+ if(PORTAL_ENTER_BUSY)return '모임 화면 준비 중…';
+ if(PORTAL_PREP.ready&&Date.now()-PORTAL_PREP.verifiedAt<PORTAL_PREP_TTL)return '✓ 입장 준비 완료';
+ if(recordLocalReady())return PORTAL_PREP.error?'기기 기록이 있습니다. 로그인에는 인터넷 연결이 필요합니다.':
+  '기기 기록이 있습니다. 로그인 후 먼저 표시하고 최신 여부를 확인합니다.';
+ return PORTAL_PREP.error?'인증 확인이 지연됩니다. START를 누르면 다시 확인합니다.':'서버 인증과 최신 기록을 미리 확인하고 있습니다…';
 }
 function portalPrepStatus(){
  if(!L||!cloudOn()||!L.cloudReadKey)return "";
@@ -1652,31 +1756,33 @@ function portalConfirmNotice(){
 }
 function portalEnterVerified(){
  if(PORTAL_ENTER_BUSY)return;
- if(!SUPPLY_CLUB_ID){toast("먼저 내 모임을 선택하십시오.");return;}
- if(!L||!cloudOn()||!L.cloudReadKey){
-  alert("초대인증키를 발급받으신 분에게만 입장이 허용됩니다.\n경기위원장에게 초대주소를 받아 접속해 주세요.");return;
+ if(!SUPPLY_CLUB_ID){toast('먼저 내 모임을 선택하십시오.');return;}
+ if(!L||!cloudOn()||!L.cloudReadKey||!memberActive()){
+  toast('모임 초대정보와 회원 로그인을 확인하십시오.');return;
  }
  if(!portalNoticeAccepted()){portalShowNotice();return;}
+ var identity=MEMBER_AUTH.profile.id,rosterId=MEMBER_AUTH.profile.rosterMemberId;
+ var localReady=recordLocalReady()&&!MEMBER_AUTH.rosterRefresh&&
+  (!rosterId||S.members.some(function(m){return String(m.id)===rosterId;}));
+ if(localReady){
+  RECORD_SYNC.entered=true;PORTAL_OPEN=false;go('home');RECORD_SYNC.phase='checking';recordPaintStatus();
+  var checking=portalPrepare(false).then(function(prepared){
+   recordObserve(prepared,identity);if(memberActive()&&MEMBER_AUTH.profile.id===identity&&!PORTAL_OPEN&&!sheet&&view.name==='home')portalInviteInstallOffer();return true;
+  }).catch(function(e){if(!e.recordStale)recordPaintStatus();return false;})
+   .finally(function(){if(RECORD_SYNC.autoPromise===checking)RECORD_SYNC.autoPromise=null;});
+  RECORD_SYNC.autoPromise=checking;return checking;
+ }
  PORTAL_ENTER_BUSY=true;render();
- portalPrepare(false).then(function(prepared){
-  var res=prepared.res;
+ return portalPrepare(false).then(function(prepared){
   PORTAL_ENTER_BUSY=false;
-  var latest=prepared.latest;
+  if(!memberActive()||MEMBER_AUTH.profile.id!==identity||!recordPreparedValid(prepared))throw recordStale();
   if(L.dirty){
-   // Do not destroy changes awaiting upload from host device.
-   L.cloudNew=L.lastName!==res.version;
-   if(res.serverVer)L.serverVer=res.serverVer;
-   save(false);
-   PORTAL_OPEN=false;go("home");
-   toast("미전송 수정사항을 보존했습니다. 최신 기록 받기는 신중히 진행해 주세요.");return;
+   L.cloudNew=recordIsNew(prepared.res);recordMetaSave();RECORD_SYNC.entered=true;PORTAL_OPEN=false;go('home');
+   toast('미전송 수정사항을 보존했습니다. 최신 기록 받기는 신중히 진행해 주세요.');return true;
   }
-  S=latest;SUPPLY_CLUB_NAME=latest.room.name;
-  L.lastName=res.version;L.lastSync=new Date().toISOString();L.dirty=false;L.cloudNew=false;
-  if(res.serverVer)L.serverVer=res.serverVer;
-  save(false);
-  PORTAL_OPEN=false;go("home");
-  portalInviteInstallOffer();
- },function(e){PORTAL_ENTER_BUSY=false;render();toast("서버 인증 실패: "+e.message);});
+  recordApply(prepared);MEMBER_AUTH.rosterRefresh=false;
+  RECORD_SYNC.entered=true;PORTAL_OPEN=false;go('home');portalInviteInstallOffer();return true;
+ }).catch(function(e){PORTAL_ENTER_BUSY=false;render();toast('서버 기록 확인 실패: '+e.message);return false;});
 }
 
 /* H1.9.35: 모임별로 이 앱·브라우저의 회원번호를 기억합니다. 비밀번호와 파생값은 저장하지 않습니다. */
@@ -1692,7 +1798,7 @@ function memberDeviceSecret(){
  }catch(e){throw Error('이 기기에 회원정보를 보관하지 못했습니다. 앱·브라우저의 저장 공간을 확인하십시오.');}
 }
 function memberActive(){return !!(MEMBER_AUTH.session&&MEMBER_AUTH.profile&&Date.parse(MEMBER_AUTH.expiresAt)>Date.now())}
-function memberClearSession(){MEMBER_AUTH.session='';MEMBER_AUTH.expiresAt='';MEMBER_AUTH.profile=null;}
+function memberClearSession(){MEMBER_AUTH.session='';MEMBER_AUTH.expiresAt='';MEMBER_AUTH.profile=null;MEMBER_AUTH.rosterRefresh=false;if(RECORD_SYNC)RECORD_SYNC.entered=false;}
 function memberRpc(action,extra){
  var request=Object.assign({deviceSecret:memberDeviceSecret()},extra||{});
  if(['memberList','memberReset','memberRename'].indexOf(action)>=0)request.hostSession=hostSession;
@@ -1812,8 +1918,10 @@ function memberLoginSubmit(ev){
   if(res===null)return false;
   if(!loginForm.isConnected||MEMBER_AUTH.form!==form){MEMBER_AUTH.busy=false;MEMBER_AUTH.form=null;return false;}
   memberRemember(res.member);MEMBER_AUTH.session=res.memberSession;MEMBER_AUTH.expiresAt=res.expiresAt;MEMBER_AUTH.profile=res.member;
-  var rosterMissing=res.member.rosterMemberId&&PORTAL_PREP.ready&&!PORTAL_PREP.ready.latest.members.some(function(m){return String(m.id)===res.member.rosterMemberId});
-  if(res.rosterChanged||rosterMissing){PORTAL_PREP.ready=null;PORTAL_PREP.verifiedAt=0;}
+  var available=PORTAL_PREP.ready&&PORTAL_PREP.ready.latest||S;
+  var rosterMissing=res.member.rosterMemberId&&!available.members.some(function(m){return String(m.id)===res.member.rosterMemberId;});
+  MEMBER_AUTH.rosterRefresh=!!(res.rosterChanged||rosterMissing);
+  if(MEMBER_AUTH.rosterRefresh)recordInvalidate(false);
   MEMBER_AUTH.busy=false;MEMBER_AUTH.form=null;sheet=null;chairAutoAuth();portalEnterVerified();return true;
  }).catch(function(e){
   password='';if(pw)pw.value='';if(again)again.value='';MEMBER_AUTH.busy=false;
@@ -2165,7 +2273,7 @@ function scrHome(){
  (cloudOn()?'<button class="chip recv" onclick="pullCloud()" aria-label="최신 기록 받기">'+
   '<span class="lamp'+(sigNew?" on":"")+'"></span><span class="recvtxt">받기'+(sigNew?'<br>새':'<br>최신')+'</span></button>':'')+
  '</div>'+
- '<div class="body">'+
+ '<div class="body">'+recordStatusMarkup()+
  '<div class="card home-members"><h2><button class="home-members-title" onclick="go(\'members\')" title="회원현황 열기">회원현황</button></h2>'+
  (S.members.length?'<ul class="home-member-grid">'+byHcp(S.members).map(function(m){return '<li><span>'+esc(m.name)+'</span><span class="hcp">'+esc(curHcp(m.id))+'</span></li>'}).join('')+'</ul>':'<p class="note">아직 없습니다.</p>')+'</div>'+
  (host?'<div class="card"><div class="row2">'+
@@ -3932,8 +4040,9 @@ function chairListDevices(){
 function saveCloud(){
  var u=document.getElementById("cu").value.trim();
  if(u&&!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(u)){toast("구글 앱스 스크립트 웹앱의 /exec 주소만 사용할 수 있습니다.");return}
- L.cloudUrl=u;
+ var before=recordContext();L.cloudUrl=u;
  var r=document.getElementById("crk").value.trim();if(r)L.cloudReadKey=r;
+ if(before!==recordContext()){recordInvalidate(true);memberClearSession();forgetHostSession();L.mode="member";}
  save(false);render();toast("연결 설정을 저장했습니다.")
 }
 function changeClubName(){
@@ -3952,7 +4061,7 @@ function changeClubName(){
  if(busy)return;busy=true;
  cloudRpc('renameClub',L.cloudReadKey,{hostSession:hostSession,baseVersion:L.lastName,newName:newName}).then(function(res){busy=false;
   if(res&&res.ok&&res.version){
-   S.room.name=res.clubName;SUPPLY_CLUB_NAME=res.clubName;
+   recordInvalidate(true);S.room.name=res.clubName;SUPPLY_CLUB_NAME=res.clubName;
    L.lastName=res.version;L.lastSync=new Date().toISOString();L.dirty=false;save(false);render();
    toast('모임 이름을 변경했습니다. 회원은 최신 기록을 받으면 새 이름이 표시됩니다.');
   }else if(res&&res.conflict)toast('서버 기록이 변경되었습니다. 먼저 최신 기록을 받은 후 다시 진행하십시오.');
@@ -4012,7 +4121,7 @@ function changeHostPassword(){
 }
 function wipe(){
  if(!confirm("이 기기에 저장된 기록만 삭제합니다. 서버의 기록은 보존됩니다. 진행할까요?"))return;
- S=blankS();L.lastName="";L.lastSync=null;L.dirty=false;save(false);go("home");toast("이 기기 기록을 초기화했습니다. 서버에서 다시 받으십시오.")
+ recordInvalidate(true);S=blankS();L.lastName="";L.lastSync=null;L.lastRecordCheck=null;L.dirty=false;save(false);go("home");toast("이 기기 기록을 초기화했습니다. 서버에서 다시 받으십시오.")
 }
 /* ---- 보관본 ---- */
 function backupText(){
