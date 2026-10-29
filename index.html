@@ -527,6 +527,7 @@ body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(26.
 </a>
 <script src="application-config.js"></script>
 <script>
+"use strict";
 
 /* H1.9.48: 화면을 다시 그려도 처리 중 표시를 유지하며 요청마다 따로 종료합니다. */
 var WGK_WORK={next:0,items:[],timer:null};
@@ -555,7 +556,6 @@ function workRun(label,operation){
  return Promise.resolve(result).then(function(value){workEnd(id);return value;},function(error){workEnd(id);throw error;});
 }
 /* H1.9.48 처리 중 표시 끝 */
-"use strict";
 var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.48";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
