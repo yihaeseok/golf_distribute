@@ -449,6 +449,14 @@ body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(26.
 .member-login-sheet input{font-size:16px}
 .member-choice{display:block;text-align:left;width:100%;margin:10px 0;white-space:normal}
 .member-choice .note{display:block;margin-top:6px}
+.member-login-sheet .member-login-name{position:relative;background:#e4f2e9;border:2px solid #26754b;color:#164f36;border-radius:12px;padding:13px 48px 13px 15px;line-height:1.4;animation:member-choice-arrive .23s ease-out}
+.member-login-sheet .member-login-name:after{content:"✓";position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:26px;font-weight:900}
+.member-choice{position:relative;padding-right:70px!important;transition:background-color .18s,border-color .18s,box-shadow .18s}
+.member-choice.is-selected,.member-choice.is-selected:disabled{background:#1c6643;color:#fff;border:2px solid #a9d576;box-shadow:0 0 0 3px #26754b28;opacity:1;animation:member-choice-arrive .23s ease-out}
+.member-choice.is-selected .note{color:#e5f2e8}.member-choice.is-selected:after{content:"✓";position:absolute;right:40px;top:50%;transform:translateY(-50%);font-size:23px;font-weight:900}
+.member-choice.is-selecting:before{content:"";position:absolute;right:13px;top:calc(50% - 10px);box-sizing:border-box;width:20px;height:20px;border:3px solid #ffffff50;border-top-color:#fff;border-radius:50%;animation:wgk-work-turn .85s linear infinite}
+@keyframes member-choice-arrive{from{transform:scale(.97)}to{transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.member-choice,.member-choice.is-selected,.member-choice.is-selecting:before,.member-login-sheet .member-login-name{animation:none;transition:none}}
 .member-manage-item{padding:14px 0;border-top:1px solid var(--line)}
 .member-manage-item h3{margin:0 0 6px;font-size:18px;overflow-wrap:anywhere}
 .member-login-sheet .inner{max-height:88dvh;overflow:auto}
@@ -497,6 +505,13 @@ body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(26.
 .ai-title-row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.ai-title-row h2{margin:0}.ai-title-row .btn{width:auto;min-width:130px}
 .round-ai-action{margin-top:8px}.group-ai-dialog textarea{font-size:16px;min-height:180px}.group-ai-dialog details{margin:12px 0}.group-ai-dialog summary{cursor:pointer;font-size:15px;font-weight:700}
 /* H1.9.43 첫 화면과 분석 버튼 끝 */
+/* H1.9.48: 처리 중에는 회전 표시와 흐르는 막대가 계속 보입니다. */
+.wgk-work{position:fixed;z-index:20000;top:max(12px,env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);width:calc(100% - 28px);max-width:430px;box-sizing:border-box;background:#164f36;color:#fff;border:2px solid #d5e8ae;border-radius:15px;box-shadow:0 7px 28px #102b3d40;padding:14px 17px 19px;pointer-events:none;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans KR","Malgun Gothic",sans-serif}
+.wgk-work[hidden]{display:none!important}.wgk-work-row{display:flex;align-items:center;gap:13px}.wgk-work-spin{width:30px;height:30px;flex:none;box-sizing:border-box;border:4px solid #ffffff45;border-top-color:#fff;border-right-color:#dbeea8;border-radius:50%;animation:wgk-work-turn .85s linear infinite}
+.wgk-work-copy{min-width:0}.wgk-work-copy strong{display:block;font-size:16px;line-height:1.4;font-weight:800}.wgk-work-label{display:block;font-size:15px;line-height:1.5;margin-top:3px;overflow-wrap:anywhere}.wgk-work-slow{display:block;font-size:13px;line-height:1.4;color:#e4efcf;margin-top:5px}.wgk-work-slow[hidden]{display:none}.wgk-work-track{position:absolute;left:0;right:0;bottom:0;height:6px;background:#ffffff25;overflow:hidden}.wgk-work-track:after{content:"";display:block;width:38%;height:100%;background:#dbeea8;border-radius:5px;animation:wgk-work-flow 1.3s ease-in-out infinite}
+@keyframes wgk-work-turn{to{transform:rotate(360deg)}}@keyframes wgk-work-flow{from{transform:translateX(-110%)}to{transform:translateX(365%)}}
+@media(prefers-reduced-motion:reduce){.wgk-work-spin,.wgk-work-track:after{animation:none}.wgk-work-spin{border-color:#dbeea8}.wgk-work-track:after{width:100%}}
+/* H1.9.48 처리 중 표시 스타일 끝 */
 </style>
 </head>
 <body>
@@ -512,8 +527,36 @@ body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(26.
 </a>
 <script src="application-config.js"></script>
 <script>
+
+/* H1.9.48: 화면을 다시 그려도 처리 중 표시를 유지하며 요청마다 따로 종료합니다. */
+var WGK_WORK={next:0,items:[],timer:null};
+function workLabel(action){
+ var labels={memberPrepare:'회원정보를 확인하고 있습니다.',memberAuthenticate:'회원 로그인을 확인하고 있습니다.',memberResume:'자동 로그인 정보를 확인하고 있습니다.',memberForgetRemember:'자동 로그인 설정을 반영하고 있습니다.',memberList:'회원 접속정보를 불러오고 있습니다.',memberReset:'회원 접속을 초기화하고 있습니다.',memberRename:'회원 이름을 저장하고 있습니다.',
+  status:'최신 상태를 확인하고 있습니다.',latest:'모임 기록을 불러오고 있습니다.',publish:'기록을 올리고 있습니다.',hostAuth:'경기위원장 인증을 확인하고 있습니다.',deviceAuth:'이 기기의 경기위원장 권한을 확인하고 있습니다.',deviceList:'권한폰 목록을 불러오고 있습니다.',deviceRevoke:'권한폰 해제를 처리하고 있습니다.',changeHostPassword:'경기위원장 비밀번호를 변경하고 있습니다.',renameClub:'모임 이름을 저장하고 있습니다.',
+  messageSummary:'새 메시지를 확인하고 있습니다.',messageList:'메시지 목록을 불러오고 있습니다.',messageGet:'메시지를 불러오고 있습니다.',messageRead:'메시지 확인을 반영하고 있습니다.',messageCreate:'메시지를 보내고 있습니다.',messageReply:'답변을 보내고 있습니다.',
+  clubs:'모임 목록을 불러오고 있습니다.',clubDetail:'모임 정보를 불러오고 있습니다.',clubInvite:'초대 안내를 확인하고 있습니다.',list:'신청 목록을 불러오고 있습니다.',secrets:'초대주소와 복구정보를 확인하고 있습니다.',approve:'모임 개설을 처리하고 있습니다.',resetHostPassword:'경기위원장 비밀번호를 변경하고 있습니다.',
+  messageAdminList:'개선요청을 불러오고 있습니다.',messageAdminGet:'개선요청을 확인하고 있습니다.',messageAdminRead:'확인 상태를 반영하고 있습니다.',messageAdminReply:'답변을 보내고 있습니다.',messageOverview:'새 개선요청을 확인하고 있습니다.',challenge:'신청 화면을 준비하고 있습니다.',submit:'신청을 접수하고 있습니다.'};
+ return labels[action]||'요청을 처리하고 있습니다.';
+}
+function workPaint(){
+ var box=document.getElementById('wgk-work-status'),items=WGK_WORK.items;
+ if(!items.length){if(box)box.hidden=true;clearInterval(WGK_WORK.timer);WGK_WORK.timer=null;return;}
+ if(!box){box=document.createElement('div');box.id='wgk-work-status';box.className='wgk-work';box.setAttribute('role','status');box.setAttribute('aria-live','polite');box.setAttribute('aria-atomic','true');
+  box.innerHTML='<div class="wgk-work-row"><span class="wgk-work-spin" aria-hidden="true"></span><div class="wgk-work-copy"><strong>작동 중입니다</strong><span class="wgk-work-label"></span><span class="wgk-work-slow" hidden>응답을 기다리고 있습니다. 잠시만 기다려 주세요.</span></div></div><span class="wgk-work-track" aria-hidden="true"></span>';document.body.appendChild(box);}
+ box.hidden=false;
+ var text=box.querySelector('.wgk-work-label'),label=items[items.length-1].label;if(text.textContent!==label)text.textContent=label;
+ box.querySelector('.wgk-work-slow').hidden=!items.some(function(x){return Date.now()-x.started>=8000;});
+ if(!WGK_WORK.timer)WGK_WORK.timer=setInterval(workPaint,1000);
+}
+function workBegin(label){var id=++WGK_WORK.next;WGK_WORK.items.push({id:id,label:label,started:Date.now()});workPaint();return id;}
+function workEnd(id){WGK_WORK.items=WGK_WORK.items.filter(function(x){return x.id!==id;});workPaint();}
+function workRun(label,operation){
+ var id=workBegin(label),result;try{result=operation();}catch(e){workEnd(id);return Promise.reject(e);}
+ return Promise.resolve(result).then(function(value){workEnd(id);return value;},function(error){workEnd(id);throw error;});
+}
+/* H1.9.48 처리 중 표시 끝 */
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.47";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.48";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -1151,7 +1194,7 @@ function cumTable(uptoId,title,note){
  */
 function cloudOn(){return /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(L.cloudUrl||"")}
 function cloudRpc(action, token, extra){
- return new Promise(function(resolve,reject){
+ return workRun(workLabel(action),function(){return new Promise(function(resolve,reject){
   if(!cloudOn()){reject(new Error("설정에서 공급용 서버 주소를 먼저 등록하십시오."));return}
   var frame=document.createElement("iframe");
   var nonce="wgk"+Array.from(crypto.getRandomValues(new Uint8Array(16)),function(n){return n.toString(16).padStart(2,"0")}).join("");
@@ -1178,7 +1221,7 @@ function cloudRpc(action, token, extra){
   window.addEventListener("message",onMsg);
   document.body.appendChild(frame);document.body.appendChild(form);
   try{form.submit()}catch(e){finish(e)}
- })
+ });});
 }
 function cloudTest(){
  if(!cloudOn()){toast("서버 주소를 등록해 주세요.");return}
@@ -1507,7 +1550,7 @@ function supplyMemberInvite(){
    "#server="+encodeURIComponent(L.cloudUrl)+"&memberKey="+encodeURIComponent(L.cloudReadKey);
   if(url.indexOf('#server=')<0||url.indexOf('&memberKey=')<0){toast('초대주소 생성 오류');return;}
   if(navigator.clipboard&&navigator.clipboard.writeText){
-   navigator.clipboard.writeText(url).then(function(){toast("회원용 초대주소를 복사했습니다. 비공개로 공유하십시오.")},
+   workRun('내용을 복사하고 있습니다.',function(){return navigator.clipboard.writeText(url);}).then(function(){toast("회원용 초대주소를 복사했습니다. 비공개로 공유하십시오.")},
     function(){prompt("회원용 초대주소",url)})}
   else prompt("회원용 초대주소",url);
  },function(e){busy=false;toast("서버 확인 실패: "+e.message)})
@@ -1585,7 +1628,7 @@ var WGK_APK_DOWNLOAD_REQUESTED=false;
 function portalApkUrl(){return new URL(WGK_APK_PATH,location.origin+location.pathname).href}
 function portalApkProbe(){
  if(!/Android/i.test(navigator.userAgent||""))return Promise.resolve(false);
- return fetch(portalApkUrl(),{method:"HEAD",cache:"no-store"}).then(function(res){
+ return workRun('설치파일을 확인하고 있습니다.',function(){return fetch(portalApkUrl(),{method:"HEAD",cache:"no-store"});}).then(function(res){
   var type=(res.headers&&res.headers.get("content-type")||"").toLowerCase();
   return res.ok&&type.indexOf("text/html")<0;
  }).catch(function(){return false});
@@ -1842,7 +1885,7 @@ function memberRememberPreference(id,enabled){
  localStorage.setItem(MEMBER_ACCOUNTS_KEY,JSON.stringify(rows));
 }
 function memberSavedRequest(mode,method,key,value){
- return new Promise(function(resolve,reject){
+ return workRun('이 기기의 로그인 정보를 확인하고 있습니다.',function(){return new Promise(function(resolve,reject){
   if(!window.indexedDB){reject(Error('이 앱·브라우저에서는 자동 로그인 정보를 보관할 수 없습니다.'));return;}
   var open=indexedDB.open('woorigolf-member-login-v1',1),done=false;
   function fail(){if(!done){done=true;reject(Error('자동 로그인 정보를 보관하지 못했습니다. 비밀번호로 입장하십시오.'));}}
@@ -1856,7 +1899,7 @@ function memberSavedRequest(mode,method,key,value){
    tx.oncomplete=function(){db.close();if(!done){done=true;resolve(request.result);}};
    tx.onerror=tx.onabort=function(){db.close();fail();};
   };
- });
+ });});
 }
 function memberSavedRead(id){
  return memberSavedRequest('readonly','get',SUPPLY_CLUB_ID+':'+id).then(function(p){
@@ -1881,15 +1924,25 @@ function memberPreparedLogin(res,previous){
   memberShowLogin(res);return true;
  });
 }
+function memberChoiceAttrs(form,key){
+ var selected=form.selectedChoice===key;
+ return ' class="btn sm line member-choice'+(selected?' is-selected':'')+(selected&&form.choicePending?' is-selecting':'')+'" aria-pressed="'+selected+'" aria-busy="'+!!(selected&&form.choicePending)+'"'+(form.choicePending?' disabled':'');
+}
+function memberChoiceStart(form,key){form.selectedChoice=key;form.choicePending=true;sheet=memberLoginMarkup(form);render();}
+function memberChoiceFinish(form){
+ form.choicePending=false;if(MEMBER_AUTH.form!==form||!sheet)return;
+ document.querySelectorAll('[data-member-account],[data-member-choice],#member-login-new,#member-account-new').forEach(function(button){button.disabled=false;button.classList.remove('is-selecting');button.setAttribute('aria-busy','false');});
+ sheet=memberLoginMarkup(form,document.getElementById('member-login-error')&&document.getElementById('member-login-error').textContent);
+}
 function memberSelectAccount(index){
  var form=MEMBER_AUTH.form,a=form&&form.accounts&&form.accounts[index];
  if(MEMBER_AUTH.busy||!form||!form.accountChoice||!a)return Promise.resolve(false);
- MEMBER_AUTH.busy=true;var error=document.getElementById('member-login-error');if(error)error.textContent='회원정보를 확인하고 있습니다…';
+ MEMBER_AUTH.busy=true;memberChoiceStart(form,'account:'+index);var feedback=workBegin('회원정보를 확인하고 있습니다.');
  return memberRpc('memberPrepare',{memberId:a.id,accountSelection:true}).then(function(res){
   if(!res.member||res.member.id!==a.id)throw Error('선택한 회원정보를 확인하지 못했습니다. 새로운 계정으로 입력에서 이름을 확인하십시오.');
   return memberPreparedLogin(res,form);
  }).catch(function(e){if(MEMBER_AUTH.form===form){var target=document.getElementById('member-login-error');if(target)target.textContent=e.message;}return false;})
-  .finally(function(){MEMBER_AUTH.busy=false;});
+  .finally(function(){MEMBER_AUTH.busy=false;memberChoiceFinish(form);workEnd(feedback);});
 }
 function memberUseNewName(){
  if(MEMBER_AUTH.busy)return;
@@ -1923,17 +1976,17 @@ function memberLoginMarkup(form,error){
  var body='';
  if(accounts){
   body='<p class="note">이전에 로그인한 이름을 선택하십시오. 다른 이름으로 이용하려면 새로운 계정으로 입력을 누르십시오.</p>'+
-   '<div id="member-account-choices">'+form.accounts.map(function(a,i){return '<button class="btn sm line member-choice" data-member-account="'+i+'" onclick="memberSelectAccount('+i+')">'+esc(a.name)+'</button>';}).join('')+'</div>'+
-   '<button class="btn sm quiet" id="member-account-new" onclick="memberUseNewName()">새로운 계정으로 입력</button>'+
+   '<div id="member-account-choices">'+form.accounts.map(function(a,i){return '<button'+memberChoiceAttrs(form,'account:'+i)+' data-member-account="'+i+'" onclick="memberSelectAccount('+i+')">'+esc(a.name)+'</button>';}).join('')+'</div>'+
+   '<button class="btn sm quiet" id="member-account-new"'+(form.choicePending?' disabled':'')+' onclick="memberUseNewName()">새로운 계정으로 입력</button>'+
    '<p id="member-login-error" class="note member-login-error" role="alert">'+esc(error||'')+'</p>';
  }else if(choosing){
   body='<p class="note">'+(form.candidates.length?'같은 이름이 있습니다. 본인이면 아래 이름을, 다른 사람이면 동명이인 추가를 누르십시오.':'같은 이름의 회원이 없습니다. 새 회원으로 등록하십시오.')+'</p>'+
    '<div id="member-login-choices">'+form.candidates.map(function(c,i){
-    return '<button class="btn sm line member-choice" data-member-choice="'+i+'" onclick="memberChoose('+i+')"><strong>'+esc(c.name)+
+    return '<button'+memberChoiceAttrs(form,'candidate:'+i)+' data-member-choice="'+i+'" onclick="memberChoose('+i+')"><strong>'+esc(c.name)+
      (c.nick?' ('+esc(c.nick)+')':'')+'</strong><span class="note">'+esc(memberCandidateHcp(c))+' · '+
      (c.passwordReady?'기존 비밀번호로 입장':'이 이름으로 비밀번호 설정')+'</span></button>';
    }).join('')+'</div>'+
-   '<button class="btn sm quiet" id="member-login-new" onclick="memberChoose(-1)">'+(form.candidates.length?'동명이인 추가':'새 회원 등록')+'</button>'+
+   '<button'+memberChoiceAttrs(form,'candidate:-1')+' id="member-login-new" onclick="memberChoose(-1)">'+(form.candidates.length?'동명이인 추가':'새 회원 등록')+'</button>'+
    '<p id="member-login-error" class="note member-login-error" role="alert">'+esc(error||'')+'</p>';
  }else{
   body=(known?'<p class="member-login-name">'+esc(name)+'</p><p class="note">'+
@@ -1972,11 +2025,11 @@ function memberShowLogin(form,error){
 function memberChoose(index){
  var form=MEMBER_AUTH.form;if(MEMBER_AUTH.busy||!form||!form.chooseRequired)return Promise.resolve(false);
  var c=index>=0?form.candidates[index]:null;if(index>=0&&!c)return Promise.resolve(false);
- MEMBER_AUTH.busy=true;var error=document.getElementById('member-login-error');if(error)error.textContent='회원정보를 확인하고 있습니다…';
+ MEMBER_AUTH.busy=true;memberChoiceStart(form,'candidate:'+index);var feedback=workBegin('회원정보를 확인하고 있습니다.');
  return memberRpc('memberPrepare',index<0?{name:form.queryName,newMember:true,accountSelection:true}:{name:form.queryName,selection:{memberId:c.memberId,rosterMemberId:c.rosterMemberId},accountSelection:true}).then(function(res){
   return memberPreparedLogin(res,form);
  }).catch(function(e){if(MEMBER_AUTH.form===form){var target=document.getElementById('member-login-error');if(target)target.textContent=e.message;}return false;})
-  .finally(function(){MEMBER_AUTH.busy=false;});
+  .finally(function(){MEMBER_AUTH.busy=false;memberChoiceFinish(form);workEnd(feedback);});
 }
 function memberLoginStart(){
  if(MEMBER_AUTH.busy)return Promise.resolve(false);
@@ -2015,6 +2068,7 @@ function memberLoginSubmit(ev){
  if(!nameOnly&&!saved&&password.trim()!==password){err.textContent='비밀번호의 앞뒤 공백을 제거하십시오.';return Promise.resolve(false);}
  if(form.registration==='new'){var h=document.getElementById('member-login-hcp');if(!h||h.value.trim()===''||!Number.isSafeInteger(Number(h.value))){err.textContent='첫 라운드 전 핸디를 정수로 입력하십시오.';return Promise.resolve(false);}}
  if(again&&password!==again.value){err.textContent='비밀번호 확인이 일치하지 않습니다.';return Promise.resolve(false);}
+ var feedback=workBegin(nameOnly?'이름을 확인하고 있습니다.':'회원 로그인을 확인하고 있습니다.');
  MEMBER_AUTH.busy=true;button.disabled=true;button.textContent='확인하고 있습니다…';err.textContent='';
  var rememberSecret=saved?saved.secret:remember?(form.pendingRememberSecret||(form.pendingRememberSecret='gmr_'+memberRandom()+memberRandom())):'',storageWarning='';
  return (nameOnly?memberRpc('memberPrepare',{name:name,accountSelection:true}):Promise.resolve(form)).then(function(prepared){
@@ -2067,7 +2121,7 @@ function memberLoginSubmit(ev){
   var target=document.getElementById('member-login-error');if(target)target.textContent=e.message;
   if(button&&button.isConnected){button.disabled=false;button.textContent=nameOnly?'이름 확인':(p&&p.passwordReady?'입장':'등록하고 입장');}
   return false;
- });
+ }).finally(function(){workEnd(feedback);});
 }
 function portalEnter(){
  if(PORTAL_ENTER_BUSY||MEMBER_AUTH.busy)return;
@@ -3386,7 +3440,7 @@ function copyText(t){
    toast(ok?"복사했습니다.":"복사하지 못했습니다. 글을 길게 눌러 직접 복사해 주십시오.")
   }catch(e){toast("복사하지 못했습니다. 글을 길게 눌러 직접 복사해 주십시오.")}}
  if(navigator.clipboard&&navigator.clipboard.writeText){
-  navigator.clipboard.writeText(t).then(function(){toast("복사했습니다.")},fallback)}
+  workRun('내용을 복사하고 있습니다.',function(){return navigator.clipboard.writeText(t);}).then(function(){toast("복사했습니다.")},fallback)}
  else fallback()}
 function cardPrompt(holeCount,forNew){
  var who=S.members.map(function(m){return m.nick?(m.name+"("+m.nick+")"):m.name}).join(", ");
@@ -3873,7 +3927,7 @@ function aiCopyText(text,current){
  }
  try{
   if(navigator.clipboard&&navigator.clipboard.writeText)
-   return Promise.resolve(navigator.clipboard.writeText(text)).then(function(){return true},fallback);
+   return Promise.resolve(workRun('내용을 복사하고 있습니다.',function(){return navigator.clipboard.writeText(text);})).then(function(){return true},fallback);
  }catch(e){}
  return Promise.resolve(fallback());
 }
@@ -4268,7 +4322,7 @@ function backupText(){
 function shareAll(){
  var t=backupText();
  if(navigator.share){
-  navigator.share({text:t}).then(function(){},function(e){
+  workRun('공유 화면을 열고 있습니다.',function(){return navigator.share({text:t});}).then(function(){},function(e){
    if(e&&e.name==="AbortError")return;
    copyAll(true)});
   return}
@@ -4276,7 +4330,7 @@ function shareAll(){
 function copyAll(fallback){
  var t=backupText();
  if(navigator.clipboard&&navigator.clipboard.writeText){
-  navigator.clipboard.writeText(t).then(function(){
+  workRun('내용을 복사하고 있습니다.',function(){return navigator.clipboard.writeText(t);}).then(function(){
    toast(fallback?"이 화면에서는 공유창이 열리지 않아 복사했습니다. 단톡방에 붙여 넣으세요."
     :"모든 데이터를 복사했습니다.")},function(){showBackup()})}
  else showBackup()}
