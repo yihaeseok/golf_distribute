@@ -444,6 +444,8 @@ body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(26.
 .member-login-name{font-size:24px;font-weight:750;margin:10px 0;overflow-wrap:anywhere}
 .member-home-name{overflow-wrap:anywhere}
 .member-login-error{color:var(--clay);min-height:1.5em}
+.member-remember-option{display:flex;align-items:flex-start;gap:9px;margin:14px 0 5px;font-size:15px;line-height:1.45;color:var(--ink)}
+.member-remember-option input{width:20px;height:20px;flex:none;margin:1px 0;accent-color:var(--turf-mid)}
 .member-login-sheet input{font-size:16px}
 .member-choice{display:block;text-align:left;width:100%;margin:10px 0;white-space:normal}
 .member-choice .note{display:block;margin-top:6px}
@@ -511,7 +513,7 @@ body.portal-active .portal-club-identity h2.portal-club-name{font-size:clamp(26.
 <script src="application-config.js"></script>
 <script>
 "use strict";
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.46";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.47";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -1795,8 +1797,9 @@ function portalEnterVerified(){
  }).catch(function(e){PORTAL_ENTER_BUSY=false;render();toast('서버 기록 확인 실패: '+e.message);return false;});
 }
 
-/* H1.9.35: 모임별로 이 앱·브라우저의 회원번호를 기억합니다. 비밀번호와 파생값은 저장하지 않습니다. */
+/* H1.9.47: 이름 선택과 선택한 기기의 재로그인을 지원합니다. 비밀번호와 파생값은 저장하지 않습니다. */
 var MEMBER_AUTH={session:'',expiresAt:'',profile:null,form:null,busy:false,hostManage:false};
+var MEMBER_ACCOUNTS_KEY='woorigolf.supply.'+(SUPPLY_CLUB_ID||'__none__')+'.memberAccounts.v1';
 var MEMBER_DEVICE_KEY='woorigolf.supply.'+(SUPPLY_CLUB_ID||'__none__')+'.memberDevice';
 function memberRandom(){return Array.from(crypto.getRandomValues(new Uint8Array(32)),function(b){return b.toString(16).padStart(2,'0')}).join('')}
 function memberDeviceSecret(){
@@ -1816,9 +1819,92 @@ function memberRpc(action,extra){
   if(!res||!res.ok){var e=Error(res&&res.error||'회원 접속 응답을 확인하지 못했습니다.');e.memberCode=res&&res.code||'';throw e;}return res;
  });
 }
-function memberRemember(profile){
+function memberRemember(profile,remember){
+ var rows=memberAccounts(),old=rows.find(function(p){return p.id===profile.id;});
+ rows=rows.filter(function(p){return p.id!==profile.id;});
+ rows.unshift({id:profile.id,name:profile.name,remember:typeof remember==='boolean'?remember:!!(old&&old.remember)});
  L.memberIdentity={id:profile.id,name:profile.name};
- try{localStorage.setItem(LKEY,JSON.stringify(L));}catch(e){throw Error('회원번호를 이 기기에 보관하지 못했습니다. 저장 공간을 확인하고 다시 로그인하십시오.');}
+ try{localStorage.setItem(MEMBER_ACCOUNTS_KEY,JSON.stringify(rows.slice(0,100)));localStorage.setItem(LKEY,JSON.stringify(L));}
+ catch(e){throw Error('회원 이름을 이 기기에 보관하지 못했습니다. 저장 공간을 확인하십시오.');}
+}
+function memberAccounts(){
+ var rows=[];
+ try{var saved=JSON.parse(localStorage.getItem(MEMBER_ACCOUNTS_KEY)||'[]');if(Array.isArray(saved))rows=saved;}catch(e){}
+ rows=rows.filter(function(p,i,all){return p&&/^[a-f0-9]{32}$/.test(p.id)&&typeof p.name==='string'&&p.name.length>0&&p.name.length<=40&&all.findIndex(function(x){return x&&x.id===p.id;})===i;}).slice(0,100)
+  .map(function(p){return {id:p.id,name:p.name,remember:p.remember===true};});
+ var old=L&&L.memberIdentity;
+ if(old&&/^[a-f0-9]{32}$/.test(old.id||'')&&typeof old.name==='string'&&old.name&&old.name.length<=40&&!rows.some(function(p){return p.id===old.id;}))
+  rows.unshift({id:old.id,name:old.name,remember:false});
+ return rows;
+}
+function memberRememberPreference(id,enabled){
+ var rows=memberAccounts();rows.forEach(function(p){if(p.id===id)p.remember=enabled;});
+ localStorage.setItem(MEMBER_ACCOUNTS_KEY,JSON.stringify(rows));
+}
+function memberSavedRequest(mode,method,key,value){
+ return new Promise(function(resolve,reject){
+  if(!window.indexedDB){reject(Error('이 앱·브라우저에서는 자동 로그인 정보를 보관할 수 없습니다.'));return;}
+  var open=indexedDB.open('woorigolf-member-login-v1',1),done=false;
+  function fail(){if(!done){done=true;reject(Error('자동 로그인 정보를 보관하지 못했습니다. 비밀번호로 입장하십시오.'));}}
+  open.onupgradeneeded=function(){if(!open.result.objectStoreNames.contains('accounts'))open.result.createObjectStore('accounts');};
+  open.onerror=fail;open.onblocked=fail;
+  open.onsuccess=function(){
+   var db=open.result;if(done){db.close();return;}
+   var tx,request;
+   try{tx=db.transaction('accounts',mode);request=method==='put'?tx.objectStore('accounts').put(value,key):tx.objectStore('accounts')[method](key);}
+   catch(e){db.close();fail();return;}
+   tx.oncomplete=function(){db.close();if(!done){done=true;resolve(request.result);}};
+   tx.onerror=tx.onabort=function(){db.close();fail();};
+  };
+ });
+}
+function memberSavedRead(id){
+ return memberSavedRequest('readonly','get',SUPPLY_CLUB_ID+':'+id).then(function(p){
+  return p&&p.clubId===SUPPLY_CLUB_ID&&p.serverUrl===L.cloudUrl&&p.id===id&&Number.isSafeInteger(p.revision)&&
+   /^gmr_[a-f0-9]{128}$/.test(p.secret||'')&&Date.parse(p.expiresAt)>Date.now()?p:null;
+ });
+}
+function memberSavedWrite(profile,secret,expiresAt){
+ return memberSavedRequest('readwrite','put',SUPPLY_CLUB_ID+':'+profile.id,
+  {clubId:SUPPLY_CLUB_ID,serverUrl:L.cloudUrl,id:profile.id,revision:profile.revision,secret:secret,expiresAt:expiresAt});
+}
+function memberSavedRemove(id){
+ return memberSavedRequest('readwrite','delete',SUPPLY_CLUB_ID+':'+id);
+}
+function memberPreparedLogin(res,previous){
+ var p=res.member,account=p&&memberAccounts().find(function(a){return a.id===p.id;});
+ var reading=p&&p.passwordReady&&account&&account.remember&&res.memberAuthVersion>=3?memberSavedRead(p.id):Promise.resolve(null);
+ return reading.catch(function(){return null;}).then(function(saved){
+  if(MEMBER_AUTH.form!==previous||!sheet)return false;
+  res.remembered=saved&&saved.revision===p.revision?saved:null;res.rememberChecked=!!res.remembered;
+  if(p&&!p.passwordReady){memberRememberPreference(p.id,false);memberSavedRemove(p.id).catch(function(){});}
+  memberShowLogin(res);return true;
+ });
+}
+function memberSelectAccount(index){
+ var form=MEMBER_AUTH.form,a=form&&form.accounts&&form.accounts[index];
+ if(MEMBER_AUTH.busy||!form||!form.accountChoice||!a)return Promise.resolve(false);
+ MEMBER_AUTH.busy=true;var error=document.getElementById('member-login-error');if(error)error.textContent='회원정보를 확인하고 있습니다…';
+ return memberRpc('memberPrepare',{memberId:a.id,accountSelection:true}).then(function(res){
+  if(!res.member||res.member.id!==a.id)throw Error('선택한 회원정보를 확인하지 못했습니다. 새로운 계정으로 입력에서 이름을 확인하십시오.');
+  return memberPreparedLogin(res,form);
+ }).catch(function(e){if(MEMBER_AUTH.form===form){var target=document.getElementById('member-login-error');if(target)target.textContent=e.message;}return false;})
+  .finally(function(){MEMBER_AUTH.busy=false;});
+}
+function memberUseNewName(){
+ if(MEMBER_AUTH.busy)return;
+ memberShowLogin({memberAuthVersion:3,member:null,nameRequired:true});
+}
+function memberRememberToggle(enabled){
+ var form=MEMBER_AUTH.form;if(!form)return;
+ form.rememberChecked=enabled;
+ if(!enabled&&form.member){
+  var saved=form.remembered;form.remembered=null;
+  try{memberRememberPreference(form.member.id,false);}catch(e){var err=document.getElementById('member-login-error');if(err)err.textContent='저장 설정을 확인하지 못했습니다.';}
+  memberSavedRemove(form.member.id).catch(function(){});
+  if(saved)memberRpc('memberForgetRemember',{memberId:form.member.id,rememberSecret:saved.secret}).catch(function(){});
+  var pw=document.getElementById('member-login-password');if(pw&&pw.readOnly){pw.readOnly=false;pw.value='';pw.setAttribute('autocomplete','current-password');pw.focus();}
+ }
 }
 function memberCandidateHcp(c){
  var data=PORTAL_PREP.ready&&PORTAL_PREP.ready.latest;if(!data||!c.rosterMemberId)return '초기 핸디 '+c.hcpManual;
@@ -1830,57 +1916,77 @@ function memberCandidateHcp(c){
  return '핸디 '+Math.round(use.reduce(function(a,b){return a+b},0)/use.length);
 }
 function memberLoginMarkup(form,error){
- var p=form.member,choosing=!!form.chooseRequired,known=!!p||!!form.name,setup=!p||!p.passwordReady,name=p?p.name:(form.name||''),fresh=form.registration==='new';
- var title=choosing?'본인 회원 선택':(!known?'회원 이름 확인':(fresh?'새 회원 등록':(setup?(p?'비밀번호 다시 등록':'처음 비밀번호 설정'):'회원 로그인')));
+ var p=form.member,accounts=!!form.accountChoice,choosing=!!form.chooseRequired,known=!!p||!!form.name,
+  setup=!p||!p.passwordReady,name=p?p.name:(form.name||''),fresh=form.registration==='new',
+  supported=form.memberAuthVersion>=3&&!!window.indexedDB,remembered=!!(form.remembered&&form.rememberChecked);
+ var title=accounts?'이름 선택':choosing?'본인 회원 선택':(!known?'회원 이름 확인':(fresh?'새 회원 등록':(setup?(p?'비밀번호 다시 등록':'처음 비밀번호 설정'):'회원 로그인')));
  var body='';
- if(choosing){
-  body='<p class="note">'+esc(form.queryName)+' 이름으로 조회했습니다. 기존 회원이면 본인을 선택하십시오. 다른 사람이면 새 회원 등록을 선택하십시오.</p>'+
-   '<div id="member-login-choices">'+(form.candidates.length?form.candidates.map(function(c,i){
+ if(accounts){
+  body='<p class="note">이전에 로그인한 이름을 선택하십시오. 다른 이름으로 이용하려면 새로운 계정으로 입력을 누르십시오.</p>'+
+   '<div id="member-account-choices">'+form.accounts.map(function(a,i){return '<button class="btn sm line member-choice" data-member-account="'+i+'" onclick="memberSelectAccount('+i+')">'+esc(a.name)+'</button>';}).join('')+'</div>'+
+   '<button class="btn sm quiet" id="member-account-new" onclick="memberUseNewName()">새로운 계정으로 입력</button>'+
+   '<p id="member-login-error" class="note member-login-error" role="alert">'+esc(error||'')+'</p>';
+ }else if(choosing){
+  body='<p class="note">'+(form.candidates.length?'같은 이름이 있습니다. 본인이면 아래 이름을, 다른 사람이면 동명이인 추가를 누르십시오.':'같은 이름의 회원이 없습니다. 새 회원으로 등록하십시오.')+'</p>'+
+   '<div id="member-login-choices">'+form.candidates.map(function(c,i){
     return '<button class="btn sm line member-choice" data-member-choice="'+i+'" onclick="memberChoose('+i+')"><strong>'+esc(c.name)+
      (c.nick?' ('+esc(c.nick)+')':'')+'</strong><span class="note">'+esc(memberCandidateHcp(c))+' · '+
-     (c.passwordReady?'기존 비밀번호로 로그인':'선택 후 비밀번호 설정')+'</span></button>';
-   }).join(''):'<p class="note">같은 이름의 회원이 없습니다.</p>')+'</div>'+
-   '<div style="height:12px"></div><button class="btn sm quiet" id="member-login-new" onclick="memberChoose(-1)">새 회원 등록</button>'+
+     (c.passwordReady?'기존 비밀번호로 입장':'이 이름으로 비밀번호 설정')+'</span></button>';
+   }).join('')+'</div>'+
+   '<button class="btn sm quiet" id="member-login-new" onclick="memberChoose(-1)">'+(form.candidates.length?'동명이인 추가':'새 회원 등록')+'</button>'+
    '<p id="member-login-error" class="note member-login-error" role="alert">'+esc(error||'')+'</p>';
  }else{
   body=(known?'<p class="member-login-name">'+esc(name)+'</p><p class="note">'+
-   (fresh?'새 경기회원으로 등록합니다. 같은 이름이 있으면 구분된 등록 이름을 사용합니다.':
-    (setup?(p?'위원장이 초기화한 회원입니다. 사용할 새 비밀번호를 정하십시오.':'기존 경기회원입니다. 회원번호와 경기기록을 유지하고 비밀번호만 처음 설정합니다.'):
-    '이미 등록된 회원입니다. 기존 비밀번호로 로그인하십시오.'))+'</p>':
-   '<p class="note">본인의 이름을 먼저 확인한 뒤 기존 회원을 선택합니다. 다음부터는 이 기기에 이름이 자동으로 표시됩니다.</p>')+
+   (fresh?'이 이름으로 새 회원을 등록합니다. 비밀번호를 정하십시오.':
+    (setup?(p?'위원장이 초기화한 회원입니다. 사용할 새 비밀번호를 정하십시오.':'기존 경기회원입니다. 회원번호와 경기기록을 유지하고 비밀번호만 설정합니다.'):
+    remembered?'자동 로그인 정보가 준비되었습니다. 입장을 누르십시오.':'비밀번호를 입력하십시오.'))+'</p>':
+   '<p class="note">이름을 확인하면 기존 회원과 동명이인 추가를 선택할 수 있습니다. 다음부터는 로그인했던 이름을 선택할 수 있습니다.</p>')+
    '<form id="member-login-form" onsubmit="memberLoginSubmit(event)">'+
    (!known?'<label for="member-login-name">이름</label><input id="member-login-name" type="text" maxlength="40" autocomplete="name" required placeholder="본인의 이름">':
     (fresh?'<label for="member-login-nick">닉네임</label><input id="member-login-nick" type="text" maxlength="40" placeholder="스코어카드에 쓰는 이름 · 없으면 비워 두십시오">'+
      '<label for="member-login-hcp">첫 라운드 전 핸디</label><input id="member-login-hcp" type="number" step="1" inputmode="numeric" value="0" required>'+
-     '<p class="note">경기기록이 없는 동안 사용하는 핸디입니다. 기록이 쌓이면 기존 규칙으로 자동 계산합니다.</p>':'')+
-    '<label for="member-login-password">'+(setup?'비밀번호 설정':'비밀번호')+'</label><input id="member-login-password" type="password" autocomplete="'+(setup?'new-password':'current-password')+'" required>'+
-    (setup?'<label for="member-login-again">비밀번호 확인</label><input id="member-login-again" type="password" autocomplete="new-password" required>':''))+
+     '<p class="note">경기기록이 없는 동안 사용하는 핸디입니다.</p>':'')+
+    '<label for="member-login-password">'+(setup?'비밀번호 설정':'비밀번호')+'</label><input id="member-login-password" type="password" autocomplete="'+(remembered?'off':setup?'new-password':'current-password')+'"'+
+     (remembered?' value="********" readonly aria-label="저장된 자동 로그인 정보"':'')+' required>'+
+    (setup?'<label for="member-login-again">비밀번호 확인</label><input id="member-login-again" type="password" autocomplete="new-password" required>':'')+
+    (supported?'<label class="member-remember-option"><input type="checkbox" id="member-login-remember" onchange="memberRememberToggle(this.checked)"'+(form.rememberChecked?' checked':'')+'><span>자동 로그인 · 이 기기에서 비밀번호 입력 생략</span></label>'+
+     '<p class="note">선택한 이름으로 입장을 누르면 로그인합니다. 30일 뒤에는 비밀번호를 다시 확인합니다.</p>':''))+
    '<p id="member-login-error" class="note member-login-error" role="alert">'+esc(error||'')+'</p>'+
-   '<button class="btn sm" id="member-login-submit" type="submit">'+(!known?'이름 확인':(setup?'등록하고 입장':'로그인하고 입장'))+'</button></form>';
+   '<button class="btn sm" id="member-login-submit" type="submit">'+(!known?'이름 확인':setup?'등록하고 입장':'입장')+'</button></form>'+
+   (known&&memberAccounts().length?'<button class="btn sm line member-choice" id="member-account-change" onclick="memberLoginStart()">다른 이름 선택</button>':'');
  }
  return '<div class="sheet member-login-sheet"><div class="inner" role="dialog" aria-modal="true" aria-labelledby="member-login-title">'+
   '<h2 id="member-login-title" tabindex="-1">'+title+'</h2><p class="note">'+esc(portalClubName())+'</p>'+body+
-  '<p class="note">이름이 잘못되었거나 비밀번호를 잊었으면 경기위원장에게 접속 초기화를 요청하십시오.</p>'+
+  '<p class="note">비밀번호를 잊었으면 경기위원장에게 접속 초기화를 요청하십시오.</p>'+
   (nativePhoneReady()?'<button class="btn sm line" onclick="memberManageOpen()">회원 접속관리 · 경기위원장</button><div style="height:8px"></div>':'')+
   '<button class="btn sm quiet" onclick="memberLoginCancel()">돌아가기</button></div></div>';
 }
 function memberShowLogin(form,error){
  MEMBER_AUTH.form=form;sheet=memberLoginMarkup(form,error);render();
- setTimeout(function(){var input=document.getElementById(form.chooseRequired?'member-login-title':((form.member||form.name)?(form.registration==='new'?'member-login-nick':'member-login-password'):'member-login-name'));if(input)input.focus();},0);
+ setTimeout(function(){
+  if(MEMBER_AUTH.form!==form)return;
+  var id=form.accountChoice||form.chooseRequired?'member-login-title':(form.member||form.name)?(form.remembered?'member-login-submit':form.registration==='new'?'member-login-nick':'member-login-password'):'member-login-name';
+  var input=document.getElementById(id);if(input)input.focus();
+ },0);
 }
 function memberChoose(index){
  var form=MEMBER_AUTH.form;if(MEMBER_AUTH.busy||!form||!form.chooseRequired)return Promise.resolve(false);
  var c=index>=0?form.candidates[index]:null;if(index>=0&&!c)return Promise.resolve(false);
  MEMBER_AUTH.busy=true;var error=document.getElementById('member-login-error');if(error)error.textContent='회원정보를 확인하고 있습니다…';
- return memberRpc('memberPrepare',index<0?{name:form.queryName,newMember:true}:{name:form.queryName,selection:{memberId:c.memberId,rosterMemberId:c.rosterMemberId}}).then(function(res){
-  MEMBER_AUTH.busy=false;if(MEMBER_AUTH.form!==form||!sheet){if(MEMBER_AUTH.form===form)MEMBER_AUTH.form=null;return false;}memberShowLogin(res);return true;
- },function(e){MEMBER_AUTH.busy=false;if(MEMBER_AUTH.form===form){var target=document.getElementById('member-login-error');if(target)target.textContent=e.message;}return false;});
+ return memberRpc('memberPrepare',index<0?{name:form.queryName,newMember:true,accountSelection:true}:{name:form.queryName,selection:{memberId:c.memberId,rosterMemberId:c.rosterMemberId},accountSelection:true}).then(function(res){
+  return memberPreparedLogin(res,form);
+ }).catch(function(e){if(MEMBER_AUTH.form===form){var target=document.getElementById('member-login-error');if(target)target.textContent=e.message;}return false;})
+  .finally(function(){MEMBER_AUTH.busy=false;});
 }
 function memberLoginStart(){
  if(MEMBER_AUTH.busy)return Promise.resolve(false);
+ var rows=memberAccounts();
+ if(rows.length){memberShowLogin({accountChoice:true,accounts:rows});return Promise.resolve(true);}
  MEMBER_AUTH.busy=true;PORTAL_ENTER_BUSY=true;render();
- return memberRpc('memberPrepare',{memberId:L.memberIdentity&&L.memberIdentity.id||''}).then(function(res){
-  MEMBER_AUTH.busy=false;PORTAL_ENTER_BUSY=false;memberShowLogin(res);return true;
+ return memberRpc('memberPrepare',{}).then(function(res){
+  MEMBER_AUTH.busy=false;PORTAL_ENTER_BUSY=false;
+  if(res.member){memberRemember(res.member);memberShowLogin({accountChoice:true,accounts:memberAccounts()});}
+  else memberShowLogin(res);return true;
  },function(e){MEMBER_AUTH.busy=false;PORTAL_ENTER_BUSY=false;render();toast(e.message);return false;});
 }
 function memberLoginCancel(){
@@ -1898,49 +2004,68 @@ function memberDerive(password,prepared){
 }
 function memberLoginSubmit(ev){
  if(ev)ev.preventDefault();if(MEMBER_AUTH.busy||!MEMBER_AUTH.form)return Promise.resolve(false);
- var form=MEMBER_AUTH.form;if(form.chooseRequired)return Promise.resolve(false);
+ var form=MEMBER_AUTH.form;if(form.chooseRequired||form.accountChoice)return Promise.resolve(false);
  var p=form.member,nameOnly=!p&&!form.name,
   name=p?p.name:(form.name||document.getElementById('member-login-name').value.trim()),
   pw=document.getElementById('member-login-password'),again=document.getElementById('member-login-again'),password=pw?pw.value:'',
-  err=document.getElementById('member-login-error'),button=document.getElementById('member-login-submit'),loginForm=document.getElementById('member-login-form');
+  err=document.getElementById('member-login-error'),button=document.getElementById('member-login-submit'),loginForm=document.getElementById('member-login-form'),
+  check=document.getElementById('member-login-remember'),remember=!!(check&&check.checked),saved=remember&&form.remembered&&pw&&pw.readOnly?form.remembered:null;
  if(!name||name.length>40){err.textContent='본인의 이름을 1~40글자로 입력하십시오.';return Promise.resolve(false);}
- if(!nameOnly&&!password){err.textContent='비밀번호를 입력하십시오.';return Promise.resolve(false);}
- if(!nameOnly&&password.trim()!==password){err.textContent='비밀번호의 앞뒤 공백을 제거하십시오.';return Promise.resolve(false);}
+ if(!nameOnly&&!saved&&!password){err.textContent='비밀번호를 입력하십시오.';return Promise.resolve(false);}
+ if(!nameOnly&&!saved&&password.trim()!==password){err.textContent='비밀번호의 앞뒤 공백을 제거하십시오.';return Promise.resolve(false);}
  if(form.registration==='new'){var h=document.getElementById('member-login-hcp');if(!h||h.value.trim()===''||!Number.isSafeInteger(Number(h.value))){err.textContent='첫 라운드 전 핸디를 정수로 입력하십시오.';return Promise.resolve(false);}}
  if(again&&password!==again.value){err.textContent='비밀번호 확인이 일치하지 않습니다.';return Promise.resolve(false);}
  MEMBER_AUTH.busy=true;button.disabled=true;button.textContent='확인하고 있습니다…';err.textContent='';
- // 먼저 이름에 해당하는 기존 회원번호와 소금값을 확인합니다. 비밀번호는 요청 본문에 넣지 않습니다.
- return (nameOnly?memberRpc('memberPrepare',{name:name}):Promise.resolve(form)).then(function(prepared){
+ var rememberSecret=saved?saved.secret:remember?(form.pendingRememberSecret||(form.pendingRememberSecret='gmr_'+memberRandom()+memberRandom())):'',storageWarning='';
+ return (nameOnly?memberRpc('memberPrepare',{name:name,accountSelection:true}):Promise.resolve(form)).then(function(prepared){
   if(nameOnly){
    MEMBER_AUTH.busy=false;
-   if(!loginForm.isConnected||MEMBER_AUTH.form!==form){if(MEMBER_AUTH.form===form)MEMBER_AUTH.form=null;return null;}
+   if(!loginForm.isConnected||MEMBER_AUTH.form!==form)return null;
    memberShowLogin(prepared);return null;
   }
+  if(saved)return memberRpc('memberResume',{memberId:p.id,rememberSecret:rememberSecret});
   var registration={registration:prepared.registration||'',selection:prepared.selection||null,requestedName:prepared.queryName||name};
   if(prepared.registration==='new'){registration.nick=document.getElementById('member-login-nick').value.trim();registration.hcpManual=Number(document.getElementById('member-login-hcp').value);}
   return memberDerive(password,prepared).then(function(proof){
    if(!loginForm.isConnected||MEMBER_AUTH.form!==form){var cancelled=Error('회원 로그인을 취소했습니다.');cancelled.memberCancelled=true;throw cancelled;}
    password='';if(pw)pw.value='';if(again)again.value='';
    return memberRpc('memberAuthenticate',{memberId:prepared.member?prepared.member.id:'',name:prepared.name,
-    salt:prepared.salt,iterations:prepared.iterations,revision:prepared.revision,proof:proof,...registration});
+    salt:prepared.salt,iterations:prepared.iterations,revision:prepared.revision,proof:proof,accountSelection:true,
+    rememberLogin:remember,rememberSecret:rememberSecret,...registration});
   });
  }).then(function(res){
-  if(res===null)return false;
-  if(!loginForm.isConnected||MEMBER_AUTH.form!==form){MEMBER_AUTH.busy=false;MEMBER_AUTH.form=null;return false;}
-  memberRemember(res.member);MEMBER_AUTH.session=res.memberSession;MEMBER_AUTH.expiresAt=res.expiresAt;MEMBER_AUTH.profile=res.member;
+  if(res===null)return null;
+  if(!loginForm.isConnected||MEMBER_AUTH.form!==form)return null;
+  var writing=remember&&res.rememberedUntil?memberSavedWrite(res.member,rememberSecret,res.rememberedUntil):memberSavedRemove(res.member.id).catch(function(){});
+  return writing.then(function(){return {res:res,remember:!!(remember&&res.rememberedUntil)};},function(){
+   storageWarning='로그인은 완료했지만 자동 로그인 정보를 저장하지 못했습니다. 다음에는 비밀번호를 입력하십시오.';
+   memberRpc('memberForgetRemember',{memberId:res.member.id,rememberSecret:rememberSecret}).catch(function(){});
+   return {res:res,remember:false};
+  });
+ }).then(function(completed){
+  if(!completed){MEMBER_AUTH.busy=false;if(!sheet)MEMBER_AUTH.form=null;return false;}
+  if(!loginForm.isConnected||MEMBER_AUTH.form!==form){MEMBER_AUTH.busy=false;return false;}
+  var res=completed.res;
+  memberRemember(res.member,completed.remember);MEMBER_AUTH.session=res.memberSession;MEMBER_AUTH.expiresAt=res.expiresAt;MEMBER_AUTH.profile=res.member;
   var available=PORTAL_PREP.ready&&PORTAL_PREP.ready.latest||S;
   var rosterMissing=res.member.rosterMemberId&&!available.members.some(function(m){return String(m.id)===res.member.rosterMemberId;});
   MEMBER_AUTH.rosterRefresh=!!(res.rosterChanged||rosterMissing);
   if(MEMBER_AUTH.rosterRefresh)recordInvalidate(false);
-  MEMBER_AUTH.busy=false;MEMBER_AUTH.form=null;sheet=null;chairAutoAuth();portalEnterVerified();return true;
+  NAV_HIST=[];MEMBER_AUTH.busy=false;MEMBER_AUTH.form=null;sheet=null;chairAutoAuth();portalEnterVerified();
+  if(storageWarning)toast(storageWarning);return true;
  }).catch(function(e){
-  password='';if(pw)pw.value='';if(again)again.value='';MEMBER_AUTH.busy=false;
-  if(e.memberCancelled||!loginForm.isConnected||MEMBER_AUTH.form!==form){MEMBER_AUTH.form=null;return false;}
+  password='';if(pw&&!saved)pw.value='';if(again)again.value='';MEMBER_AUTH.busy=false;
+  if(e.memberCancelled||!loginForm.isConnected||MEMBER_AUTH.form!==form){if(MEMBER_AUTH.form===form)MEMBER_AUTH.form=null;return false;}
+  if(e.memberCode==='MEMBER_REMEMBERED'){
+   form.remembered=null;form.rememberChecked=false;
+   try{memberRememberPreference(p.id,false);}catch(ignore){}
+   memberSavedRemove(p.id).catch(function(){});memberShowLogin(form,'자동 로그인 정보가 만료되거나 초기화되었습니다. 비밀번호로 입장하십시오.');return false;
+  }
   if(e.memberCode==='MEMBER_STALE'||e.memberCode==='MEMBER_BOUND'){
    return memberLoginStart().then(function(){var target=document.getElementById('member-login-error');if(target)target.textContent=e.message;return false;});
   }
   var target=document.getElementById('member-login-error');if(target)target.textContent=e.message;
-  if(button&&button.isConnected){button.disabled=false;button.textContent=nameOnly?'이름 확인':(p&&p.passwordReady?'로그인하고 입장':'등록하고 입장');}
+  if(button&&button.isConnected){button.disabled=false;button.textContent=nameOnly?'이름 확인':(p&&p.passwordReady?'입장':'등록하고 입장');}
   return false;
  });
 }
@@ -1954,8 +2079,8 @@ function portalEnter(){
 }
 function memberLogout(){
  if(MEMBER_AUTH.busy)return;
- if(L.dirty&&!confirm('서버에 올리지 않은 수정사항은 이 기기에 보관됩니다. 로그아웃하시겠습니까?'))return;
- memberClearSession();forgetHostSession();L.mode='member';save(false);sheet=null;PORTAL_OPEN=true;render();toast('로그아웃했습니다. 이 기기의 회원 연결은 유지됩니다.');
+ if(!confirm('로그아웃할까요?'+(L.dirty?'\n서버에 올리지 않은 수정사항은 이 기기에 보관됩니다.':'')))return;
+ memberClearSession();forgetHostSession();L.mode='member';NAV_HIST=[];MEMBER_AUTH.form=null;save(false);sheet=null;PORTAL_OPEN=true;view={name:'home'};render();toast('로그아웃했습니다. 다음에는 저장된 이름을 선택해 입장하십시오.');
 }
 function memberSettingsMarkup(){
  var p=MEMBER_AUTH.profile||L.memberIdentity;
@@ -4331,11 +4456,22 @@ render();
 /* H1.9.25 뒤로가기 받기 */
 try{history.replaceState({wgk:0},"")}catch(e){}
 window.addEventListener("popstate",function(){
- if(sheet){sheet=null;payEdit=null;render();
+ if(sheet){sheet=null;payEdit=null;MEMBER_AUTH.form=null;render();
   try{history.pushState({wgk:NAV_HIST.length},"")}catch(e){}
   return}
- if(navBack())return;
- /* 더 돌아갈 곳이 없으면 모임 선택 화면으로 */
+ if(navBack()){
+  if(memberActive()){
+   if(PORTAL_OPEN){PORTAL_OPEN=false;view={name:"home"};render();}
+   try{history.pushState({wgk:NAV_HIST.length},"")}catch(e){}
+  }
+  return;
+ }
+ if(memberActive()){
+  PORTAL_OPEN=false;view={name:"home"};render();
+  try{history.pushState({wgk:0},"")}catch(e){}
+  return;
+ }
+ /* 로그아웃 상태에서는 모임 선택 화면으로 돌아갑니다. */
  if(!PORTAL_OPEN){PORTAL_OPEN=true;render();
   try{history.pushState({wgk:0},"")}catch(e){}}
 });
