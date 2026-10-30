@@ -557,7 +557,7 @@ function workRun(label,operation){
  return Promise.resolve(result).then(function(value){workEnd(id);return value;},function(error){workEnd(id);throw error;});
 }
 /* H1.9.48 처리 중 표시 끝 */
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.50";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.51";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -594,10 +594,7 @@ var SUPPLY_CLUB_NAME=SUPPLY_CLUB_ID?((SUPPLY_PARAMS.get("name")||"").slice(0,60)
  :APP_NAME;
 function supplyGoClub(id){
  if(!SUPPLY_SLUG_RE.test(id))return;
- // Leave local edits untouched; warn before switching the active club.
- if(L&&L.dirty&&SUPPLY_CLUB_ID&&id!==SUPPLY_CLUB_ID&&
-    !confirm("이 모임에는 아직 서버에 올리지 않은 수정사항이 있습니다. 기록은 이 기기에 보관되지만, 모임을 바꾸기 전에 올리기를 권합니다. 다른 모임으로 이동할까요?"))return;
- location.href=location.pathname+"?club="+encodeURIComponent(id);
+ portalNavigate(location.pathname+"?club="+encodeURIComponent(id));
 }
 /* H1.9.7: club provisioning is not yet enabled in this member-only server.
    Show an honest entry point until the separate administration module exists. */
@@ -605,7 +602,7 @@ function portalNewClub(){
  var url=String(window.GOLF_APPLICATION_PUBLIC_URL||"").trim();
  if(url.slice(0,8).toLowerCase()==="https://"&&!/[\s<>"']/.test(url)){
   // 공개 신청 전용 주소입니다. 기존 회원용 서버 주소와 회원키를 넣지 않습니다.
-  location.href=url;return;
+  portalNavigate(url);return;
  }
  sheet='<div class="sheet"><div class="inner" role="dialog" aria-label="모임 신청 안내">'+
   '<h2 style="margin:0 0 9px;font-size:18px">모임 만들기</h2>'+
@@ -749,9 +746,10 @@ function navPush(){
   if(NAV_HIST.length>60)NAV_HIST.shift();
   history.pushState({wgk:NAV_HIST.length},"")}catch(e){}}
 function navBack(){
- var s=NAV_HIST.pop();
+ var s=NAV_HIST[NAV_HIST.length-1];
  if(!s)return false;
- sheet=null;payEdit=null;
+ if(s.portal&&!PORTAL_OPEN&&MEMBER_AUTH.session){portalReturn();return true;}
+ NAV_HIST.pop();sheet=null;payEdit=null;
  PORTAL_OPEN=s.portal;
  view={name:s.name,rid:s.rid,hole:s.hole,scanNew:s.scanNew,upto:s.upto};
  render();window.scrollTo(0,0);
@@ -1601,22 +1599,37 @@ function portalClubName(){
  return SUPPLY_CLUB_NAME;
 }
 function portalReturn(){
- if(view.name==="play")recordTime();
+ if(MEMBER_AUTH.busy||PORTAL_ENTER_BUSY){toast('진행 중인 회원 처리가 끝난 뒤 이동하십시오.');return;}
  function showPortal(){
-  sheet=null;PORTAL_OPEN=true;view={name:"home"};
+  if(view.name==="play")recordTime();
+  NAV_HIST=[];sheet=null;PORTAL_OPEN=true;view={name:"home"};
   setDocTitle(APP_NAME);render();window.scrollTo(0,0);
  }
- if(L&&L.dirty){
-  ask("서버에 올리지 않은 수정사항이 있습니다. 포털로 돌아가도 이 기기의 기록은 보존됩니다. 다른 모임으로 이동하기 전에 서버에 올리는 것을 권합니다. 포털로 돌아가시겠습니까?",showPortal,"포털로 이동");
-  return;
+ var signed=memberActive(),expired=!!MEMBER_AUTH.session&&!signed;
+ if(signed||expired||L&&L.dirty){
+  var message=signed?'시작 화면으로 돌아가도 현재 모임의 로그인은 유지됩니다.\n모임 목록이나 다른 모임으로 이동할 때는 로그아웃 여부를 다시 확인합니다.':
+   expired?'로그인 유효시간이 지났습니다. 시작 화면에서 다시 입장하십시오.':'시작 화면으로 돌아가시겠습니까?';
+  if(L&&L.dirty)message+='\n서버에 올리지 않은 수정사항은 이 기기에 보관됩니다. 다른 모임으로 이동하기 전에 서버에 올리는 것을 권합니다.';
+  ask(message,showPortal,signed?'로그인 유지하고 돌아가기':'시작 화면으로 이동');return;
  }
  showPortal();
 }
-function portalChooseClub(){
- if(L&&L.dirty&&
-  !confirm("아직 서버에 올리지 않은 수정사항이 있습니다. 기록은 이 기기에 보관됩니다. 다른 모임 선택 화면으로 이동할까요?"))return;
- location.href=location.pathname;
+/* H1.9.51: 전체 화면 이동으로 세션이 사라지기 전에 앱 안에서 확인합니다. */
+function portalNavigate(url){
+ if(MEMBER_AUTH.busy||PORTAL_ENTER_BUSY){toast('진행 중인 회원 처리가 끝난 뒤 이동하십시오.');return;}
+ var signed=!!MEMBER_AUTH.session||hostSessionActive(),dirty=!!(L&&L.dirty);
+ function leave(){
+  memberClearSession();forgetHostSession();if(L){L.mode='member';save(false);}
+  NAV_HIST=[];MEMBER_AUTH.form=null;location.href=url;
+ }
+ if(signed||dirty){
+  var message=signed?'이 화면을 나가면 현재 모임에서 로그아웃됩니다.\n다시 입장할 때는 저장된 이름을 선택하십시오.':'다른 화면으로 이동하시겠습니까?';
+  if(dirty)message+='\n서버에 올리지 않은 수정사항은 이 기기에 보관됩니다. 모임을 바꾸기 전에 서버에 올리는 것을 권합니다.';
+  ask(message,leave,signed?'로그아웃하고 이동':'이동');return;
+ }
+ leave();
 }
+function portalChooseClub(){portalNavigate(location.pathname);}
 /* H1.9.14: begin the exact START RPC while the visitor reads portal notices.
    A single pending promise is reused. Member login still verifies access online;
    saved records may then display while the same conditional check finishes. */
@@ -2396,6 +2409,7 @@ function scrPortal(){
    '<button class="btn sm quiet" onclick="portalNewClub()">모임 만들기</button></div></div>');
  var main=selected?
   ('<div class="card"><div class="portal-club-identity"><div class="portal-club-caption">선택한 모임</div><h2 class="portal-club-name">'+esc(portalClubName())+'</h2></div>'+
+   (memberActive()?'<p class="note" role="status">'+esc(MEMBER_AUTH.profile.name)+'님 로그인 유지 중 · START로 모임에 돌아갑니다.</p>':'')+
    '<div class="portal-entry-row"><button class="btn sm portal-start" onclick="portalEnter()"'+
    (PORTAL_ENTER_BUSY?' disabled':'')+'>'+(PORTAL_ENTER_BUSY?'인증 확인 중…':'<span class="portal-go-lamp" aria-hidden="true"></span>START')+'</button>'+
    portalInstallControl()+'</div>'+portalPrepStatus()+portalNativeOpenControl()+
@@ -4545,18 +4559,17 @@ render();
 /* H1.9.25 뒤로가기 받기 */
 try{history.replaceState({wgk:0},"")}catch(e){}
 window.addEventListener("popstate",function(){
- if(sheet){sheet=null;payEdit=null;MEMBER_AUTH.form=null;render();
+ if(sheet){sheet=null;payEdit=null;askCb=null;MEMBER_AUTH.form=null;render();
   try{history.pushState({wgk:NAV_HIST.length},"")}catch(e){}
   return}
  if(navBack()){
   if(memberActive()){
-   if(PORTAL_OPEN){PORTAL_OPEN=false;view={name:"home"};render();}
    try{history.pushState({wgk:NAV_HIST.length},"")}catch(e){}
   }
   return;
  }
- if(memberActive()){
-  PORTAL_OPEN=false;view={name:"home"};render();
+ if(MEMBER_AUTH.session){
+  if(!PORTAL_OPEN)portalReturn();
   try{history.pushState({wgk:0},"")}catch(e){}
   return;
  }
