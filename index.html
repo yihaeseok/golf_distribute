@@ -557,7 +557,7 @@ function workRun(label,operation){
  return Promise.resolve(result).then(function(value){workEnd(id);return value;},function(error){workEnd(id);throw error;});
 }
 /* H1.9.48 처리 중 표시 끝 */
-var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.49";
+var APP_NAME="우리끼리 골프챌린지", APP_VER="1.9.50";
 /* 공급본 공통 HTML: 아래 URL은 서버 웹앱 배포 후 한 번만 설정합니다. */
 var SUPPLY_PARAMS=new URLSearchParams(window.location.search);
 var SUPPLY_SLUG_RE=/^[a-z][a-z0-9-]{2,59}$/;
@@ -2159,13 +2159,17 @@ function portalEnter(){
  if(!SUPPLY_CLUB_ID){toast('먼저 내 모임을 선택하십시오.');return;}
  if(!L||!cloudOn()||!L.cloudReadKey){toast('경기위원장에게 받은 모임 초대주소로 접속하십시오.');return;}
  if(!portalNoticeAccepted()){portalShowNotice();return;}
- if(!memberActive()){memberClearSession();return memberLoginStart();}
+ if(!memberActive()){
+  var expired=!!MEMBER_AUTH.session;memberClearSession();
+  if(expired)alert('로그인 유효시간이 지나 로그아웃되었습니다.\n저장된 이름을 선택해 다시 입장하십시오.');
+  return memberLoginStart();
+ }
  return portalEnterVerified();
 }
 function memberLogout(){
  if(MEMBER_AUTH.busy)return;
  if(!confirm('로그아웃할까요?'+(L.dirty?'\n서버에 올리지 않은 수정사항은 이 기기에 보관됩니다.':'')))return;
- memberClearSession();forgetHostSession();L.mode='member';NAV_HIST=[];MEMBER_AUTH.form=null;save(false);sheet=null;PORTAL_OPEN=true;view={name:'home'};render();toast('로그아웃했습니다. 다음에는 저장된 이름을 선택해 입장하십시오.');
+ memberClearSession();forgetHostSession();L.mode='member';NAV_HIST=[];MEMBER_AUTH.form=null;save(false);sheet=null;PORTAL_OPEN=true;view={name:'home'};render();alert('로그아웃했습니다.\n다음에는 저장된 이름을 선택해 입장하십시오.');
 }
 function memberSettingsMarkup(){
  var p=MEMBER_AUTH.profile||L.memberIdentity;
